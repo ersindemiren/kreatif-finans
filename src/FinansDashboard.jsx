@@ -45,6 +45,13 @@ const aksiyonlar = [
 /* ------------------------------------------------------------------ */
 const fmtTL = (n) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n || 0);
 const fmtM = (n) => ((n || 0) / 1000000).toFixed(2).replace('.', ',') + ' M';
+const fmtCompact = (n) => {
+  const v = n || 0;
+  const abs = Math.abs(v);
+  if (abs >= 1000000) return (v / 1000000).toFixed(1).replace('.', ',') + 'M';
+  if (abs >= 1000) return Math.round(v / 1000) + 'K';
+  return fmtTL(v);
+};
 const pct = (n) => (Number.isFinite(n) ? (n * 100).toFixed(1).replace('.', ',') : '0,0') + '%';
 
 function TrendBadge({ value, suffix = '' }) {
@@ -111,6 +118,8 @@ function NavItem({ icon: Icon, label, active, onClick }) {
 export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme, onRefresh, refreshing }) {
   const [page, setPage] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState('Toplam');
+  const [gelirGorunum, setGelirGorunum] = useState('güncel');
+  const [giderGorunum, setGiderGorunum] = useState('güncel');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashCurrency, setDashCurrency] = useState('TL');
 
@@ -118,6 +127,14 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
   // "Güncel" / "Tahmini" — FEE 2026 YENİ > DASH 26 sekmesi V sütunundan gelir
   const getAyDurumu = (monthName) => ayDurumu?.[months.indexOf(monthName)] ?? null;
+
+  // Ay pili renkleri: güncel = aktif soft yeşil, tahmini = pasif soft kırmızı
+  const monthPillClass = (monthName, active) => {
+    const durum = getAyDurumu(monthName);
+    if (durum === 'güncel') return active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+    if (durum === 'tahmini') return active ? 'bg-rose-300 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100';
+    return active ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100';
+  };
 
   // Ay bazlı, sıfır olmayan gider kalemleri
   const expenseRaw = useMemo(() => {
@@ -223,10 +240,16 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   // Sheet'teki V sütunundan gelen "Güncel/Tahmini" işaretine göre kesinleşmiş aylar
   const confirmedCount = (ayDurumu || []).filter((d) => d === 'güncel').length;
   const confirmedCiro = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? ciro[i] : 0), 0);
+  const tahminiCiroToplam = totals.totalCiro - confirmedCiro;
+  const guncelAylar = months.filter((_, i) => ayDurumu?.[i] === 'güncel');
+  const tahminiAylar = months.filter((_, i) => ayDurumu?.[i] === 'tahmini');
+  const guncelRangeLabel = guncelAylar.length ? `${guncelAylar[0]}-${guncelAylar[guncelAylar.length - 1]}` : '';
   const confirmedGider = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? gider[i] : 0), 0);
   const confirmedKar = confirmedCiro - confirmedGider;
   const confirmedKarMarji = confirmedCiro ? confirmedKar / confirmedCiro : 0;
   const confirmedGiderOrani = confirmedCiro ? confirmedGider / confirmedCiro : 0;
+  const tahminiGiderToplam = totals.totalGider - confirmedGider;
+  const itemAmountForMonths = (vals, monthNames) => monthNames.reduce((s, m) => s + vals[months.indexOf(m)], 0);
 
   // 2025'in aylık kırılımı olmadığı için, kesinleşmiş ay sayısına göre orantılı (n/12) baz alınır
   const prorate2025 = (val) => (confirmedCount / 12) * (val || 0);
@@ -443,34 +466,62 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   <button
                     key={m}
                     onClick={() => setSelectedMonth(m)}
-                    className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      selectedMonth === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
-                    }`}
+                    className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${monthPillClass(m, selectedMonth === m)}`}
                   >
                     {m}
-                    {getAyDurumu(m) === 'tahmini' && <span className="ml-1 text-[10px] opacity-60">•</span>}
                   </button>
                 ))}
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <span className="text-sm text-slate-500">{selectedMonth === 'Toplam' ? 'Yıl Toplam Gider' : selectedMonth + ' Toplam Gider'}</span>
-                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">
-                    ₺{fmtTL(selectedMonth === 'Toplam' ? totals.totalGider : gider[months.indexOf(selectedMonth)])}
+              {selectedMonth === 'Toplam' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                    <span className="text-sm text-slate-500">Güncel Toplam Gider {guncelRangeLabel && `(${guncelRangeLabel})`}</span>
+                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(confirmedGider)}</div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                    <span className="text-sm text-slate-500">Toplam Gider (Ocak-Aralık)</span>
+                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(totals.totalGider)}</div>
                   </div>
                 </div>
-                {selectedMonth !== 'Toplam' && getAyDurumu(selectedMonth) === 'tahmini' && (
-                  <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini</span>
-                )}
-                {selectedMonth !== 'Toplam' && getAyDurumu(selectedMonth) === 'güncel' && (
-                  <span className="bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full px-3 py-1.5">Güncel</span>
-                )}
-              </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <span className="text-sm text-slate-500">{selectedMonth} Toplam Gider</span>
+                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(gider[months.indexOf(selectedMonth)])}</div>
+                  </div>
+                  {getAyDurumu(selectedMonth) === 'tahmini' && (
+                    <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini</span>
+                  )}
+                  {getAyDurumu(selectedMonth) === 'güncel' && (
+                    <span className="bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full px-3 py-1.5">Güncel</span>
+                  )}
+                </div>
+              )}
 
               <div className="bg-white rounded-2xl border border-slate-200 p-5">
                 <h2 className="font-serif text-lg text-slate-900 mb-1">Gider Kalemi Dağılımı</h2>
-                <p className="text-xs text-slate-500 mb-4">{expenseItemDefs.length} gider kalemi, büyükten küçüğe sıralanmıştır.</p>
+                {selectedMonth === 'Toplam' ? (
+                  <div className="flex gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit mb-4 mt-3">
+                    {[
+                      { key: 'toplam', label: 'Toplam' },
+                      { key: 'güncel', label: 'Güncel' },
+                      { key: 'tahmini', label: 'Tahmini' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setGiderGorunum(opt.key)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          giderGorunum === opt.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 mb-4">{expenseItemDefs.length} gider kalemi, büyükten küçüğe sıralanmıştır.</p>
+                )}
                 <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400">
                   <span className="w-5 shrink-0" />
                   <span className="flex-1">Kalem</span>
@@ -480,9 +531,27 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
                 <div className="flex flex-col">
                   {(() => {
-                    const rows = monthByExpense(selectedMonth);
-                    const periodTotalGider = selectedMonth === 'Toplam' ? totals.totalGider : gider[months.indexOf(selectedMonth)];
-                    const periodTotalCiro = selectedMonth === 'Toplam' ? totals.totalCiro : ciro[months.indexOf(selectedMonth)];
+                    let rows, periodTotalGider, periodTotalCiro;
+                    if (selectedMonth === 'Toplam') {
+                      if (giderGorunum === 'güncel') {
+                        rows = expenseItemDefs.map(([name, vals]) => ({ name, amount: itemAmountForMonths(vals, guncelAylar) })).filter((r) => r.amount !== 0);
+                        periodTotalGider = confirmedGider;
+                        periodTotalCiro = confirmedCiro;
+                      } else if (giderGorunum === 'tahmini') {
+                        rows = expenseItemDefs.map(([name, vals]) => ({ name, amount: itemAmountForMonths(vals, tahminiAylar) })).filter((r) => r.amount !== 0);
+                        periodTotalGider = tahminiGiderToplam;
+                        periodTotalCiro = tahminiCiroToplam;
+                      } else {
+                        rows = monthByExpense('Toplam');
+                        periodTotalGider = totals.totalGider;
+                        periodTotalCiro = totals.totalCiro;
+                      }
+                      rows.sort((a, b) => b.amount - a.amount);
+                    } else {
+                      rows = monthByExpense(selectedMonth);
+                      periodTotalGider = gider[months.indexOf(selectedMonth)];
+                      periodTotalCiro = ciro[months.indexOf(selectedMonth)];
+                    }
                     const rowsTotal = rows.reduce((s, r) => s + r.amount, 0);
                     return (
                       <>
@@ -490,16 +559,16 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                           <div key={k.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50">
                             <span className="text-xs text-slate-400 w-5 tabular-nums shrink-0">{i + 1}</span>
                             <span className="text-sm text-slate-700 flex-1 min-w-0">{k.name}</span>
-                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(k.amount / periodTotalGider)}</span>
-                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(k.amount / periodTotalCiro)}</span>
+                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? k.amount / periodTotalGider : 0)}</span>
+                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? k.amount / periodTotalCiro : 0)}</span>
                             <span className="text-sm tabular-nums text-slate-900 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(k.amount)}</span>
                           </div>
                         ))}
                         <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200">
                           <span className="w-5 shrink-0" />
                           <span className="text-sm text-slate-900 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(rowsTotal / periodTotalGider)}</span>
-                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(rowsTotal / periodTotalCiro)}</span>
+                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? rowsTotal / periodTotalGider : 0)}</span>
+                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
                           <span className="text-sm tabular-nums text-slate-900 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
                         </div>
                       </>
@@ -563,38 +632,62 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   <button
                     key={m}
                     onClick={() => setSelectedMonth(m)}
-                    className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      selectedMonth === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
-                    }`}
+                    className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${monthPillClass(m, selectedMonth === m)}`}
                   >
                     {m}
-                    {getAyDurumu(m) === 'tahmini' && <span className="ml-1 text-[10px] opacity-60">•</span>}
                   </button>
                 ))}
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between">
-                <div>
-                  <span className="text-sm text-slate-500">{selectedMonth === 'Toplam' ? 'Yıl Toplam Ciro' : selectedMonth + ' Toplam Ciro'}</span>
-                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">
-                    ₺{fmtTL(selectedMonth === 'Toplam' ? totals.totalCiro : ciro[months.indexOf(selectedMonth)])}
+              {selectedMonth === 'Toplam' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                    <span className="text-sm text-slate-500">Güncel Toplam Ciro {guncelRangeLabel && `(${guncelRangeLabel})`}</span>
+                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(confirmedCiro)}</div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                    <span className="text-sm text-slate-500">Tahmini Toplam Ciro (Ocak-Aralık)</span>
+                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(totals.totalCiro)}</div>
                   </div>
                 </div>
-                {selectedMonth !== 'Toplam' && getAyDurumu(selectedMonth) === 'tahmini' && (
-                  <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini</span>
-                )}
-                {selectedMonth !== 'Toplam' && getAyDurumu(selectedMonth) === 'güncel' && (
-                  <span className="bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full px-3 py-1.5">Güncel</span>
-                )}
-              </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-slate-500">{selectedMonth} Toplam Ciro</span>
+                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(ciro[months.indexOf(selectedMonth)])}</div>
+                  </div>
+                  {getAyDurumu(selectedMonth) === 'tahmini' && (
+                    <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini</span>
+                  )}
+                  {getAyDurumu(selectedMonth) === 'güncel' && (
+                    <span className="bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full px-3 py-1.5">Güncel</span>
+                  )}
+                </div>
+              )}
 
               <div className="bg-white rounded-2xl border border-slate-200 p-5">
                 <h2 className="font-serif text-lg text-slate-900 mb-1">Marka Bazlı Gelir Dağılımı</h2>
-                <p className="text-xs text-slate-500 mb-4">
-                  {selectedMonth === 'Toplam'
-                    ? 'Ocak-Aralık tüm markaların toplam geliri, sabit gelir + fee faturası + proje bazlı gelir birleştirilmiştir.'
-                    : 'Sabit gelir, fee faturası ve proje bazlı gelirlerin toplamı, markaya göre birleştirilmiştir.'}
-                </p>
+                {selectedMonth === 'Toplam' ? (
+                  <div className="flex gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit mb-4 mt-3">
+                    {[
+                      { key: 'toplam', label: 'Toplam' },
+                      { key: 'güncel', label: 'Güncel' },
+                      { key: 'tahmini', label: 'Tahmini' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setGelirGorunum(opt.key)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          gelirGorunum === opt.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 mb-4">Sabit gelir, fee faturası ve proje bazlı gelirlerin toplamı, markaya göre birleştirilmiştir.</p>
+                )}
                 <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400">
                   <span className="w-5 shrink-0" />
                   <span className="flex-1">Marka</span>
@@ -603,8 +696,23 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
                 <div className="flex flex-col">
                   {(() => {
-                    const rows = selectedMonth === 'Toplam' ? customerPivot.map((c) => ({ name: c.name, amount: c.total })) : monthByBrand(selectedMonth);
-                    const periodTotalCiro = selectedMonth === 'Toplam' ? totals.totalCiro : ciro[months.indexOf(selectedMonth)];
+                    let rows, periodTotalCiro;
+                    if (selectedMonth === 'Toplam') {
+                      if (gelirGorunum === 'güncel') {
+                        rows = customerPivot.map((c) => ({ name: c.name, amount: guncelAylar.reduce((s, m) => s + (c.byMonth[m] || 0), 0) })).filter((r) => r.amount > 0);
+                        periodTotalCiro = confirmedCiro;
+                      } else if (gelirGorunum === 'tahmini') {
+                        rows = customerPivot.map((c) => ({ name: c.name, amount: tahminiAylar.reduce((s, m) => s + (c.byMonth[m] || 0), 0) })).filter((r) => r.amount > 0);
+                        periodTotalCiro = tahminiCiroToplam;
+                      } else {
+                        rows = customerPivot.map((c) => ({ name: c.name, amount: c.total }));
+                        periodTotalCiro = totals.totalCiro;
+                      }
+                      rows.sort((a, b) => b.amount - a.amount);
+                    } else {
+                      rows = monthByBrand(selectedMonth);
+                      periodTotalCiro = ciro[months.indexOf(selectedMonth)];
+                    }
                     const rowsTotal = rows.reduce((s, r) => s + r.amount, 0);
                     return (
                       <>
@@ -612,14 +720,14 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                           <div key={b.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50">
                             <span className="text-xs text-slate-400 w-5 tabular-nums shrink-0">{i + 1}</span>
                             <span className="text-sm text-slate-700 flex-1 min-w-0">{b.name}</span>
-                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(b.amount / periodTotalCiro)}</span>
+                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? b.amount / periodTotalCiro : 0)}</span>
                             <span className="text-sm tabular-nums text-slate-900 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(b.amount)}</span>
                           </div>
                         ))}
                         <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200">
                           <span className="w-5 shrink-0" />
                           <span className="text-sm text-slate-900 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(rowsTotal / periodTotalCiro)}</span>
+                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
                           <span className="text-sm tabular-nums text-slate-900 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
                         </div>
                       </>
