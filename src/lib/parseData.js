@@ -104,15 +104,26 @@ export function buildGiderKategorileri(expenseItemDefs) {
 export function parseDash26(dash26Raw) {
   const fallback = {
     ciro: new Array(12).fill(0),
+    ciroUSD: new Array(12).fill(0),
+    giderUSD: new Array(12).fill(0),
     nakitAkisiData: { kasa: 0, banka: 0, cek: 0 },
     totals2026: null,
     totals2025: null,
+    ayDurumu: new Array(12).fill(null),
   };
   if (!Array.isArray(dash26Raw) || dash26Raw.length < 16) return fallback;
 
-  // Satır 3..14 (0-indeks 2..13) = Ocak..Aralık; sütun C(2)=Ciro
+  // Satır 3..14 (0-indeks 2..13) = Ocak..Aralık; sütun C(2)=Ciro, Q(16)=Ciro USD, R(17)=Gider USD, V(21)=Ay Durumu
   const monthRows = dash26Raw.slice(2, 14);
   const ciro = monthRows.map((row) => num(row[2]));
+  const ciroUSD = monthRows.map((row) => num(row[16]));
+  const giderUSD = monthRows.map((row) => num(row[17]));
+  const ayDurumu = monthRows.map((row) => {
+    const raw = String(row[21] || '').trim().toLocaleLowerCase('tr-TR');
+    if (raw === 'güncel') return 'güncel';
+    if (raw === 'tahmini') return 'tahmini';
+    return null;
+  });
 
   const toplamRow = dash26Raw.find((r) => String(r[1]).trim().toUpperCase() === 'TOPLAM');
   const row2025 = dash26Raw.find((r) => String(r[1]).trim() === '2025');
@@ -136,9 +147,12 @@ export function parseDash26(dash26Raw) {
 
   return {
     ciro,
+    ciroUSD,
+    giderUSD,
     nakitAkisiData,
     totals2026: readTotals(toplamRow),
     totals2025: readTotals(row2025),
+    ayDurumu,
   };
 }
 
@@ -240,7 +254,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
 
   const { expenseItemDefs, giderPerMonth } = parseGiderler(feeJson['GİDERLER']);
   const giderYapisi = buildGiderKategorileri(expenseItemDefs);
-  const { ciro, nakitAkisiData, totals2026, totals2025 } = parseDash26(feeJson['DASH 26_RAW']);
+  const { ciro, ciroUSD, giderUSD, nakitAkisiData, totals2026, totals2025, ayDurumu } = parseDash26(feeJson['DASH 26_RAW']);
   const revenueRaw = parseRevenueRaw(feeJson);
   const alacaklarData = parseAlacaklar(odemeJson['2026 ÖDEME LİSTESİ']);
   const tahminiProjeToplam = computeTahminiToplam(revenueRaw);
@@ -248,6 +262,8 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
   return {
     months: MONTHS,
     ciro,
+    ciroUSD,
+    giderUSD,
     gider: giderPerMonth,
     expenseItemDefs,
     giderYapisi,
@@ -257,6 +273,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
     totals2026,
     totals2025,
     tahminiProjeToplam,
+    ayDurumu,
     lastUpdatedFee: feeJson._lastUpdated || null,
     lastUpdatedOdeme: odemeJson._lastUpdated || null,
   };
