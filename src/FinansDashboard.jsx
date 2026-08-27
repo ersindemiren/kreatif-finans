@@ -130,6 +130,11 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const { months, ciro, ciroUSD, giderUSD, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam, ayDurumu, pasifMarkalar } = data;
   const isPasifMarka = (name) => (pasifMarkalar || []).includes(name);
 
+  // Çeyrek seçici (Gelirler sayfası)
+  const QUARTER_LABELS = { Ç1: '1. Çeyrek', Ç2: '2. Çeyrek', Ç3: '3. Çeyrek', Ç4: '4. Çeyrek' };
+  const QUARTER_MONTHS = { Ç1: months.slice(0, 3), Ç2: months.slice(3, 6), Ç3: months.slice(6, 9), Ç4: months.slice(9, 12) };
+  const isQuarter = (m) => Object.prototype.hasOwnProperty.call(QUARTER_MONTHS, m);
+
   // "Güncel" / "Tahmini" — FEE 2026 YENİ > DASH 26 sekmesi V sütunundan gelir
   const getAyDurumu = (monthName) => ayDurumu?.[months.indexOf(monthName)] ?? null;
 
@@ -302,7 +307,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 font-sans flex transition-colors">
+    <div className="min-h-screen bg-[#E4E7EB] dark:bg-slate-950 font-sans flex transition-colors">
       {/* Masaüstü sol menü */}
       <div className="hidden md:flex w-64 bg-slate-900 flex-shrink-0 flex-col py-6 px-4 gap-1">
         <div className="flex items-center gap-3 px-2 pb-6 mb-2 border-b border-slate-800">
@@ -461,15 +466,32 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- GİDERLER (liste) ---------------- */}
           {page === 'giderler' && (
             <div className="flex flex-col gap-5">
-              <div className="flex flex-col gap-2 w-full sm:w-fit">
-                <button
-                  onClick={() => setSelectedMonth('Toplam')}
-                  className={`self-start px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    selectedMonth === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  Toplam
-                </button>
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex items-center justify-between w-full">
+                  <button
+                    onClick={() => setSelectedMonth('Toplam')}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      selectedMonth === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    Toplam
+                  </button>
+                  <select
+                    value={isQuarter(selectedMonth) ? selectedMonth : ''}
+                    onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border cursor-pointer ${
+                      isQuarter(selectedMonth)
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    <option value="" disabled>Çeyrek Seç</option>
+                    <option value="Ç1">1. Çeyrek</option>
+                    <option value="Ç2">2. Çeyrek</option>
+                    <option value="Ç3">3. Çeyrek</option>
+                    <option value="Ç4">4. Çeyrek</option>
+                  </select>
+                </div>
                 <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
                   {months.map((m) => (
                     <button
@@ -500,6 +522,14 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(tahminiGiderToplam)}</div>
                     {tahminiRangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({tahminiRangeLabel})</span>}
                   </div>
+                </div>
+              ) : isQuarter(selectedMonth) ? (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">{QUARTER_LABELS[selectedMonth]} Toplam Gider</span>
+                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">
+                    ₺{fmtTL(QUARTER_MONTHS[selectedMonth].reduce((s, m) => s + gider[months.indexOf(m)], 0))}
+                  </div>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 block">({QUARTER_MONTHS[selectedMonth].join('-')})</span>
                 </div>
               ) : (
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex items-center justify-between flex-wrap gap-2">
@@ -564,6 +594,14 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         periodTotalCiro = totals.totalCiro;
                       }
                       rows.sort((a, b) => b.amount - a.amount);
+                    } else if (isQuarter(selectedMonth)) {
+                      const qMonths = QUARTER_MONTHS[selectedMonth];
+                      rows = expenseItemDefs
+                        .map(([name, vals]) => ({ name, amount: itemAmountForMonths(vals, qMonths) }))
+                        .filter((r) => r.amount !== 0)
+                        .sort((a, b) => b.amount - a.amount);
+                      periodTotalGider = qMonths.reduce((s, m) => s + gider[months.indexOf(m)], 0);
+                      periodTotalCiro = qMonths.reduce((s, m) => s + ciro[months.indexOf(m)], 0);
                     } else {
                       rows = monthByExpense(selectedMonth);
                       periodTotalGider = gider[months.indexOf(selectedMonth)];
@@ -635,15 +673,32 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- GELİRLER ---------------- */}
           {page === 'gelirler' && (
             <div className="flex flex-col gap-5">
-              <div className="flex flex-col gap-2 w-full sm:w-fit">
-                <button
-                  onClick={() => setSelectedMonth('Toplam')}
-                  className={`self-start px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    selectedMonth === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  Toplam
-                </button>
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex items-center justify-between w-full">
+                  <button
+                    onClick={() => setSelectedMonth('Toplam')}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      selectedMonth === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    Toplam
+                  </button>
+                  <select
+                    value={isQuarter(selectedMonth) ? selectedMonth : ''}
+                    onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border cursor-pointer ${
+                      isQuarter(selectedMonth)
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    <option value="" disabled>Çeyrek Seç</option>
+                    <option value="Ç1">1. Çeyrek</option>
+                    <option value="Ç2">2. Çeyrek</option>
+                    <option value="Ç3">3. Çeyrek</option>
+                    <option value="Ç4">4. Çeyrek</option>
+                  </select>
+                </div>
                 <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
                   {months.map((m) => (
                     <button
@@ -674,6 +729,14 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(tahminiCiroToplam)}</div>
                     {tahminiRangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({tahminiRangeLabel})</span>}
                   </div>
+                </div>
+              ) : isQuarter(selectedMonth) ? (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">{QUARTER_LABELS[selectedMonth]} Toplam Ciro</span>
+                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">
+                    ₺{fmtTL(QUARTER_MONTHS[selectedMonth].reduce((s, m) => s + ciro[months.indexOf(m)], 0))}
+                  </div>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 block">({QUARTER_MONTHS[selectedMonth].join('-')})</span>
                 </div>
               ) : (
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex items-center justify-between">
@@ -734,6 +797,13 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         periodTotalCiro = totals.totalCiro;
                       }
                       rows.sort((a, b) => b.amount - a.amount);
+                    } else if (isQuarter(selectedMonth)) {
+                      const qMonths = QUARTER_MONTHS[selectedMonth];
+                      rows = customerPivot
+                        .map((c) => ({ name: c.name, amount: qMonths.reduce((s, m) => s + (c.byMonth[m] || 0), 0) }))
+                        .filter((r) => r.amount > 0)
+                        .sort((a, b) => b.amount - a.amount);
+                      periodTotalCiro = qMonths.reduce((s, m) => s + ciro[months.indexOf(m)], 0);
                     } else {
                       rows = monthByBrand(selectedMonth);
                       periodTotalCiro = ciro[months.indexOf(selectedMonth)];
