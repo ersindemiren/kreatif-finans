@@ -193,6 +193,25 @@ export function parseAlacaklar(odemeListesiRows) {
 }
 
 /* ------------------------------------------------------------------ */
+/* "Tahmini Proje" etiketli gelir kalemlerinin toplamı (hedefe ulaşma   */
+/* oranı göstergesi için) — isim eşleşmesi büyük/küçük harften bağımsız */
+/* ------------------------------------------------------------------ */
+export function computeTahminiToplam(revenueRaw) {
+  let total = 0;
+  Object.values(revenueRaw).forEach((month) => {
+    ['diger', 'fatura'].forEach((cat) => {
+      (month[cat] || []).forEach(([client, amount]) => {
+        if (String(client).toLocaleLowerCase('tr-TR').includes('tahmini')) total += amount;
+      });
+    });
+    (month.feeDisi || []).forEach(([client, , amount]) => {
+      if (String(client).toLocaleLowerCase('tr-TR').includes('tahmini')) total += amount;
+    });
+  });
+  return total;
+}
+
+/* ------------------------------------------------------------------ */
 /* ANA GİRİŞ NOKTASI                                                    */
 /* ------------------------------------------------------------------ */
 export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
@@ -215,6 +234,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
   const { ciro, nakitAkisiData, totals2026, totals2025 } = parseDash26(feeJson['DASH 26_RAW']);
   const revenueRaw = parseRevenueRaw(feeJson);
   const alacaklarData = parseAlacaklar(odemeJson['2026 ÖDEME LİSTESİ']);
+  const tahminiProjeToplam = computeTahminiToplam(revenueRaw);
 
   return {
     months: MONTHS,
@@ -227,6 +247,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
     nakitAkisiData,
     totals2026,
     totals2025,
+    tahminiProjeToplam,
     lastUpdatedFee: feeJson._lastUpdated || null,
     lastUpdatedOdeme: odemeJson._lastUpdated || null,
   };
