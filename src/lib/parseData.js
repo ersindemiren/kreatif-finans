@@ -16,16 +16,25 @@ function num(v) {
   return typeof v === 'number' ? v : 0;
 }
 
+// Sheet'te aynı müşterinin farklı yazımlarla geçtiği durumlar için eşleştirme.
+// Sol taraf HAM isim (büyük harf, sheet'teki hali), sağ taraf birleştirileceği kanonik isim.
+const CLIENT_ALIASES = {
+  'ALTINCOM PROJE': 'ALTINCOM',
+  'MEHMET ZENGİN': 'MEHMET ZENGİN (TUN)',
+};
+
 // Türkçe kurallara göre "Başlık Şeklinde" yazım (BÜYÜK HARF sheet verisini
 // okunabilir hale getirmek için). "RUMELİ BÖREK 3/4" gibi kesir eklerini de temizler.
 function toTitleCaseTR(raw) {
   if (typeof raw !== 'string') return raw;
   let s = raw.trim().replace(/\s+\d+\/\d+$/, '').trim();
   if (!s) return s;
+  const alias = CLIENT_ALIASES[s.toLocaleUpperCase('tr-TR')];
+  if (alias) s = alias;
   return s
     .toLocaleLowerCase('tr-TR')
     .split(' ')
-    .map((w) => (w.length ? w.charAt(0).toLocaleUpperCase('tr-TR') + w.slice(1) : w))
+    .map((w) => w.replace(/^(\W*)(\w)/u, (_, pre, c) => pre + c.toLocaleUpperCase('tr-TR')))
     .join(' ');
 }
 
