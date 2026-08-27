@@ -161,7 +161,7 @@ export function parseDash26(dash26Raw) {
   const ayDurumu = monthRows.map((row) => {
     const raw = String(row[21] || '').trim().toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
     if (raw === 'güncel') return 'güncel';
-    if (raw === 'tahmini') return 'tahmini';
+    if (raw.startsWith('tahmin')) return 'tahmini';
     return null;
   });
 
