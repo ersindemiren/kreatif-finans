@@ -43,6 +43,9 @@ const aksiyonlar = [
 /* ------------------------------------------------------------------ */
 /* YARDIMCI FONKSİYONLAR                                                */
 /* ------------------------------------------------------------------ */
+// Gece modu butonu şimdilik gizli — ileride tekrar açmak için true yapmak yeterli
+const SHOW_DARK_MODE_TOGGLE = false;
+
 const fmtTL = (n) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n || 0);
 const fmtM = (n) => ((n || 0) / 1000000).toFixed(2).replace('.', ',') + ' M';
 const fmtCompact = (n) => {
@@ -59,11 +62,11 @@ function TrendBadge({ value, suffix = '' }) {
   const Icon = isNeg ? TrendingDown : TrendingUp;
   return (
     <span
-      className={`inline-flex items-center gap-1 text-sm font-medium rounded-full px-2.5 py-1 whitespace-nowrap ${
+      className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-0.5 whitespace-nowrap shrink-0 ${
         isNeg ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'
       }`}
     >
-      <Icon size={12} />
+      <Icon size={11} />
       {pct(value)}
       {suffix}
     </span>
@@ -72,16 +75,16 @@ function TrendBadge({ value, suffix = '' }) {
 
 function KpiCard({ icon: Icon, label, value, delta, deltaSuffix = '', compareLabel }) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col gap-2 min-w-0">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 flex flex-col gap-1 min-w-0">
       <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-        {Icon && <Icon size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />}
+        {Icon && <Icon size={12} className="text-slate-400 dark:text-slate-500 shrink-0" />}
         {label}
       </span>
-      <span className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">{value}</span>
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">{value}</span>
         <TrendBadge value={delta} suffix={deltaSuffix} />
-        <span className="text-slate-400 dark:text-slate-500 text-xs">{compareLabel}</span>
       </div>
+      <span className="text-slate-400 dark:text-slate-500 text-[11px] whitespace-nowrap">{compareLabel}</span>
     </div>
   );
 }
@@ -124,7 +127,8 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [dashCurrency, setDashCurrency] = useState('TL');
   const [darkMode, setDarkMode] = useState(false);
 
-  const { months, ciro, ciroUSD, giderUSD, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam, ayDurumu } = data;
+  const { months, ciro, ciroUSD, giderUSD, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam, ayDurumu, pasifMarkalar } = data;
+  const isPasifMarka = (name) => (pasifMarkalar || []).includes(name);
 
   // "Güncel" / "Tahmini" — FEE 2026 YENİ > DASH 26 sekmesi V sütunundan gelir
   const getAyDurumu = (monthName) => ayDurumu?.[months.indexOf(monthName)] ?? null;
@@ -298,7 +302,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans flex transition-colors">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 font-sans flex transition-colors">
       {/* Masaüstü sol menü */}
       <div className="hidden md:flex w-64 bg-slate-900 flex-shrink-0 flex-col py-6 px-4 gap-1">
         <div className="flex items-center gap-3 px-2 pb-6 mb-2 border-b border-slate-800">
@@ -310,13 +314,15 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
         ))}
         <div className="mt-auto pt-4 border-t border-slate-800 flex flex-col gap-2">
           {lastSync && <span className="text-[11px] text-slate-500 dark:text-slate-400 px-2">Son senkron: {lastSync}</span>}
-          <button
-            onClick={() => setDarkMode((v) => !v)}
-            className="flex items-center gap-2 px-2 py-1.5 text-[13px] text-slate-400 dark:text-slate-500 hover:text-white transition-colors"
-          >
-            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-            {darkMode ? 'Gündüz Modu' : 'Gece Modu'}
-          </button>
+          {SHOW_DARK_MODE_TOGGLE && (
+            <button
+              onClick={() => setDarkMode((v) => !v)}
+              className="flex items-center gap-2 px-2 py-1.5 text-[13px] text-slate-400 dark:text-slate-500 hover:text-white transition-colors"
+            >
+              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+              {darkMode ? 'Gündüz Modu' : 'Gece Modu'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -357,13 +363,15 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
             <Menu size={24} strokeWidth={2.25} />
           </button>
           <span className="text-sm text-slate-500 dark:text-slate-400">MENÜ</span>
-          <button
-            onClick={() => setDarkMode((v) => !v)}
-            className="md:hidden ml-auto flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500"
-          >
-            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-            {darkMode ? 'Gündüz' : 'Gece'}
-          </button>
+          {SHOW_DARK_MODE_TOGGLE && (
+            <button
+              onClick={() => setDarkMode((v) => !v)}
+              className="md:hidden ml-auto flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500"
+            >
+              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+              {darkMode ? 'Gündüz' : 'Gece'}
+            </button>
+          )}
         </div>
 
         <div className="p-4 sm:p-8 flex flex-col gap-6">
@@ -453,25 +461,26 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- GİDERLER (liste) ---------------- */}
           {page === 'giderler' && (
             <div className="flex flex-col gap-5">
-              <div className="flex flex-wrap gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 w-fit">
+              <div className="flex flex-col gap-2 w-full sm:w-fit">
                 <button
                   onClick={() => setSelectedMonth('Toplam')}
-                  className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    selectedMonth === 'Toplam' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                  className={`self-start px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedMonth === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
                   }`}
                 >
                   Toplam
                 </button>
-                <span className="w-px bg-slate-200 dark:bg-slate-700 my-1" />
-                {months.map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setSelectedMonth(m)}
-                    className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${monthPillClass(m, selectedMonth === m)}`}
-                  >
-                    {m}
-                  </button>
-                ))}
+                <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
+                  {months.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setSelectedMonth(m)}
+                      className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${monthPillClass(m, selectedMonth === m)}`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {selectedMonth === 'Toplam' ? (
@@ -626,25 +635,26 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- GELİRLER ---------------- */}
           {page === 'gelirler' && (
             <div className="flex flex-col gap-5">
-              <div className="flex flex-wrap gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 w-fit">
+              <div className="flex flex-col gap-2 w-full sm:w-fit">
                 <button
                   onClick={() => setSelectedMonth('Toplam')}
-                  className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    selectedMonth === 'Toplam' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                  className={`self-start px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedMonth === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
                   }`}
                 >
                   Toplam
                 </button>
-                <span className="w-px bg-slate-200 dark:bg-slate-700 my-1" />
-                {months.map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setSelectedMonth(m)}
-                    className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${monthPillClass(m, selectedMonth === m)}`}
-                  >
-                    {m}
-                  </button>
-                ))}
+                <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
+                  {months.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setSelectedMonth(m)}
+                      className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${monthPillClass(m, selectedMonth === m)}`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {selectedMonth === 'Toplam' ? (
@@ -734,7 +744,14 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         {rows.map((b, i) => (
                           <div key={b.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
                             <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
-                            <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">{b.name}</span>
+                            <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 flex items-center gap-2 truncate">
+                              <span className="truncate">{b.name}</span>
+                              {isPasifMarka(b.name) && (
+                                <span className="shrink-0 text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 rounded-full px-2 py-0.5">
+                                  Pasif
+                                </span>
+                              )}
+                            </span>
                             <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? b.amount / periodTotalCiro : 0)}</span>
                             <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(b.amount)}</span>
                           </div>
