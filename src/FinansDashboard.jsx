@@ -65,6 +65,18 @@ function KpiCard({ icon: Icon, label, value, deltaLabel, compareLabel }) {
   );
 }
 
+function SegmentedBar({ percent, segmentCount = 24 }) {
+  const p = Math.max(0, Math.min(1, percent));
+  const filledCount = Math.round(p * segmentCount);
+  return (
+    <div className="flex-1 min-w-0 flex items-center gap-1">
+      {Array.from({ length: segmentCount }, (_, i) => (
+        <div key={i} className={`flex-1 h-2 sm:h-2.5 rounded-full ${i < filledCount ? 'bg-emerald-500' : 'bg-emerald-100'}`} />
+      ))}
+    </div>
+  );
+}
+
 function NavItem({ icon: Icon, label, active, onClick }) {
   return (
     <button
@@ -86,8 +98,9 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [page, setPage] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState('Toplam');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dashCurrency, setDashCurrency] = useState('TL');
 
-  const { months, ciro, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025 } = data;
+  const { months, ciro, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam } = data;
 
   // Ay bazlı, sıfır olmayan gider kalemleri
   const expenseRaw = useMemo(() => {
@@ -188,6 +201,8 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     };
   }, [ciro, gider, totals2026, totals2025]);
 
+  const hedefIlerleme = totals.totalCiro ? (totals.totalCiro - (tahminiProjeToplam || 0)) / totals.totalCiro : 0;
+
   const pages = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'gelirler', label: 'Gelirler', icon: TrendingUp },
@@ -278,19 +293,63 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- DASHBOARD ---------------- */}
           {page === 'dashboard' && (
             <div className="flex flex-col gap-4">
-              <p className="text-xs text-slate-400 -mb-1">Yeşil oranlar 2025'e göre değişimi gösterir (2025 → 2026)</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <KpiCard icon={Wallet} label="Ciro" value={'₺' + fmtM(totals.totalCiro)} deltaLabel={pct(totals.ciroBuyume)} compareLabel={'₺' + fmtM(totals.ciro2025) + ' (2025)'} />
-                <KpiCard icon={Receipt} label="Gider" value={'₺' + fmtM(totals.totalGider)} deltaLabel={pct(totals.giderBuyume)} compareLabel={'₺' + fmtM(totals.gider2025) + ' (2025)'} />
-                <KpiCard icon={PiggyBank} label="Net Kar" value={'₺' + fmtM(totals.totalKar)} deltaLabel={pct(totals.karBuyume)} compareLabel={'₺' + fmtM(totals.kar2025) + ' (2025)'} />
-                <KpiCard icon={Percent} label="Kar Marjı" value={pct(totals.karMarji)} deltaLabel={pct(totals.karMarji - totals.karMarji2025) + ' puan'} compareLabel={pct(totals.karMarji2025) + ' (2025)'} />
+              <div className="flex items-center justify-between flex-wrap gap-2 -mb-1">
+                <p className="text-xs text-slate-400">Yeşil oranlar 2025'e göre değişimi gösterir (2025 → 2026)</p>
+                <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
+                  <button
+                    onClick={() => setDashCurrency('TL')}
+                    className={`w-9 py-1 rounded-md text-sm font-medium transition-colors ${
+                      dashCurrency === 'TL' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    ₺
+                  </button>
+                  <button
+                    onClick={() => setDashCurrency('USD')}
+                    className={`w-9 py-1 rounded-md text-sm font-medium transition-colors ${
+                      dashCurrency === 'USD' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    $
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <KpiCard icon={Wallet} label="Ciro $" value={'$' + fmtM(totals.ciroUSD2026)} deltaLabel={pct(totals.ciroUSDBuyume)} compareLabel={'$' + fmtM(totals.ciroUSD2025) + ' (2025)'} />
-                <KpiCard icon={Receipt} label="Gider $" value={'$' + fmtM(totals.giderUSD2026)} deltaLabel={pct(totals.giderUSDBuyume)} compareLabel={'$' + fmtM(totals.giderUSD2025) + ' (2025)'} />
-                <KpiCard icon={PiggyBank} label="Net Kar $" value={'$' + fmtM(totals.netKarUSD2026)} deltaLabel={pct(totals.karUSDBuyume)} compareLabel={'$' + fmtM(totals.netKarUSD2025) + ' (2025)'} />
-                <KpiCard icon={Percent} label="Kar Marjı $" value={pct(totals.karMarjiUSD2026)} deltaLabel={pct(totals.karMarjiUSD2026 - totals.karMarjiUSD2025) + ' puan'} compareLabel={pct(totals.karMarjiUSD2025) + ' (2025)'} />
+                {dashCurrency === 'TL' ? (
+                  <>
+                    <KpiCard icon={Wallet} label="Ciro" value={'₺' + fmtM(totals.totalCiro)} deltaLabel={pct(totals.ciroBuyume)} compareLabel={'₺' + fmtM(totals.ciro2025) + ' (2025)'} />
+                    <KpiCard icon={Receipt} label="Gider" value={'₺' + fmtM(totals.totalGider)} deltaLabel={pct(totals.giderBuyume)} compareLabel={'₺' + fmtM(totals.gider2025) + ' (2025)'} />
+                    <KpiCard icon={PiggyBank} label="Net Kar" value={'₺' + fmtM(totals.totalKar)} deltaLabel={pct(totals.karBuyume)} compareLabel={'₺' + fmtM(totals.kar2025) + ' (2025)'} />
+                    <KpiCard icon={Percent} label="Kar Marjı" value={pct(totals.karMarji)} deltaLabel={pct(totals.karMarji - totals.karMarji2025) + ' puan'} compareLabel={pct(totals.karMarji2025) + ' (2025)'} />
+                  </>
+                ) : (
+                  <>
+                    <KpiCard icon={Wallet} label="Ciro $" value={'$' + fmtM(totals.ciroUSD2026)} deltaLabel={pct(totals.ciroUSDBuyume)} compareLabel={'$' + fmtM(totals.ciroUSD2025) + ' (2025)'} />
+                    <KpiCard icon={Receipt} label="Gider $" value={'$' + fmtM(totals.giderUSD2026)} deltaLabel={pct(totals.giderUSDBuyume)} compareLabel={'$' + fmtM(totals.giderUSD2025) + ' (2025)'} />
+                    <KpiCard icon={PiggyBank} label="Net Kar $" value={'$' + fmtM(totals.netKarUSD2026)} deltaLabel={pct(totals.karUSDBuyume)} compareLabel={'$' + fmtM(totals.netKarUSD2025) + ' (2025)'} />
+                    <KpiCard icon={Percent} label="Kar Marjı $" value={pct(totals.karMarjiUSD2026)} deltaLabel={pct(totals.karMarjiUSD2026 - totals.karMarjiUSD2025) + ' puan'} compareLabel={pct(totals.karMarjiUSD2025) + ' (2025)'} />
+                  </>
+                )}
               </div>
+
+              {dashCurrency === 'TL' && tahminiProjeToplam > 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="shrink-0">
+                    <span className="text-sm text-slate-500 whitespace-nowrap">Hedefe Ulaşma</span>
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 tabular-nums">{Math.round(hedefIlerleme * 100)}%</div>
+                  </div>
+                  <SegmentedBar percent={hedefIlerleme} />
+                  <div className="shrink-0 flex items-center gap-3 sm:pl-4 sm:border-l border-slate-100">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                      <AlertTriangle size={14} className="text-slate-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-xs text-slate-500 whitespace-nowrap">Tahmini Proje Bedeli</span>
+                      <div className="text-base font-semibold text-slate-900 tabular-nums whitespace-nowrap">₺{fmtTL(tahminiProjeToplam)}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -324,7 +383,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <span className="text-sm text-slate-500">{selectedMonth === 'Toplam' ? 'Yıl Toplam Gider' : selectedMonth + ' Toplam Gider'}</span>
-                  <div className="font-serif text-3xl text-slate-900 tabular-nums mt-1">
+                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">
                     ₺{fmtTL(selectedMonth === 'Toplam' ? totals.totalGider : gider[months.indexOf(selectedMonth)])}
                   </div>
                 </div>
@@ -441,7 +500,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between">
                 <div>
                   <span className="text-sm text-slate-500">{selectedMonth === 'Toplam' ? 'Yıl Toplam Ciro' : selectedMonth + ' Toplam Ciro'}</span>
-                  <div className="font-serif text-3xl text-slate-900 tabular-nums mt-1">
+                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">
                     ₺{fmtTL(selectedMonth === 'Toplam' ? totals.totalCiro : ciro[months.indexOf(selectedMonth)])}
                   </div>
                 </div>
