@@ -7,8 +7,6 @@ import {
   Wallet, PiggyBank, Percent, RefreshCw,
 } from 'lucide-react';
 
-// Kesinleşmiş (gerçek) aylar — kalan aylar tahmine dayalıdır
-const REAL_MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem'];
 
 /* ------------------------------------------------------------------ */
 /* Editöryal yorumlar — bunlar veri değil, elle yazılmış değerlendirme */
@@ -116,7 +114,10 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashCurrency, setDashCurrency] = useState('TL');
 
-  const { months, ciro, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam } = data;
+  const { months, ciro, ciroUSD, giderUSD, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam, ayDurumu } = data;
+
+  // "Güncel" / "Tahmini" — FEE 2026 YENİ > DASH 26 sekmesi V sütunundan gelir
+  const getAyDurumu = (monthName) => ayDurumu?.[months.indexOf(monthName)] ?? null;
 
   // Ay bazlı, sıfır olmayan gider kalemleri
   const expenseRaw = useMemo(() => {
@@ -219,13 +220,43 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
   const hedefIlerleme = totals.totalCiro ? (totals.totalCiro - (tahminiProjeToplam || 0)) / totals.totalCiro : 0;
 
-  const ciroConfirmed = totals.totalCiro - (tahminiProjeToplam || 0);
-  const karConfirmed = totals.totalKar - (tahminiProjeToplam || 0);
-  const karMarjiConfirmed = ciroConfirmed ? karConfirmed / ciroConfirmed : 0;
-  const ciroConfirmedBuyume = totals.ciro2025 ? (ciroConfirmed - totals.ciro2025) / totals.ciro2025 : 0;
-  const karConfirmedBuyume = totals.kar2025 ? (karConfirmed - totals.kar2025) / totals.kar2025 : 0;
-  const giderOraniConfirmed = ciroConfirmed ? totals.totalGider / ciroConfirmed : 0;
-  const giderOrani2025 = totals.ciro2025 ? totals.gider2025 / totals.ciro2025 : 0;
+  // Sheet'teki V sütunundan gelen "Güncel/Tahmini" işaretine göre kesinleşmiş aylar
+  const confirmedCount = (ayDurumu || []).filter((d) => d === 'güncel').length;
+  const confirmedCiro = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? ciro[i] : 0), 0);
+  const confirmedGider = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? gider[i] : 0), 0);
+  const confirmedKar = confirmedCiro - confirmedGider;
+  const confirmedKarMarji = confirmedCiro ? confirmedKar / confirmedCiro : 0;
+  const confirmedGiderOrani = confirmedCiro ? confirmedGider / confirmedCiro : 0;
+
+  // 2025'in aylık kırılımı olmadığı için, kesinleşmiş ay sayısına göre orantılı (n/12) baz alınır
+  const prorate2025 = (val) => (confirmedCount / 12) * (val || 0);
+  const ciro2025Prorated = prorate2025(totals.ciro2025);
+  const kar2025Prorated = prorate2025(totals.kar2025);
+  const gider2025Prorated = prorate2025(totals.gider2025);
+  const karMarji2025Prorated = ciro2025Prorated ? kar2025Prorated / ciro2025Prorated : 0;
+  const giderOrani2025Prorated = ciro2025Prorated ? gider2025Prorated / ciro2025Prorated : 0;
+
+  const confirmedCiroBuyume = ciro2025Prorated ? (confirmedCiro - ciro2025Prorated) / ciro2025Prorated : 0;
+  const confirmedKarBuyume = kar2025Prorated ? (confirmedKar - kar2025Prorated) / kar2025Prorated : 0;
+  const confirmedGiderBuyume = gider2025Prorated ? (confirmedGider - gider2025Prorated) / gider2025Prorated : 0;
+
+  // USD taraf — Ciro $/Gider $ (Q/R sütunları) için de aynı kesinleşmiş/tahmini ayrımı
+  const confirmedCiroUSD = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? (ciroUSD?.[i] || 0) : 0), 0);
+  const confirmedGiderUSD = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? (giderUSD?.[i] || 0) : 0), 0);
+  const confirmedKarUSD = confirmedCiroUSD - confirmedGiderUSD;
+  const confirmedKarMarjiUSD = confirmedCiroUSD ? confirmedKarUSD / confirmedCiroUSD : 0;
+
+  const ciroUSD2025Prorated = prorate2025(totals.ciroUSD2025);
+  const karUSD2025Prorated = prorate2025(totals.netKarUSD2025);
+  const giderUSD2025Prorated = prorate2025(totals.giderUSD2025);
+  const karMarjiUSD2025Prorated = ciroUSD2025Prorated ? karUSD2025Prorated / ciroUSD2025Prorated : 0;
+
+  const confirmedCiroUSDBuyume = ciroUSD2025Prorated ? (confirmedCiroUSD - ciroUSD2025Prorated) / ciroUSD2025Prorated : 0;
+  const confirmedKarUSDBuyume = karUSD2025Prorated ? (confirmedKarUSD - karUSD2025Prorated) / karUSD2025Prorated : 0;
+  const confirmedGiderUSDBuyume = giderUSD2025Prorated ? (confirmedGiderUSD - giderUSD2025Prorated) / giderUSD2025Prorated : 0;
+
+  // Tahmini Proje Bedeli'nin $ karşılığı — DASH 26 P15 (ortalama USD kuru)
+  const tahminiProjeToplamUSD = totals2026?.kurUSD ? tahminiProjeToplam / totals2026.kurUSD : 0;
 
   const pages = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -340,30 +371,39 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               </div>
               {dashCurrency === 'TL' ? (
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-                  <KpiCard icon={Wallet} label="Ciro" value={'₺' + fmtM(ciroConfirmed)} delta={ciroConfirmedBuyume} compareLabel={'₺' + fmtM(totals.ciro2025) + ' (2025)'} />
+                  <KpiCard icon={Wallet} label="Ciro" value={'₺' + fmtM(confirmedCiro)} delta={confirmedCiroBuyume} compareLabel={'₺' + fmtM(ciro2025Prorated) + ' (2025)'} />
                   <KpiCard icon={Wallet} label="Tahmini Ciro" value={'₺' + fmtM(totals.totalCiro)} delta={totals.ciroBuyume} compareLabel={'₺' + fmtM(totals.ciro2025) + ' (2025)'} />
-                  <KpiCard icon={PiggyBank} label="Net Kar" value={'₺' + fmtM(karConfirmed)} delta={karConfirmedBuyume} compareLabel={'₺' + fmtM(totals.kar2025) + ' (2025)'} />
+                  <KpiCard icon={PiggyBank} label="Net Kar" value={'₺' + fmtM(confirmedKar)} delta={confirmedKarBuyume} compareLabel={'₺' + fmtM(kar2025Prorated) + ' (2025)'} />
                   <KpiCard icon={PiggyBank} label="Tahmini Net Kar" value={'₺' + fmtM(totals.totalKar)} delta={totals.karBuyume} compareLabel={'₺' + fmtM(totals.kar2025) + ' (2025)'} />
-                  <KpiCard icon={Percent} label="Kar Marjı" value={pct(karMarjiConfirmed)} delta={karMarjiConfirmed - totals.karMarji2025} deltaSuffix=" puan" compareLabel={pct(totals.karMarji2025) + ' (2025)'} />
+                  <KpiCard icon={Percent} label="Kar Marjı" value={pct(confirmedKarMarji)} delta={confirmedKarMarji - karMarji2025Prorated} deltaSuffix=" puan" compareLabel={pct(karMarji2025Prorated) + ' (2025)'} />
                   <KpiCard icon={Percent} label="Tahmini Kar Marjı" value={pct(totals.karMarji)} delta={totals.karMarji - totals.karMarji2025} deltaSuffix=" puan" compareLabel={pct(totals.karMarji2025) + ' (2025)'} />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <KpiCard icon={Wallet} label="Ciro $" value={'$' + fmtM(totals.ciroUSD2026)} delta={totals.ciroUSDBuyume} compareLabel={'$' + fmtM(totals.ciroUSD2025) + ' (2025)'} />
-                  <KpiCard icon={Receipt} label="Gider $" value={'$' + fmtM(totals.giderUSD2026)} delta={totals.giderUSDBuyume} compareLabel={'$' + fmtM(totals.giderUSD2025) + ' (2025)'} />
-                  <KpiCard icon={PiggyBank} label="Net Kar $" value={'$' + fmtM(totals.netKarUSD2026)} delta={totals.karUSDBuyume} compareLabel={'$' + fmtM(totals.netKarUSD2025) + ' (2025)'} />
-                  <KpiCard icon={Percent} label="Kar Marjı $" value={pct(totals.karMarjiUSD2026)} delta={totals.karMarjiUSD2026 - totals.karMarjiUSD2025} deltaSuffix=" puan" compareLabel={pct(totals.karMarjiUSD2025) + ' (2025)'} />
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                  <KpiCard icon={Wallet} label="Ciro $" value={'$' + fmtM(confirmedCiroUSD)} delta={confirmedCiroUSDBuyume} compareLabel={'$' + fmtM(ciroUSD2025Prorated) + ' (2025)'} />
+                  <KpiCard icon={Wallet} label="Tahmini Ciro $" value={'$' + fmtM(totals.ciroUSD2026)} delta={totals.ciroUSDBuyume} compareLabel={'$' + fmtM(totals.ciroUSD2025) + ' (2025)'} />
+                  <KpiCard icon={PiggyBank} label="Net Kar $" value={'$' + fmtM(confirmedKarUSD)} delta={confirmedKarUSDBuyume} compareLabel={'$' + fmtM(karUSD2025Prorated) + ' (2025)'} />
+                  <KpiCard icon={PiggyBank} label="Tahmini Net Kar $" value={'$' + fmtM(totals.netKarUSD2026)} delta={totals.karUSDBuyume} compareLabel={'$' + fmtM(totals.netKarUSD2025) + ' (2025)'} />
+                  <KpiCard icon={Percent} label="Kar Marjı $" value={pct(confirmedKarMarjiUSD)} delta={confirmedKarMarjiUSD - karMarjiUSD2025Prorated} deltaSuffix=" puan" compareLabel={pct(karMarjiUSD2025Prorated) + ' (2025)'} />
+                  <KpiCard icon={Percent} label="Tahmini Kar Marjı $" value={pct(totals.karMarjiUSD2026)} delta={totals.karMarjiUSD2026 - totals.karMarjiUSD2025} deltaSuffix=" puan" compareLabel={pct(totals.karMarjiUSD2025) + ' (2025)'} />
                 </div>
               )}
 
               {dashCurrency === 'TL' && (
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-                  <KpiCard icon={Receipt} label="Gider" value={'₺' + fmtM(totals.totalGider)} delta={totals.giderBuyume} compareLabel={'₺' + fmtM(totals.gider2025) + ' (2025)'} />
-                  <KpiCard icon={Percent} label="Gider Oranı" value={pct(giderOraniConfirmed)} delta={giderOraniConfirmed - giderOrani2025} deltaSuffix=" puan" compareLabel={pct(giderOrani2025) + ' (2025)'} />
+                  <KpiCard icon={Receipt} label="Gider" value={'₺' + fmtM(confirmedGider)} delta={confirmedGiderBuyume} compareLabel={'₺' + fmtM(gider2025Prorated) + ' (2025)'} />
+                  <KpiCard icon={Percent} label="Gider Oranı" value={pct(confirmedGiderOrani)} delta={confirmedGiderOrani - giderOrani2025Prorated} deltaSuffix=" puan" compareLabel={pct(giderOrani2025Prorated) + ' (2025)'} />
                 </div>
               )}
 
-              {dashCurrency === 'TL' && tahminiProjeToplam > 0 && (
+              {dashCurrency === 'USD' && (
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                  <KpiCard icon={Receipt} label="Gider $" value={'$' + fmtM(confirmedGiderUSD)} delta={confirmedGiderUSDBuyume} compareLabel={'$' + fmtM(giderUSD2025Prorated) + ' (2025)'} />
+                  <KpiCard icon={Receipt} label="Tahmini Gider $" value={'$' + fmtM(totals.giderUSD2026)} delta={totals.giderUSDBuyume} compareLabel={'$' + fmtM(totals.giderUSD2025) + ' (2025)'} />
+                </div>
+              )}
+
+              {tahminiProjeToplam > 0 && (
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="shrink-0">
                     <span className="text-sm text-slate-500 whitespace-nowrap">Hedefe Ulaşma</span>
@@ -376,7 +416,9 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     </div>
                     <div className="min-w-0">
                       <span className="block text-xs text-slate-500 whitespace-nowrap">Tahmini Proje Bedeli</span>
-                      <div className="text-base font-semibold text-slate-900 tabular-nums whitespace-nowrap">₺{fmtTL(tahminiProjeToplam)}</div>
+                      <div className="text-base font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+                        {dashCurrency === 'TL' ? '₺' + fmtTL(tahminiProjeToplam) : '$' + fmtTL(tahminiProjeToplamUSD)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -406,7 +448,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     }`}
                   >
                     {m}
-                    {!REAL_MONTHS.includes(m) && <span className="ml-1 text-[10px] opacity-60">•</span>}
+                    {getAyDurumu(m) === 'tahmini' && <span className="ml-1 text-[10px] opacity-60">•</span>}
                   </button>
                 ))}
               </div>
@@ -418,8 +460,11 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     ₺{fmtTL(selectedMonth === 'Toplam' ? totals.totalGider : gider[months.indexOf(selectedMonth)])}
                   </div>
                 </div>
-                {selectedMonth !== 'Toplam' && !REAL_MONTHS.includes(selectedMonth) && (
-                  <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini (~%90)</span>
+                {selectedMonth !== 'Toplam' && getAyDurumu(selectedMonth) === 'tahmini' && (
+                  <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini</span>
+                )}
+                {selectedMonth !== 'Toplam' && getAyDurumu(selectedMonth) === 'güncel' && (
+                  <span className="bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full px-3 py-1.5">Güncel</span>
                 )}
               </div>
 
@@ -523,7 +568,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     }`}
                   >
                     {m}
-                    {!REAL_MONTHS.includes(m) && <span className="ml-1 text-[10px] opacity-60">•</span>}
+                    {getAyDurumu(m) === 'tahmini' && <span className="ml-1 text-[10px] opacity-60">•</span>}
                   </button>
                 ))}
               </div>
@@ -535,8 +580,11 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     ₺{fmtTL(selectedMonth === 'Toplam' ? totals.totalCiro : ciro[months.indexOf(selectedMonth)])}
                   </div>
                 </div>
-                {selectedMonth !== 'Toplam' && !REAL_MONTHS.includes(selectedMonth) && (
-                  <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini (~%90)</span>
+                {selectedMonth !== 'Toplam' && getAyDurumu(selectedMonth) === 'tahmini' && (
+                  <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini</span>
+                )}
+                {selectedMonth !== 'Toplam' && getAyDurumu(selectedMonth) === 'güncel' && (
+                  <span className="bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full px-3 py-1.5">Güncel</span>
                 )}
               </div>
 
