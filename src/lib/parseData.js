@@ -20,7 +20,38 @@ function num(v) {
 // Sol taraf HAM isim (büyük harf, sheet'teki hali), sağ taraf birleştirileceği kanonik isim.
 const CLIENT_ALIASES = {
   'ALTINCOM PROJE': 'ALTINCOM',
-  'MEHMET ZENGİN': 'MEHMET ZENGİN (TUN)',
+  'MEHMET ZENGİN': 'TUN GIDA',
+  'MEHMET ZENGİN (TUN)': 'TUN GIDA',
+};
+
+// Başlık-yazımına sokulmadan, olduğu gibi bırakılması gereken isimler (kısaltmalar, yabancı kökenli kelimeler)
+const SPECIAL_CASE_NAMES = {
+  'B.M.S': 'B.M.S',
+  'HERITAGE': 'Heritage',
+  'WILDFRUITS': 'Wildfruits',
+  'PERSAN - PICULET': 'Persan - Piculet',
+  'PERSONEL SGK': 'Personel SGK',
+  'SGK VE DİĞER DANIŞMANLIK': 'SGK Ve Diğer Danışmanlık',
+  'OGS HGS': 'OGS HGS',
+  'İSKİ SU': 'İSKİ Su',
+  'MTV VE ÖZEL İLETİŞİM VERGİSİ': 'MTV Ve Özel İletişim Vergisi',
+  'BELEDİYE (ÇEVRE TEMİZLİK) - İTO AİDAT': 'Belediye (Çevre Temizlik) - İTO Aidat',
+  'SMM YMM AVUKAT': 'SMM YMM Avukat',
+};
+
+// Başlık-yazımı sonrasında kısaltma olarak kalması gereken kelimeler
+const ACRONYM_WORDS = {
+  SGK: 'SGK',
+  SMM: 'SMM',
+  YMM: 'YMM',
+  OGS: 'OGS',
+  HGS: 'HGS',
+  MTV: 'MTV',
+  KDV: 'KDV',
+  İSKİ: 'İSKİ',
+  ISKI: 'İSKİ',
+  İTO: 'İTO',
+  ITO: 'İTO',
 };
 
 // Türkçe kurallara göre "Başlık Şeklinde" yazım (BÜYÜK HARF sheet verisini
@@ -29,12 +60,21 @@ function toTitleCaseTR(raw) {
   if (typeof raw !== 'string') return raw;
   let s = raw.trim().replace(/\s+\d+\/\d+$/, '').trim();
   if (!s) return s;
-  const alias = CLIENT_ALIASES[s.toLocaleUpperCase('tr-TR')];
-  if (alias) s = alias;
-  return s
+  const upper = s.toLocaleUpperCase('tr-TR');
+  if (CLIENT_ALIASES[upper]) s = CLIENT_ALIASES[upper];
+  const upperAfterAlias = s.toLocaleUpperCase('tr-TR');
+  if (SPECIAL_CASE_NAMES[upperAfterAlias]) return SPECIAL_CASE_NAMES[upperAfterAlias];
+  const titled = s
     .toLocaleLowerCase('tr-TR')
     .split(' ')
-    .map((w) => w.replace(/^(\W*)(\w)/u, (_, pre, c) => pre + c.toLocaleUpperCase('tr-TR')))
+    .map((w) => w.replace(/^(\P{L}*)(\p{L})/u, (_, pre, c) => pre + c.toLocaleUpperCase('tr-TR')))
+    .join(' ');
+  return titled
+    .split(' ')
+    .map((w) => {
+      const key = w.replace(/[.,]/g, '').toLocaleUpperCase('tr-TR');
+      return ACRONYM_WORDS[key] || w;
+    })
     .join(' ');
 }
 
@@ -119,7 +159,7 @@ export function parseDash26(dash26Raw) {
   const ciroUSD = monthRows.map((row) => num(row[16]));
   const giderUSD = monthRows.map((row) => num(row[17]));
   const ayDurumu = monthRows.map((row) => {
-    const raw = String(row[21] || '').trim().toLocaleLowerCase('tr-TR');
+    const raw = String(row[21] || '').trim().toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
     if (raw === 'güncel') return 'güncel';
     if (raw === 'tahmini') return 'tahmini';
     return null;
@@ -235,6 +275,25 @@ export function computeTahminiToplam(revenueRaw) {
 }
 
 /* ------------------------------------------------------------------ */
+/* MARKA DURUM: "Pasif" işaretli markaların listesi                    */
+/* ------------------------------------------------------------------ */
+// Sheet'teki kısa/farklı yazılmış isimlerin, uygulamadaki tam isme eşleştirilmesi
+const MARKA_DURUM_ALIASES = {};
+
+export function parsePasifMarkalar(markaDurumRows) {
+  const pasifSet = new Set();
+  if (!Array.isArray(markaDurumRows)) return [];
+  markaDurumRows.forEach((r) => {
+    const durum = String(r['DURUM'] || '').trim().toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
+    if (durum !== 'pasif') return;
+    let name = toTitleCaseTR(r['MARKA']);
+    if (MARKA_DURUM_ALIASES[name]) name = MARKA_DURUM_ALIASES[name];
+    pasifSet.add(name);
+  });
+  return [...pasifSet];
+}
+
+/* ------------------------------------------------------------------ */
 /* ANA GİRİŞ NOKTASI                                                    */
 /* ------------------------------------------------------------------ */
 export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
@@ -258,6 +317,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
   const revenueRaw = parseRevenueRaw(feeJson);
   const alacaklarData = parseAlacaklar(odemeJson['2026 ÖDEME LİSTESİ']);
   const tahminiProjeToplam = computeTahminiToplam(revenueRaw);
+  const pasifMarkalar = parsePasifMarkalar(feeJson['MARKA DURUM']);
 
   return {
     months: MONTHS,
@@ -274,6 +334,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
     totals2025,
     tahminiProjeToplam,
     ayDurumu,
+    pasifMarkalar,
     lastUpdatedFee: feeJson._lastUpdated || null,
     lastUpdatedOdeme: odemeJson._lastUpdated || null,
   };
