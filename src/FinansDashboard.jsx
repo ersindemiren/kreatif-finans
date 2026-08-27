@@ -2,7 +2,7 @@
 // Apps Script web app uç noktaları üzerinden otomatik çekilir (bkz. src/lib/parseData.js)
 import React, { useState, useMemo } from 'react';
 import {
-  LayoutDashboard, Receipt, TrendingUp, MessageSquare, ChevronRight, AlertTriangle, Menu, X,
+  LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, ChevronRight, AlertTriangle, Menu, X,
   HandCoins, Landmark, FileCheck,
   Wallet, PiggyBank, Percent, RefreshCw,
 } from 'lucide-react';
@@ -49,17 +49,33 @@ const fmtTL = (n) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }
 const fmtM = (n) => ((n || 0) / 1000000).toFixed(2).replace('.', ',') + ' M';
 const pct = (n) => (Number.isFinite(n) ? (n * 100).toFixed(1).replace('.', ',') : '0,0') + '%';
 
-function KpiCard({ icon: Icon, label, value, deltaLabel, compareLabel }) {
+function TrendBadge({ value, suffix = '' }) {
+  const isNeg = value < 0;
+  const Icon = isNeg ? TrendingDown : TrendingUp;
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col gap-3 min-w-0">
-      <span className="flex items-center gap-1.5 text-sm text-slate-500">
-        {Icon && <Icon size={14} className="text-slate-400 shrink-0" />}
+    <span
+      className={`inline-flex items-center gap-1 text-sm font-medium rounded-full px-2.5 py-1 whitespace-nowrap ${
+        isNeg ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'
+      }`}
+    >
+      <Icon size={12} />
+      {pct(value)}
+      {suffix}
+    </span>
+  );
+}
+
+function KpiCard({ icon: Icon, label, value, delta, deltaSuffix = '', compareLabel }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col gap-2 min-w-0">
+      <span className="flex items-center gap-1.5 text-xs text-slate-500">
+        {Icon && <Icon size={13} className="text-slate-400 shrink-0" />}
         {label}
       </span>
-      <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 tabular-nums whitespace-nowrap">{value}</span>
+      <span className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 tabular-nums whitespace-nowrap">{value}</span>
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full px-2.5 py-1">{deltaLabel}</span>
-        <span className="text-slate-400 text-sm">{compareLabel}</span>
+        <TrendBadge value={delta} suffix={deltaSuffix} />
+        <span className="text-slate-400 text-xs">{compareLabel}</span>
       </div>
     </div>
   );
@@ -203,6 +219,14 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
   const hedefIlerleme = totals.totalCiro ? (totals.totalCiro - (tahminiProjeToplam || 0)) / totals.totalCiro : 0;
 
+  const ciroConfirmed = totals.totalCiro - (tahminiProjeToplam || 0);
+  const karConfirmed = totals.totalKar - (tahminiProjeToplam || 0);
+  const karMarjiConfirmed = ciroConfirmed ? karConfirmed / ciroConfirmed : 0;
+  const ciroConfirmedBuyume = totals.ciro2025 ? (ciroConfirmed - totals.ciro2025) / totals.ciro2025 : 0;
+  const karConfirmedBuyume = totals.kar2025 ? (karConfirmed - totals.kar2025) / totals.kar2025 : 0;
+  const giderOraniConfirmed = ciroConfirmed ? totals.totalGider / ciroConfirmed : 0;
+  const giderOrani2025 = totals.ciro2025 ? totals.gider2025 / totals.ciro2025 : 0;
+
   const pages = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'gelirler', label: 'Gelirler', icon: TrendingUp },
@@ -314,23 +338,30 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {dashCurrency === 'TL' ? (
-                  <>
-                    <KpiCard icon={Wallet} label="Ciro" value={'₺' + fmtM(totals.totalCiro)} deltaLabel={pct(totals.ciroBuyume)} compareLabel={'₺' + fmtM(totals.ciro2025) + ' (2025)'} />
-                    <KpiCard icon={Receipt} label="Gider" value={'₺' + fmtM(totals.totalGider)} deltaLabel={pct(totals.giderBuyume)} compareLabel={'₺' + fmtM(totals.gider2025) + ' (2025)'} />
-                    <KpiCard icon={PiggyBank} label="Net Kar" value={'₺' + fmtM(totals.totalKar)} deltaLabel={pct(totals.karBuyume)} compareLabel={'₺' + fmtM(totals.kar2025) + ' (2025)'} />
-                    <KpiCard icon={Percent} label="Kar Marjı" value={pct(totals.karMarji)} deltaLabel={pct(totals.karMarji - totals.karMarji2025) + ' puan'} compareLabel={pct(totals.karMarji2025) + ' (2025)'} />
-                  </>
-                ) : (
-                  <>
-                    <KpiCard icon={Wallet} label="Ciro $" value={'$' + fmtM(totals.ciroUSD2026)} deltaLabel={pct(totals.ciroUSDBuyume)} compareLabel={'$' + fmtM(totals.ciroUSD2025) + ' (2025)'} />
-                    <KpiCard icon={Receipt} label="Gider $" value={'$' + fmtM(totals.giderUSD2026)} deltaLabel={pct(totals.giderUSDBuyume)} compareLabel={'$' + fmtM(totals.giderUSD2025) + ' (2025)'} />
-                    <KpiCard icon={PiggyBank} label="Net Kar $" value={'$' + fmtM(totals.netKarUSD2026)} deltaLabel={pct(totals.karUSDBuyume)} compareLabel={'$' + fmtM(totals.netKarUSD2025) + ' (2025)'} />
-                    <KpiCard icon={Percent} label="Kar Marjı $" value={pct(totals.karMarjiUSD2026)} deltaLabel={pct(totals.karMarjiUSD2026 - totals.karMarjiUSD2025) + ' puan'} compareLabel={pct(totals.karMarjiUSD2025) + ' (2025)'} />
-                  </>
-                )}
-              </div>
+              {dashCurrency === 'TL' ? (
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                  <KpiCard icon={Wallet} label="Ciro" value={'₺' + fmtM(ciroConfirmed)} delta={ciroConfirmedBuyume} compareLabel={'₺' + fmtM(totals.ciro2025) + ' (2025)'} />
+                  <KpiCard icon={Wallet} label="Tahmini Ciro" value={'₺' + fmtM(totals.totalCiro)} delta={totals.ciroBuyume} compareLabel={'₺' + fmtM(totals.ciro2025) + ' (2025)'} />
+                  <KpiCard icon={PiggyBank} label="Net Kar" value={'₺' + fmtM(karConfirmed)} delta={karConfirmedBuyume} compareLabel={'₺' + fmtM(totals.kar2025) + ' (2025)'} />
+                  <KpiCard icon={PiggyBank} label="Tahmini Net Kar" value={'₺' + fmtM(totals.totalKar)} delta={totals.karBuyume} compareLabel={'₺' + fmtM(totals.kar2025) + ' (2025)'} />
+                  <KpiCard icon={Percent} label="Kar Marjı" value={pct(karMarjiConfirmed)} delta={karMarjiConfirmed - totals.karMarji2025} deltaSuffix=" puan" compareLabel={pct(totals.karMarji2025) + ' (2025)'} />
+                  <KpiCard icon={Percent} label="Tahmini Kar Marjı" value={pct(totals.karMarji)} delta={totals.karMarji - totals.karMarji2025} deltaSuffix=" puan" compareLabel={pct(totals.karMarji2025) + ' (2025)'} />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <KpiCard icon={Wallet} label="Ciro $" value={'$' + fmtM(totals.ciroUSD2026)} delta={totals.ciroUSDBuyume} compareLabel={'$' + fmtM(totals.ciroUSD2025) + ' (2025)'} />
+                  <KpiCard icon={Receipt} label="Gider $" value={'$' + fmtM(totals.giderUSD2026)} delta={totals.giderUSDBuyume} compareLabel={'$' + fmtM(totals.giderUSD2025) + ' (2025)'} />
+                  <KpiCard icon={PiggyBank} label="Net Kar $" value={'$' + fmtM(totals.netKarUSD2026)} delta={totals.karUSDBuyume} compareLabel={'$' + fmtM(totals.netKarUSD2025) + ' (2025)'} />
+                  <KpiCard icon={Percent} label="Kar Marjı $" value={pct(totals.karMarjiUSD2026)} delta={totals.karMarjiUSD2026 - totals.karMarjiUSD2025} deltaSuffix=" puan" compareLabel={pct(totals.karMarjiUSD2025) + ' (2025)'} />
+                </div>
+              )}
+
+              {dashCurrency === 'TL' && (
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                  <KpiCard icon={Receipt} label="Gider" value={'₺' + fmtM(totals.totalGider)} delta={totals.giderBuyume} compareLabel={'₺' + fmtM(totals.gider2025) + ' (2025)'} />
+                  <KpiCard icon={Percent} label="Gider Oranı" value={pct(giderOraniConfirmed)} delta={giderOraniConfirmed - giderOrani2025} deltaSuffix=" puan" compareLabel={pct(giderOrani2025) + ' (2025)'} />
+                </div>
+              )}
 
               {dashCurrency === 'TL' && tahminiProjeToplam > 0 && (
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
