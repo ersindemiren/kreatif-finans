@@ -2,9 +2,9 @@
 // Apps Script web app uç noktaları üzerinden otomatik çekilir (bkz. src/lib/parseData.js)
 import React, { useState, useMemo } from 'react';
 import {
-  LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, ChevronRight, AlertTriangle, Menu, X,
+  LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, ChevronRight, AlertTriangle, Menu, X, Moon, Sun,
   HandCoins, Landmark, FileCheck,
-  Wallet, PiggyBank, Percent, RefreshCw,
+  Wallet, PiggyBank, Percent,
 } from 'lucide-react';
 
 
@@ -72,15 +72,15 @@ function TrendBadge({ value, suffix = '' }) {
 
 function KpiCard({ icon: Icon, label, value, delta, deltaSuffix = '', compareLabel }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col gap-2 min-w-0">
-      <span className="flex items-center gap-1.5 text-xs text-slate-500">
-        {Icon && <Icon size={13} className="text-slate-400 shrink-0" />}
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col gap-2 min-w-0">
+      <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+        {Icon && <Icon size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />}
         {label}
       </span>
-      <span className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 tabular-nums whitespace-nowrap">{value}</span>
+      <span className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">{value}</span>
       <div className="flex items-center gap-2 flex-wrap">
         <TrendBadge value={delta} suffix={deltaSuffix} />
-        <span className="text-slate-400 text-xs">{compareLabel}</span>
+        <span className="text-slate-400 dark:text-slate-500 text-xs">{compareLabel}</span>
       </div>
     </div>
   );
@@ -122,6 +122,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [giderGorunum, setGiderGorunum] = useState('güncel');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashCurrency, setDashCurrency] = useState('TL');
+  const [darkMode, setDarkMode] = useState(false);
 
   const { months, ciro, ciroUSD, giderUSD, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam, ayDurumu } = data;
 
@@ -235,15 +236,16 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     };
   }, [ciro, gider, totals2026, totals2025]);
 
-  const hedefIlerleme = totals.totalCiro ? (totals.totalCiro - (tahminiProjeToplam || 0)) / totals.totalCiro : 0;
-
   // Sheet'teki V sütunundan gelen "Güncel/Tahmini" işaretine göre kesinleşmiş aylar
   const confirmedCount = (ayDurumu || []).filter((d) => d === 'güncel').length;
   const confirmedCiro = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? ciro[i] : 0), 0);
   const tahminiCiroToplam = totals.totalCiro - confirmedCiro;
+  const hedefIlerleme = totals.totalCiro ? confirmedCiro / totals.totalCiro : 0;
   const guncelAylar = months.filter((_, i) => ayDurumu?.[i] === 'güncel');
   const tahminiAylar = months.filter((_, i) => ayDurumu?.[i] === 'tahmini');
   const guncelRangeLabel = guncelAylar.length ? `${guncelAylar[0]}-${guncelAylar[guncelAylar.length - 1]}` : '';
+  const tahminiRangeLabel = tahminiAylar.length ? `${tahminiAylar[0]}-${tahminiAylar[tahminiAylar.length - 1]}` : '';
+  const toplamRangeLabel = `${months[0]}-${months[months.length - 1]}`;
   const confirmedGider = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? gider[i] : 0), 0);
   const confirmedKar = confirmedCiro - confirmedGider;
   const confirmedKarMarji = confirmedCiro ? confirmedKar / confirmedCiro : 0;
@@ -265,6 +267,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
   // USD taraf — Ciro $/Gider $ (Q/R sütunları) için de aynı kesinleşmiş/tahmini ayrımı
   const confirmedCiroUSD = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? (ciroUSD?.[i] || 0) : 0), 0);
+  const tahminiCiroToplamUSD = (totals.ciroUSD2026 || 0) - confirmedCiroUSD;
   const confirmedGiderUSD = months.reduce((sum, _, i) => sum + (ayDurumu?.[i] === 'güncel' ? (giderUSD?.[i] || 0) : 0), 0);
   const confirmedKarUSD = confirmedCiroUSD - confirmedGiderUSD;
   const confirmedKarMarjiUSD = confirmedCiroUSD ? confirmedKarUSD / confirmedCiroUSD : 0;
@@ -278,11 +281,10 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const confirmedKarUSDBuyume = karUSD2025Prorated ? (confirmedKarUSD - karUSD2025Prorated) / karUSD2025Prorated : 0;
   const confirmedGiderUSDBuyume = giderUSD2025Prorated ? (confirmedGiderUSD - giderUSD2025Prorated) / giderUSD2025Prorated : 0;
 
-  // Tahmini Proje Bedeli'nin $ karşılığı — DASH 26 P15 (ortalama USD kuru)
-  const tahminiProjeToplamUSD = totals2026?.kurUSD ? tahminiProjeToplam / totals2026.kurUSD : 0;
+  // Tahmini Hedef Ciro'nun $ karşılığı (Gelirler'deki Tahmini Ciro ile aynı mantık)
 
   const pages = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Yönetici Özeti', icon: LayoutDashboard },
     { id: 'gelirler', label: 'Gelirler', icon: TrendingUp },
     { id: 'giderler', label: 'Giderler', icon: Receipt },
     { id: 'alacaklar', label: 'Alacaklar', icon: HandCoins },
@@ -290,30 +292,30 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
   ];
 
-  const pageTitle = pages.find((p) => p.id === page)?.label ?? 'Dashboard';
+  const pageTitle = pages.find((p) => p.id === page)?.label ?? 'Yönetici Özeti';
 
   const lastSync = lastUpdatedFee ? new Date(lastUpdatedFee).toLocaleString('tr-TR') : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans flex">
+    <div className={darkMode ? 'dark' : ''}>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans flex transition-colors">
       {/* Masaüstü sol menü */}
       <div className="hidden md:flex w-64 bg-slate-900 flex-shrink-0 flex-col py-6 px-4 gap-1">
         <div className="flex items-center gap-3 px-2 pb-6 mb-2 border-b border-slate-800">
-          <div className="w-9 h-9 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-semibold shrink-0">M</div>
-          <span className="text-white font-semibold text-[15px]">Kreatif Dashboard</span>
+          <div className="w-9 h-9 rounded-lg bg-yellow-400 flex items-center justify-center text-slate-900 font-bold shrink-0">K</div>
+          <span className="text-white font-semibold text-[15px]">Finans Özeti</span>
         </div>
         {pages.map((p) => (
           <NavItem key={p.id} icon={p.icon} label={p.label} active={page === p.id} onClick={() => setPage(p.id)} />
         ))}
         <div className="mt-auto pt-4 border-t border-slate-800 flex flex-col gap-2">
-          {lastSync && <span className="text-[11px] text-slate-500 px-2">Son senkron: {lastSync}</span>}
+          {lastSync && <span className="text-[11px] text-slate-500 dark:text-slate-400 px-2">Son senkron: {lastSync}</span>}
           <button
-            onClick={onRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-2 text-[13px] text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            onClick={() => setDarkMode((v) => !v)}
+            className="flex items-center gap-2 px-2 py-1.5 text-[13px] text-slate-400 dark:text-slate-500 hover:text-white transition-colors"
           >
-            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
-            {refreshing ? 'Güncelleniyor...' : 'Şimdi güncelle'}
+            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+            {darkMode ? 'Gündüz Modu' : 'Gece Modu'}
           </button>
         </div>
       </div>
@@ -326,10 +328,10 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
         <div className="md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 flex flex-col py-6 px-4 gap-1">
           <div className="flex items-center justify-between px-2 pb-6 mb-2 border-b border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-semibold shrink-0">M</div>
-              <span className="text-white font-semibold text-[15px]">Kreatif Dashboard</span>
+              <div className="w-9 h-9 rounded-lg bg-yellow-400 flex items-center justify-center text-slate-900 font-bold shrink-0">K</div>
+              <span className="text-white font-semibold text-[15px]">Finans Özeti</span>
             </div>
-            <button className="text-slate-400 hover:text-white shrink-0" onClick={() => setMobileMenuOpen(false)}>
+            <button className="text-slate-400 dark:text-slate-500 hover:text-white shrink-0" onClick={() => setMobileMenuOpen(false)}>
               <X size={20} />
             </button>
           </div>
@@ -350,30 +352,29 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
       {/* İçerik */}
       <div className="flex-1 min-w-0">
-        <div className="px-4 sm:px-8 py-5 border-b border-slate-200 bg-white flex items-center gap-3">
-          <button className="md:hidden text-slate-500 hover:text-slate-900 shrink-0" onClick={() => setMobileMenuOpen(true)}>
-            <Menu size={20} />
+        <div className="px-4 sm:px-8 py-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3">
+          <button className="md:hidden text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shrink-0" onClick={() => setMobileMenuOpen(true)}>
+            <Menu size={24} strokeWidth={2.25} />
           </button>
-          <span className="text-sm text-slate-500">Yönetici Özeti</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400">MENÜ</span>
           <button
-            onClick={onRefresh}
-            disabled={refreshing}
-            className="md:hidden ml-auto flex items-center gap-1.5 text-xs text-slate-400 disabled:opacity-50"
+            onClick={() => setDarkMode((v) => !v)}
+            className="md:hidden ml-auto flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500"
           >
-            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-            Güncelle
+            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+            {darkMode ? 'Gündüz' : 'Gece'}
           </button>
         </div>
 
         <div className="p-4 sm:p-8 flex flex-col gap-6">
-          <h1 className="font-serif text-3xl text-slate-900">{pageTitle}</h1>
+          <h1 className="font-serif text-3xl text-slate-900 dark:text-slate-50 dark:text-white">{pageTitle}</h1>
 
           {/* ---------------- DASHBOARD ---------------- */}
           {page === 'dashboard' && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between flex-wrap gap-2 -mb-1">
-                <p className="text-xs text-slate-400">Yeşil oranlar 2025'e göre değişimi gösterir (2025 → 2026)</p>
-                <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
+                <p className="text-xs text-slate-400 dark:text-slate-500">Yeşil oranlar 2025'e göre değişimi gösterir (2025 → 2026)</p>
+                <div className="flex gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
                   <button
                     onClick={() => setDashCurrency('TL')}
                     className={`w-9 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -426,21 +427,21 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
               )}
 
-              {tahminiProjeToplam > 0 && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+              {tahminiCiroToplam > 0 && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="shrink-0">
-                    <span className="text-sm text-slate-500 whitespace-nowrap">Hedefe Ulaşma</span>
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 tabular-nums">{Math.round(hedefIlerleme * 100)}%</div>
+                    <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">Hedefe Ulaşma</span>
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums">{Math.round(hedefIlerleme * 100)}%</div>
                   </div>
                   <SegmentedBar percent={hedefIlerleme} />
                   <div className="shrink-0 flex items-center gap-3 sm:pl-4 sm:border-l border-slate-100">
                     <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                      <AlertTriangle size={14} className="text-slate-400" />
+                      <AlertTriangle size={14} className="text-slate-400 dark:text-slate-500" />
                     </div>
                     <div className="min-w-0">
-                      <span className="block text-xs text-slate-500 whitespace-nowrap">Tahmini Proje Bedeli</span>
-                      <div className="text-base font-semibold text-slate-900 tabular-nums whitespace-nowrap">
-                        {dashCurrency === 'TL' ? '₺' + fmtTL(tahminiProjeToplam) : '$' + fmtTL(tahminiProjeToplamUSD)}
+                      <span className="block text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">Tahmini Hedef Ciro</span>
+                      <div className="text-base font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">
+                        {dashCurrency === 'TL' ? '₺' + fmtTL(tahminiCiroToplam) : '$' + fmtTL(tahminiCiroToplamUSD)}
                       </div>
                     </div>
                   </div>
@@ -452,7 +453,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- GİDERLER (liste) ---------------- */}
           {page === 'giderler' && (
             <div className="flex flex-col gap-5">
-              <div className="flex flex-wrap gap-1.5 bg-white border border-slate-200 rounded-xl p-1.5 w-fit">
+              <div className="flex flex-wrap gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 w-fit">
                 <button
                   onClick={() => setSelectedMonth('Toplam')}
                   className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -461,7 +462,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 >
                   Toplam
                 </button>
-                <span className="w-px bg-slate-200 my-1" />
+                <span className="w-px bg-slate-200 dark:bg-slate-700 my-1" />
                 {months.map((m) => (
                   <button
                     key={m}
@@ -474,21 +475,28 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               </div>
 
               {selectedMonth === 'Toplam' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                    <span className="text-sm text-slate-500">Güncel Toplam Gider {guncelRangeLabel && `(${guncelRangeLabel})`}</span>
-                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(confirmedGider)}</div>
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Toplam Gider</span>
+                    <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(totals.totalGider)}</div>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({toplamRangeLabel})</span>
                   </div>
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                    <span className="text-sm text-slate-500">Toplam Gider (Ocak-Aralık)</span>
-                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(totals.totalGider)}</div>
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Güncel Gider</span>
+                    <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(confirmedGider)}</div>
+                    {guncelRangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({guncelRangeLabel})</span>}
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Tahmini Gider</span>
+                    <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(tahminiGiderToplam)}</div>
+                    {tahminiRangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({tahminiRangeLabel})</span>}
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between flex-wrap gap-2">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <span className="text-sm text-slate-500">{selectedMonth} Toplam Gider</span>
-                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(gider[months.indexOf(selectedMonth)])}</div>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">{selectedMonth} Toplam Gider</span>
+                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">₺{fmtTL(gider[months.indexOf(selectedMonth)])}</div>
                   </div>
                   {getAyDurumu(selectedMonth) === 'tahmini' && (
                     <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini</span>
@@ -499,10 +507,10 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
               )}
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 className="font-serif text-lg text-slate-900 mb-1">Gider Kalemi Dağılımı</h2>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Gider Kalemi Dağılımı</h2>
                 {selectedMonth === 'Toplam' ? (
-                  <div className="flex gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit mb-4 mt-3">
+                  <div className="flex gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 w-fit mb-4 mt-3">
                     {[
                       { key: 'toplam', label: 'Toplam' },
                       { key: 'güncel', label: 'Güncel' },
@@ -520,9 +528,9 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500 mb-4">{expenseItemDefs.length} gider kalemi, büyükten küçüğe sıralanmıştır.</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{expenseItemDefs.length} gider kalemi, büyükten küçüğe sıralanmıştır.</p>
                 )}
-                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400">
+                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   <span className="w-5 shrink-0" />
                   <span className="flex-1">Kalem</span>
                   <span className="w-12 sm:w-14 text-right shrink-0">Gidere Oranı</span>
@@ -556,20 +564,20 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     return (
                       <>
                         {rows.map((k, i) => (
-                          <div key={k.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50">
-                            <span className="text-xs text-slate-400 w-5 tabular-nums shrink-0">{i + 1}</span>
-                            <span className="text-sm text-slate-700 flex-1 min-w-0">{k.name}</span>
-                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? k.amount / periodTotalGider : 0)}</span>
-                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? k.amount / periodTotalCiro : 0)}</span>
-                            <span className="text-sm tabular-nums text-slate-900 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(k.amount)}</span>
+                          <div key={k.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                            <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
+                            <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">{k.name}</span>
+                            <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? k.amount / periodTotalGider : 0)}</span>
+                            <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? k.amount / periodTotalCiro : 0)}</span>
+                            <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(k.amount)}</span>
                           </div>
                         ))}
-                        <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200">
+                        <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                           <span className="w-5 shrink-0" />
-                          <span className="text-sm text-slate-900 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? rowsTotal / periodTotalGider : 0)}</span>
-                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
-                          <span className="text-sm tabular-nums text-slate-900 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
+                          <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                          <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? rowsTotal / periodTotalGider : 0)}</span>
+                          <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
+                          <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
                         </div>
                       </>
                     );
@@ -577,10 +585,10 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 className="font-serif text-lg text-slate-900 mb-1">Gider Oranları</h2>
-                <p className="text-xs text-slate-500 mb-4">8 gider kategorisi, büyükten küçüğe sıralanmıştır.</p>
-                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Gider Oranları</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">8 gider kategorisi, büyükten küçüğe sıralanmıştır.</p>
+                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   <span className="w-5 shrink-0" />
                   <span className="flex-1">Kategori</span>
                   <span className="w-12 sm:w-14 text-right shrink-0">Gidere Oranı</span>
@@ -589,26 +597,26 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
                 <div className="flex flex-col">
                   {[...giderYapisi].sort((a, b) => b.deger - a.deger).map((g, i) => (
-                    <div key={g.name} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50">
-                      <span className="text-xs text-slate-400 w-5 tabular-nums shrink-0">{i + 1}</span>
+                    <div key={g.name} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                      <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-1.5 text-sm text-slate-700">
+                        <span className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
                           <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: g.fill }} />
                           <span>{g.name}</span>
                         </span>
-                        <span className="block text-xs text-slate-400 pl-3.5">({g.detay})</span>
+                        <span className="block text-xs text-slate-400 dark:text-slate-500 pl-3.5">({g.detay})</span>
                       </span>
-                      <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(g.deger / totals.totalGider)}</span>
-                      <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(g.deger / totals.totalCiro)}</span>
-                      <span className="text-sm tabular-nums text-slate-900 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(g.deger)}</span>
+                      <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(g.deger / totals.totalGider)}</span>
+                      <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(g.deger / totals.totalCiro)}</span>
+                      <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(g.deger)}</span>
                     </div>
                   ))}
-                  <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200">
+                  <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                     <span className="w-5 shrink-0" />
-                    <span className="text-sm text-slate-900 font-semibold flex-1 min-w-0">Toplam</span>
-                    <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(1)}</span>
-                    <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(totals.totalGider / totals.totalCiro)}</span>
-                    <span className="text-sm tabular-nums text-slate-900 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(giderYapisi.reduce((s, g) => s + g.deger, 0))}</span>
+                    <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                    <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(1)}</span>
+                    <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(totals.totalGider / totals.totalCiro)}</span>
+                    <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(giderYapisi.reduce((s, g) => s + g.deger, 0))}</span>
                   </div>
                 </div>
               </div>
@@ -618,7 +626,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- GELİRLER ---------------- */}
           {page === 'gelirler' && (
             <div className="flex flex-col gap-5">
-              <div className="flex flex-wrap gap-1.5 bg-white border border-slate-200 rounded-xl p-1.5 w-fit">
+              <div className="flex flex-wrap gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 w-fit">
                 <button
                   onClick={() => setSelectedMonth('Toplam')}
                   className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -627,7 +635,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 >
                   Toplam
                 </button>
-                <span className="w-px bg-slate-200 my-1" />
+                <span className="w-px bg-slate-200 dark:bg-slate-700 my-1" />
                 {months.map((m) => (
                   <button
                     key={m}
@@ -640,21 +648,28 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               </div>
 
               {selectedMonth === 'Toplam' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                    <span className="text-sm text-slate-500">Güncel Toplam Ciro {guncelRangeLabel && `(${guncelRangeLabel})`}</span>
-                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(confirmedCiro)}</div>
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Toplam Ciro</span>
+                    <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(totals.totalCiro)}</div>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({toplamRangeLabel})</span>
                   </div>
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                    <span className="text-sm text-slate-500">Tahmini Toplam Ciro (Ocak-Aralık)</span>
-                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(totals.totalCiro)}</div>
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Güncel Ciro</span>
+                    <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(confirmedCiro)}</div>
+                    {guncelRangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({guncelRangeLabel})</span>}
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Tahmini Ciro</span>
+                    <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(tahminiCiroToplam)}</div>
+                    {tahminiRangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({tahminiRangeLabel})</span>}
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex items-center justify-between">
                   <div>
-                    <span className="text-sm text-slate-500">{selectedMonth} Toplam Ciro</span>
-                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(ciro[months.indexOf(selectedMonth)])}</div>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">{selectedMonth} Toplam Ciro</span>
+                    <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">₺{fmtTL(ciro[months.indexOf(selectedMonth)])}</div>
                   </div>
                   {getAyDurumu(selectedMonth) === 'tahmini' && (
                     <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Tahmini</span>
@@ -665,10 +680,10 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
               )}
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 className="font-serif text-lg text-slate-900 mb-1">Marka Bazlı Gelir Dağılımı</h2>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Gelir Dağılımı</h2>
                 {selectedMonth === 'Toplam' ? (
-                  <div className="flex gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit mb-4 mt-3">
+                  <div className="flex gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 w-fit mb-4 mt-3">
                     {[
                       { key: 'toplam', label: 'Toplam' },
                       { key: 'güncel', label: 'Güncel' },
@@ -686,9 +701,9 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500 mb-4">Sabit gelir, fee faturası ve proje bazlı gelirlerin toplamı, markaya göre birleştirilmiştir.</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Sabit gelir, fee faturası ve proje bazlı gelirlerin toplamı, markaya göre birleştirilmiştir.</p>
                 )}
-                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400">
+                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   <span className="w-5 shrink-0" />
                   <span className="flex-1">Marka</span>
                   <span className="w-12 sm:w-14 text-right shrink-0">Gelir Oranı</span>
@@ -717,18 +732,18 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     return (
                       <>
                         {rows.map((b, i) => (
-                          <div key={b.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50">
-                            <span className="text-xs text-slate-400 w-5 tabular-nums shrink-0">{i + 1}</span>
-                            <span className="text-sm text-slate-700 flex-1 min-w-0">{b.name}</span>
-                            <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? b.amount / periodTotalCiro : 0)}</span>
-                            <span className="text-sm tabular-nums text-slate-900 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(b.amount)}</span>
+                          <div key={b.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                            <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
+                            <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">{b.name}</span>
+                            <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? b.amount / periodTotalCiro : 0)}</span>
+                            <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(b.amount)}</span>
                           </div>
                         ))}
-                        <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200">
+                        <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                           <span className="w-5 shrink-0" />
-                          <span className="text-sm text-slate-900 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-xs tabular-nums text-slate-400 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
-                          <span className="text-sm tabular-nums text-slate-900 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
+                          <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                          <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
+                          <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
                         </div>
                       </>
                     );
@@ -741,20 +756,20 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- ALACAKLAR ---------------- */}
           {page === 'alacaklar' && (
             <div className="flex flex-col gap-5">
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between flex-wrap gap-2">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <span className="text-sm text-slate-500">Toplam Alacak</span>
-                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Toplam Alacak</span>
+                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">
                     ₺{fmtTL(alacaklarData.reduce((s, [, v]) => s + v, 0))}
                   </div>
                 </div>
                 <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Müşteriden Gelecek Ödemeler</span>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 className="font-serif text-lg text-slate-900 mb-1">Marka Bazlı Alacak Dağılımı</h2>
-                <p className="text-xs text-slate-500 mb-4">Müşterilerden beklenen ödemeler, markaya göre büyükten küçüğe sıralanmıştır.</p>
-                <div className="flex items-center gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Alacak Dağılımı</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Müşterilerden beklenen ödemeler, markaya göre büyükten küçüğe sıralanmıştır.</p>
+                <div className="flex items-center gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   <span className="w-5 shrink-0" />
                   <span className="flex-1">Marka</span>
                   <span className="w-14 text-right shrink-0">Alacak Oranı</span>
@@ -768,19 +783,19 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         {alacaklarData.map(([name, amount], i) => {
                           const oran = amount / toplamAlacak;
                           return (
-                            <div key={name} className="flex items-center gap-3 py-2.5 border-b border-slate-50">
-                              <span className="text-xs text-slate-400 w-5 tabular-nums shrink-0">{i + 1}</span>
-                              <span className="text-sm text-slate-700 flex-1 min-w-0">{name}</span>
+                            <div key={name} className="flex items-center gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                              <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
+                              <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">{name}</span>
                               <span className={`text-xs tabular-nums w-14 text-right shrink-0 ${oran > 0.1 ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>{pct(oran)}</span>
-                              <span className="text-sm tabular-nums text-slate-900 font-medium w-28 text-right shrink-0">₺{fmtTL(amount)}</span>
+                              <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-28 text-right shrink-0">₺{fmtTL(amount)}</span>
                             </div>
                           );
                         })}
-                        <div className="flex items-center gap-3 pt-3 mt-1 border-t-2 border-slate-200">
+                        <div className="flex items-center gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                           <span className="w-5 shrink-0" />
-                          <span className="text-sm text-slate-900 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-xs tabular-nums text-slate-400 w-14 text-right shrink-0">{pct(1)}</span>
-                          <span className="text-sm tabular-nums text-slate-900 font-bold w-28 text-right shrink-0">₺{fmtTL(toplamAlacak)}</span>
+                          <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                          <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-14 text-right shrink-0">{pct(1)}</span>
+                          <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-28 text-right shrink-0">₺{fmtTL(toplamAlacak)}</span>
                         </div>
                       </>
                     );
@@ -798,39 +813,39 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 const toplamNakit = toplamAlacak + nakitAkisiData.kasa + nakitAkisiData.banka + nakitAkisiData.cek;
                 return (
                   <>
-                    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                      <span className="text-sm text-slate-500">Toplam</span>
-                      <div className="text-2xl sm:text-3xl font-semibold text-slate-900 tabular-nums mt-1">₺{fmtTL(toplamNakit)}</div>
-                      <p className="text-xs text-slate-400 mt-2">Alacaklar + Kasa + Banka + Çek toplamı</p>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                      <span className="text-sm text-slate-500 dark:text-slate-400">Toplam</span>
+                      <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">₺{fmtTL(toplamNakit)}</div>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Alacaklar + Kasa + Banka + Çek toplamı</p>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col gap-3 min-w-0">
-                        <span className="flex items-center gap-1.5 text-sm text-slate-500">
-                          <HandCoins size={14} className="text-slate-400 shrink-0" />
+                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-3 min-w-0">
+                        <span className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+                          <HandCoins size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
                           Alacaklar
                         </span>
-                        <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 tabular-nums whitespace-nowrap">₺{fmtTL(toplamAlacak)}</span>
+                        <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">₺{fmtTL(toplamAlacak)}</span>
                       </div>
-                      <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col gap-3 min-w-0">
-                        <span className="flex items-center gap-1.5 text-sm text-slate-500">
-                          <Wallet size={14} className="text-slate-400 shrink-0" />
+                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-3 min-w-0">
+                        <span className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+                          <Wallet size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
                           Kasa
                         </span>
-                        <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 tabular-nums whitespace-nowrap">₺{fmtTL(nakitAkisiData.kasa)}</span>
+                        <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">₺{fmtTL(nakitAkisiData.kasa)}</span>
                       </div>
-                      <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col gap-3 min-w-0">
-                        <span className="flex items-center gap-1.5 text-sm text-slate-500">
-                          <Landmark size={14} className="text-slate-400 shrink-0" />
+                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-3 min-w-0">
+                        <span className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+                          <Landmark size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
                           Banka
                         </span>
-                        <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 tabular-nums whitespace-nowrap">₺{fmtTL(nakitAkisiData.banka)}</span>
+                        <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">₺{fmtTL(nakitAkisiData.banka)}</span>
                       </div>
-                      <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col gap-3 min-w-0">
-                        <span className="flex items-center gap-1.5 text-sm text-slate-500">
-                          <FileCheck size={14} className="text-slate-400 shrink-0" />
+                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-3 min-w-0">
+                        <span className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+                          <FileCheck size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
                           Çek
                         </span>
-                        <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 tabular-nums whitespace-nowrap">₺{fmtTL(nakitAkisiData.cek)}</span>
+                        <span className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">₺{fmtTL(nakitAkisiData.cek)}</span>
                       </div>
                     </div>
                   </>
@@ -842,8 +857,8 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {/* ---------------- YORUMLAR ---------------- */}
           {page === 'yorumlar' && (
             <div className="flex flex-col gap-5">
-              <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                <h2 className="font-serif text-lg text-slate-900 mb-4">Genel Değerlendirme</h2>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-4">Genel Değerlendirme</h2>
                 <div className="flex flex-col gap-3">
                   {genelDegerlendirme.map((t, i) => (
                     <div key={i} className="flex items-start gap-2 text-sm text-slate-600">
@@ -855,8 +870,8 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                  <h2 className="font-serif text-lg text-slate-900 mb-4">Gider Yorumları</h2>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                  <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-4">Gider Yorumları</h2>
                   <div className="flex flex-col gap-3">
                     {giderYorumlari.map((t, i) => (
                       <div key={i} className="flex items-start gap-2 text-sm text-slate-600">
@@ -867,8 +882,8 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                  <h2 className="font-serif text-lg text-slate-900 mb-4">Gelir Yorumları</h2>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                  <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-4">Gelir Yorumları</h2>
                   <div className="flex flex-col gap-3">
                     {gelirYorumlari.map((t, i) => (
                       <div key={i} className="flex items-start gap-2 text-sm text-slate-600">
@@ -880,7 +895,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <div className="bg-slate-900 dark:bg-black border border-slate-800 dark:border-slate-800 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertTriangle size={16} className="text-amber-500" />
                   <h2 className="font-serif text-lg text-white">Aksiyon Önerileri</h2>
@@ -898,6 +913,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }
