@@ -1,9 +1,18 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import FinansDashboard from './FinansDashboard.jsx';
+import PasswordGate from './PasswordGate.jsx';
 import { useFinansData } from './lib/useFinansData.js';
 
 export default function App() {
+  return (
+    <PasswordGate>
+      <FinansApp />
+    </PasswordGate>
+  );
+}
+
+function FinansApp() {
   const { loading, error, data, reload } = useFinansData();
 
   if (loading && !data) {
