@@ -2,7 +2,7 @@
 // Apps Script web app uç noktaları üzerinden otomatik çekilir (bkz. src/lib/parseData.js)
 import React, { useState, useMemo } from 'react';
 import {
-  LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, ChevronRight, AlertTriangle, Menu, X, Moon, Sun,
+  LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight, Trophy,
   HandCoins, Landmark, FileCheck,
   Wallet, PiggyBank, Percent,
 } from 'lucide-react';
@@ -13,32 +13,33 @@ import {
 /* metinleridir. Rakamlar önemli ölçüde değiştiğinde elden geçirin.    */
 /* ------------------------------------------------------------------ */
 const genelDegerlendirme = [
-  "Ciro 2025'e göre büyüyerek yükseldi; toplam gider daha düşük oranda arttı — gelir büyümesi giderin önünde.",
-  'Net kâr belirgin şekilde arttı; kâr marjı 2025\'e göre yükseldi. Vergiler doğrudan gider kalemi olarak kâra dahil edildiği için bu rakam vergi sonrası nettir.',
-  'Ocak-Temmuz kesinleşmiş veriye, Ağustos-Aralık ise tahmine dayanıyor.',
+  "Ciro 2025'e göre %43,2 büyüdü (₺148,95 M / ₺104,00 M), gider %33,1 arttı (₺87,72 M / ₺65,90 M) — ciro büyümesi giderin belirgin şekilde önünde.",
+  "Net kâr %60,7 arttı (₺61,23 M / ₺38,10 M); kâr marjı %36,6'dan %41,1'e yükseldi (+4,5 puan).",
+  'Artık Ocak-Ağustos (8 ay) kesinleşmiş veriye dayanıyor, sadece Eylül-Aralık tahmine dayalı — kesinleşen 8 ayın kendi kâr marjı (%42,2) da yıl geneline (%41,1) çok yakın, yani tahmin gerçekçi kurgulanmış.',
+  'Banka bakiyesi ₺40,25 M ile güçlü bir nakit pozisyonu var.',
 ];
 
 const giderYorumlari = [
-  'Gider kalemleri arasında birkaç ana kalem toplam giderin büyük kısmını oluşturuyor (Kira, Lisanslar, SMM/Avukat, Apartman Aidatı, Mutfak/Temizlik gibi) — maliyet kontrolü bu kalemlerde odaklanmalı.',
-  'Personel giderinin (Maaş+SGK+Yemek) gelire oranı yıl içinde geriliyor — ekip büyümeden gelir artışı sağlandığı görülüyor.',
-  'Ödül-Reklam, Yıllık Lisans, Muhasebe Lisans, İş İlanı ve MTV gibi kalemler yılın yalnızca belirli aylarında gerçekleşiyor; bu hizmetlerden herhangi biri yıl sonuna doğru tekrar gerekirse tahmin güncellenmeli.',
-  'Kıdem/İhbar ve Demirbaş gibi kalemler düzensiz — yıl sonuna kadar benzer bir ödeme çıkma ihtimaline karşı bütçede bir risk payı ayrılmalı.',
+  'Personel gideri (Maaş + SGK + Yemek + Muhtasar) toplam giderin %66,3\'ünü oluşturuyor — en büyük ve baskın kalem, maliyet kontrolü öncelikle burada odaklanmalı.',
+  'Yıllık Lisanslar kalemi Ağustos\'tan itibaren aylık ₺142.847\'den ₺50.000\'e düşürülmüş — bir lisans iptal/küçültülmüş görünüyor, tasarruf sağlanmış.',
+  'Geçici Vergi (Kurumlar Vergisi) Temmuz\'dan itibaren aylık ₺780.314\'ten ₺650.000\'e düşmüş — vergi diliminde bir güncelleme var.',
+  'Ödül-Reklam, Muhasebe Lisans, İş İlanı gibi kalemler hâlâ düzensiz/dönemsel — yıl sonuna doğru tekrar gerekirse bütçede pay ayrılmalı.',
 ];
 
 const gelirYorumlari = [
-  'Sabit aylık bedelli müşteriler öngörülebilir bir taban gelir oluşturuyor; proje bazlı gelirler ise aya göre büyük dalgalanma gösteriyor.',
-  'Portföyün önemli bir kısmı az sayıda büyük müşteriye bağlı — bu yoğunlaşma riski değerlendirilip müşteri portföyü çeşitlendirilmeli.',
-  'Ağustos-Aralık\'ta proje bazlı gelir hâlâ toplu bir tahmin olarak giriliyor; gerçek proje detayı netleşince müşteri bazında güncellenmeli.',
+  'En büyük 3 marka (Zuhal Müzik, Eğriçayır, Servet) toplam cironun sadece %26,4\'ünü oluşturuyor — portföy nispeten dağılmış, yoğunlaşma riski düşük.',
+  '7 marka (Nehir, Ecocotton, Kuşkonmaz, Arçelik, Artı Cerrahi, Eczi, Wildfruits) artık Pasif işaretli, ancak toplam cironun sadece %5,3\'ünü (₺7,96 M) oluşturuyorlar — kayıp göreceli olarak sınırlı.',
+  'Eylül-Aralık için "Tahmini Proje" adı altında toplam ₺9,00 M\'lik gelir hâlâ toplu bir tahmin olarak giriliyor; gerçek proje detayı netleşince müşteri bazında güncellenmeli.',
 ];
 
 const aksiyonlar = [
-  'En büyük gider kalemleri için aylık üst limit (bütçe tavanı) belirlenmeli.',
-  'Yılın yalnızca belirli aylarında gerçekleşen kalemlerin yıl sonuna doğru tekrar gerekip gerekmeyeceği netleştirilip tahmine yansıtılmalı.',
-  'Kıdem/İhbar gibi düzensiz gider kalemleri için yıl sonuna kadar bir risk payı ayrılmalı.',
-  'Az sayıda müşteride yoğunlaşan gelir riski için müşteri portföyü çeşitlendirilmeli.',
-  'Proje bazlı gelir tahminleri, gerçek proje detayı geldikçe müşteri bazında güncellenmeli.',
+  'Personel giderindeki büyük payı (%66,3) göz önünde bulundurarak, ekip büyümesi planlanıyorsa kâr marjı etkisi önceden modellenmeli.',
+  'Alacaklarda Servet tek başına toplam alacağın %22,4\'ünü (₺3,91 M) oluşturuyor — tahsilat takibi bu müşteride önceliklendirilmeli.',
+  'Pasif markaların (7 marka) cirodaki payı düşük olsa da (%5,3), bu markaların yerine yeni müşteri kazanımı planlanmalı.',
+  'Eylül-Aralık\'taki ₺9,00 M\'lik toplu "Tahmini Proje" geliri, gerçek proje bilgileri netleştikçe müşteri bazında ayrıştırılmalı.',
   '2026 için resmi bir bütçe/hedef belirlenip rapora eklenmeli — sadece geçen yılla değil hedefle kıyas da yapılabilsin.',
 ];
+
 
 /* ------------------------------------------------------------------ */
 /* YARDIMCI FONKSİYONLAR                                                */
@@ -85,6 +86,28 @@ function KpiCard({ icon: Icon, label, value, delta, deltaSuffix = '', compareLab
         <TrendBadge value={delta} suffix={deltaSuffix} />
       </div>
       <span className="text-slate-400 dark:text-slate-500 text-[11px] whitespace-nowrap">{compareLabel}</span>
+    </div>
+  );
+}
+
+function TopListCard({ title, baseLabel, items, top3Pct }) {
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+      <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">{title}</h2>
+      <div className="flex flex-col gap-2.5">
+        {items.map((it, i) => (
+          <div key={it.name + i} className="flex items-baseline gap-1.5 text-sm text-slate-600 dark:text-slate-300 flex-wrap">
+            <span className="text-slate-400 dark:text-slate-500 shrink-0">{i + 1}-</span>
+            <span className="font-medium text-slate-900 dark:text-slate-50">{it.name}</span>
+            <span className="text-slate-400 dark:text-slate-500">— {baseLabel} {pct(it.pay)}</span>
+            <span className="text-slate-500 dark:text-slate-400">(₺{fmtM(it.amount)})</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300">
+        İlk {items.length} {title.replace('En büyük ' + items.length + ' ', '')}, {baseLabel}{' '}
+        <span className="font-semibold text-slate-900 dark:text-slate-50">{pct(top3Pct)}</span>
+      </div>
     </div>
   );
 }
@@ -298,10 +321,34 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     { id: 'giderler', label: 'Giderler', icon: Receipt },
     { id: 'alacaklar', label: 'Alacaklar', icon: HandCoins },
     { id: 'nakitAkisi', label: 'Nakit Akışı', icon: Landmark },
+    { id: 'oneCikanlar', label: 'Öne Çıkanlar', icon: Trophy },
     { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
   ];
 
   const pageTitle = pages.find((p) => p.id === page)?.label ?? 'Yönetici Özeti';
+
+  // Öne Çıkanlar (Yorumlar sayfası) — canlı veriden otomatik hesaplanır
+  const top3Markalar = customerPivot.slice(0, 3).map((c) => ({
+    name: c.name,
+    amount: c.total,
+    pay: totals.totalCiro ? c.total / totals.totalCiro : 0,
+  }));
+  const top3MarkaToplamPay = totals.totalCiro ? top3Markalar.reduce((s, x) => s + x.amount, 0) / totals.totalCiro : 0;
+
+  const giderToplamList = expenseItemDefs.map(([name, vals]) => ({ name, amount: vals.reduce((a, b) => a + b, 0) }));
+  const top3Gider = [...giderToplamList]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3)
+    .map((g) => ({ name: g.name, amount: g.amount, pay: totals.totalGider ? g.amount / totals.totalGider : 0 }));
+  const top3GiderToplamPay = totals.totalGider ? top3Gider.reduce((s, x) => s + x.amount, 0) / totals.totalGider : 0;
+
+  const alacakToplam = (alacaklarData || []).reduce((s, [, v]) => s + v, 0);
+  const top3Alacak = (alacaklarData || []).slice(0, 3).map(([name, amount]) => ({
+    name,
+    amount,
+    pay: alacakToplam ? amount / alacakToplam : 0,
+  }));
+  const top3AlacakToplamPay = alacakToplam ? top3Alacak.reduce((s, x) => s + x.amount, 0) / alacakToplam : 0;
 
   const lastSync = lastUpdatedFee ? new Date(lastUpdatedFee).toLocaleString('tr-TR') : null;
 
@@ -938,6 +985,15 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   </>
                 );
               })()}
+            </div>
+          )}
+
+          {/* ---------------- ÖNE ÇIKANLAR ---------------- */}
+          {page === 'oneCikanlar' && (
+            <div className="flex flex-col gap-5">
+              <TopListCard title="En büyük 3 marka" baseLabel="toplam ciroda" items={top3Markalar} top3Pct={top3MarkaToplamPay} />
+              <TopListCard title="En büyük 3 gider" baseLabel="toplam giderde" items={top3Gider} top3Pct={top3GiderToplamPay} />
+              <TopListCard title="En büyük 3 alacak" baseLabel="toplam alacakta" items={top3Alacak} top3Pct={top3AlacakToplamPay} />
             </div>
           )}
 
