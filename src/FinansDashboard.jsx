@@ -4,8 +4,9 @@ import React, { useState, useMemo } from 'react';
 import {
   LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight, Trophy,
   HandCoins, Landmark, FileCheck,
-  Wallet, PiggyBank, Percent,
+  Wallet, PiggyBank, Percent, Table2,
 } from 'lucide-react';
+import SatisTablosu from './SatisTablosu.jsx';
 
 
 /* ------------------------------------------------------------------ */
@@ -323,6 +324,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     { id: 'nakitAkisi', label: 'Nakit Akışı', icon: Landmark },
     { id: 'oneCikanlar', label: 'Öne Çıkanlar', icon: Trophy },
     { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
+    { id: 'satisTablosu', label: 'Satış Tablosu', icon: Table2 },
   ];
 
   const pageTitle = pages.find((p) => p.id === page)?.label ?? 'Yönetici Özeti';
@@ -998,6 +1000,10 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           )}
 
           {/* ---------------- YORUMLAR ---------------- */}
+          {page === 'satisTablosu' && (
+            <SatisTablosu satis={data.satis} satisError={data.satisError} months={months} kurUSD={data.kurUSD} />
+          )}
+
           {page === 'yorumlar' && (
             <div className="flex flex-col gap-5">
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
