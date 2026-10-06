@@ -146,6 +146,7 @@ export function parseDash26(dash26Raw) {
     ciro: new Array(12).fill(0),
     ciroUSD: new Array(12).fill(0),
     giderUSD: new Array(12).fill(0),
+    kurUSD: new Array(12).fill(0),
     nakitAkisiData: { kasa: 0, banka: 0, cek: 0 },
     totals2026: null,
     totals2025: null,
@@ -158,6 +159,7 @@ export function parseDash26(dash26Raw) {
   const ciro = monthRows.map((row) => num(row[2]));
   const ciroUSD = monthRows.map((row) => num(row[16]));
   const giderUSD = monthRows.map((row) => num(row[17]));
+  const kurUSD = monthRows.map((row) => num(row[15])); // P sütunu: aylık KUR USD
   const ayDurumu = monthRows.map((row) => {
     const raw = String(row[21] || '').trim().toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
     if (raw === 'güncel') return 'güncel';
@@ -189,6 +191,7 @@ export function parseDash26(dash26Raw) {
     ciro,
     ciroUSD,
     giderUSD,
+    kurUSD,
     nakitAkisiData,
     totals2026: readTotals(toplamRow),
     totals2025: readTotals(row2025),
@@ -294,9 +297,60 @@ export function parsePasifMarkalar(markaDurumRows) {
 }
 
 /* ------------------------------------------------------------------ */
+/* SATIŞ TABLOSU 2026: fatura satırları (ay sekmeleri, _RAW grid)       */
+/* ------------------------------------------------------------------ */
+const SATIS_MONTH_KEYS = ['ocak', 'subat', 'mart', 'nisan', 'mayis', 'haziran', 'temmuz', 'agustos', 'eylul', 'ekim', 'kasim', 'aralik'];
+
+function normalizeSheetKey(name) {
+  return String(name)
+    .replace(/İ/g, 'i')
+    .toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .trim();
+}
+
+function formatTarihTR(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ''));
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : String(v || '');
+}
+
+export function parseSatisTablosu(json) {
+  const rows = [];
+  Object.keys(json || {}).forEach((key) => {
+    if (!key.endsWith('_RAW')) return;
+    const monthIdx = SATIS_MONTH_KEYS.indexOf(normalizeSheetKey(key.slice(0, -4)));
+    if (monthIdx < 0) return;
+    const grid = json[key] || [];
+    // İlk satır başlık: TARİH | FATURA NUMARASI | FİRMALAR | HİZMET | DEPARTMANLAR | AÇIKLAMA | TUTAR
+    grid.slice(1).forEach((r) => {
+      const firma = typeof r[2] === 'string' ? r[2].trim() : '';
+      const tutar = r[6];
+      if (!firma || typeof tutar !== 'number') return; // toplam / boş satırları atla
+      const hizmetRaw = String(r[3] || '').trim().toLocaleUpperCase('tr-TR');
+      rows.push({
+        ay: MONTHS[monthIdx],
+        tarih: formatTarihTR(r[0]),
+        fatura: String(r[1] || '').split('/')[0].trim(),
+        marka: toTitleCaseTR(firma),
+        hizmet: hizmetRaw === 'FEE' ? 'FEE' : 'PROJE',
+        departman: String(r[4] || '').trim(),
+        aciklama: String(r[5] || '').trim(),
+        tutar,
+      });
+    });
+  });
+  return { rows, lastUpdated: json?._lastUpdated || null };
+}
+
+/* ------------------------------------------------------------------ */
 /* ANA GİRİŞ NOKTASI                                                    */
 /* ------------------------------------------------------------------ */
-export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
+export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey, satisUrl, satisKey }) {
   const [feeRes, odemeRes] = await Promise.all([
     fetch(`${feeUrl}?key=${encodeURIComponent(feeKey)}`),
     fetch(`${odemeUrl}?key=${encodeURIComponent(odemeKey)}`),
@@ -308,12 +362,27 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
   const feeJson = await feeRes.json();
   const odemeJson = await odemeRes.json();
 
+  // SATIŞ TABLOSU 2026 (isteğe bağlı): hata verirse dashboard'un geri kalanı çalışmaya devam eder
+  let satis = null;
+  let satisError = null;
+  if (satisUrl && satisKey) {
+    try {
+      const satisRes = await fetch(`${satisUrl}?key=${encodeURIComponent(satisKey)}`);
+      if (!satisRes.ok) throw new Error(`HTTP ${satisRes.status}`);
+      const satisJson = await satisRes.json();
+      if (satisJson.error) throw new Error(satisJson.error);
+      satis = parseSatisTablosu(satisJson);
+    } catch (err) {
+      satisError = err.message || String(err);
+    }
+  }
+
   if (feeJson.error) throw new Error(`FEE 2026 YENİ: ${feeJson.error}`);
   if (odemeJson.error) throw new Error(`MÜŞTERİDEN GELECEK ÖDEMELER: ${odemeJson.error}`);
 
   const { expenseItemDefs, giderPerMonth } = parseGiderler(feeJson['GİDERLER']);
   const giderYapisi = buildGiderKategorileri(expenseItemDefs);
-  const { ciro, ciroUSD, giderUSD, nakitAkisiData, totals2026, totals2025, ayDurumu } = parseDash26(feeJson['DASH 26_RAW']);
+  const { ciro, ciroUSD, giderUSD, kurUSD, nakitAkisiData, totals2026, totals2025, ayDurumu } = parseDash26(feeJson['DASH 26_RAW']);
   const revenueRaw = parseRevenueRaw(feeJson);
   const alacaklarData = parseAlacaklar(odemeJson['2026 ÖDEME LİSTESİ']);
   const tahminiProjeToplam = computeTahminiToplam(revenueRaw);
@@ -324,6 +393,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
     ciro,
     ciroUSD,
     giderUSD,
+    kurUSD,
     gider: giderPerMonth,
     expenseItemDefs,
     giderYapisi,
@@ -337,5 +407,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey }) {
     pasifMarkalar,
     lastUpdatedFee: feeJson._lastUpdated || null,
     lastUpdatedOdeme: odemeJson._lastUpdated || null,
+    satis,
+    satisError,
   };
 }

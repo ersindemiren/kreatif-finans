@@ -6,6 +6,8 @@ const CONFIG = {
   feeKey: import.meta.env.VITE_FEE_KEY,
   odemeUrl: import.meta.env.VITE_ODEME_URL,
   odemeKey: import.meta.env.VITE_ODEME_KEY,
+  satisUrl: import.meta.env.VITE_SATIS_URL, // isteğe bağlı: SATIŞ TABLOSU 2026
+  satisKey: import.meta.env.VITE_SATIS_KEY,
 };
 
 export function useFinansData() {
