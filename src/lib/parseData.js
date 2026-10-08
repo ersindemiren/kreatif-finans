@@ -319,6 +319,19 @@ function formatTarihTR(v) {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : String(v || '');
 }
 
+// RAPOR DEPARTMAN değerleri sheet'te Türkçe karaktersiz / tutarsız yazılabiliyor; ekranda düzgün adlarla gösterilir
+const DEPARTMAN_ADLARI = {
+  'strateji pazarlama iletisimi': 'Strateji Pazarlama İletişimi',
+  'performans pazarlama': 'Performans Pazarlama',
+  'tasarim': 'Tasarım',
+  'produksiyon': 'Prodüksiyon',
+};
+function departmanAdi(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return 'Belirsiz';
+  return DEPARTMAN_ADLARI[normalizeSheetKey(t)] || toTitleCaseTR(t);
+}
+
 export function parseSatisTablosu(json) {
   const rows = [];
   Object.keys(json || {}).forEach((key) => {
@@ -326,20 +339,34 @@ export function parseSatisTablosu(json) {
     const monthIdx = SATIS_MONTH_KEYS.indexOf(normalizeSheetKey(key.slice(0, -4)));
     if (monthIdx < 0) return;
     const grid = json[key] || [];
-    // İlk satır başlık: TARİH | FATURA NUMARASI | FİRMALAR | HİZMET | DEPARTMANLAR | AÇIKLAMA | TUTAR
+    if (!grid.length) return;
+
+    // Sütunları başlık adından bul (sütun sırası değişse de bozulmaz)
+    const header = grid[0].map((h) => normalizeSheetKey(h));
+    const find = (pred) => header.findIndex(pred);
+    const iTarih = find((h) => h.startsWith('tarih'));
+    const iFirma = find((h) => h.startsWith('firma'));
+    const iHizmet = find((h) => h === 'hizmet');
+    const iAciklama = find((h) => h.startsWith('aciklama'));
+    const iTutar = find((h) => h.startsWith('tutar'));
+    // "RAPOR DEPARTMAN" sütunu; yoksa eski "DEPARTMANLAR" sütununa düşer
+    let iDep = find((h) => h.includes('rapor') && h.includes('departman'));
+    if (iDep < 0) iDep = find((h) => h.startsWith('departman'));
+    if (iFirma < 0 || iTutar < 0) return;
+
     grid.slice(1).forEach((r) => {
-      const firma = typeof r[2] === 'string' ? r[2].trim() : '';
-      const tutar = r[6];
+      const firma = typeof r[iFirma] === 'string' ? r[iFirma].trim() : '';
+      const tutar = r[iTutar];
       if (!firma || typeof tutar !== 'number') return; // toplam / boş satırları atla
-      const hizmetRaw = String(r[3] || '').trim().toLocaleUpperCase('tr-TR');
+      const hizmetRaw = String(iHizmet >= 0 ? r[iHizmet] || '' : '').trim().toLocaleUpperCase('tr-TR');
+      const depRaw = iDep >= 0 ? String(r[iDep] || '').trim() : '';
       rows.push({
         ay: MONTHS[monthIdx],
-        tarih: formatTarihTR(r[0]),
-        fatura: String(r[1] || '').split('/')[0].trim(),
+        tarih: formatTarihTR(iTarih >= 0 ? r[iTarih] : ''),
         marka: toTitleCaseTR(firma),
         hizmet: hizmetRaw === 'FEE' ? 'FEE' : 'PROJE',
-        departman: String(r[4] || '').trim(),
-        aciklama: String(r[5] || '').trim(),
+        departman: departmanAdi(depRaw),
+        aciklama: iAciklama >= 0 ? String(r[iAciklama] || '').trim() : '',
         tutar,
       });
     });
