@@ -25,7 +25,7 @@ const pct = (n) => (Number.isFinite(n) ? (n * 100).toFixed(1).replace('.', ',') 
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 
-export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
+export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }) {
   const [period, setPeriod] = useState('Toplam'); // 'Toplam' | 'Oca'..'Ara'
   const [brand, setBrand] = useState(''); // '' = tüm markalar
   const [gorunum, setGorunum] = useState('toplam'); // toplam | fee | proje
@@ -74,8 +74,18 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
     return monthsWithData.length === 1 ? monthsWithData[0] : `${monthsWithData[0]}-${monthsWithData[monthsWithData.length - 1]}`;
   })();
 
+  // Seçili markanın fatura kestiği aylar (marka seçiliyken ay şeridinde kullanılır)
+  const brandActiveMonths = useMemo(() => {
+    if (!brand) return null;
+    return new Set(rows.filter((r) => r.marka === brand).map((r) => r.ay));
+  }, [rows, brand]);
+
   const pillClass = (m, active) => {
     const has = monthsWithData.includes(m);
+    if (has && brandActiveMonths && !brandActiveMonths.has(m)) {
+      // Marka bu ay fatura kesmemiş: pasif, açık gri
+      return active ? 'bg-slate-400 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200';
+    }
     if (has) return active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
     return active ? 'bg-rose-300 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100';
   };
@@ -122,6 +132,14 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
       .filter((x) => x.adet > 0);
   }, [rows, brand, months]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // KKO (Kur Kayıp Oranı): USD görünümünde, markanın ilk fee'li ayına göre sonraki aylardaki % değişim
+  const kkoBase = brandMonthly.find((m) => m.fee > 0)?.fee || 0;
+  const kkoOf = (m) => {
+    if (currency !== 'USD' || !kkoBase || !(m.fee > 0) || m === brandMonthly.find((x) => x.fee > 0)) return null;
+    return (m.fee / kkoBase - 1) * 100;
+  };
+  const fmtKko = (v) => `${v < 0 ? '−' : '+'}%${Math.abs(v).toFixed(1).replace('.', ',')}`;
+
   if (!satis) {
     return (
       <div className={`${CARD} p-5`}>
@@ -135,7 +153,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
     );
   }
 
-  const selectCls = `px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border cursor-pointer max-w-[60%] ${
+  const selectCls = `px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border cursor-pointer max-w-xs ${
     brand
       ? 'bg-slate-900 text-white border-slate-900'
       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400'
@@ -305,7 +323,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
               <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">Aylık Dağılım</h2>
               <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 <span className="flex-1">Ay</span>
-                <span className="w-16 sm:w-24 text-right shrink-0">Fee</span>
+                <span className={`text-right shrink-0 ${currency === 'USD' ? 'w-20 sm:w-28' : 'w-16 sm:w-24'}`}>Fee</span>
                 <span className="w-16 sm:w-24 text-right shrink-0">Proje</span>
                 <span className="w-20 sm:w-28 text-right shrink-0">Toplam</span>
               </div>
@@ -316,14 +334,19 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
                   className="w-full flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 >
                   <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">{m.ay}</span>
-                  <span className="text-xs sm:text-sm tabular-nums text-slate-500 w-16 sm:w-24 text-right shrink-0">{m.fee ? fmtTL(m.fee) : '–'}</span>
+                  <span className={`text-xs sm:text-sm tabular-nums text-slate-500 text-right shrink-0 ${currency === 'USD' ? 'w-20 sm:w-28' : 'w-16 sm:w-24'}`}>
+                    {m.fee ? fmtTL(m.fee) : '–'}
+                    {kkoOf(m) !== null && (
+                      <span className={`block text-[10px] leading-tight ${kkoOf(m) < 0 ? 'text-rose-500' : 'text-emerald-600'}`}>{fmtKko(kkoOf(m))}</span>
+                    )}
+                  </span>
                   <span className="text-xs sm:text-sm tabular-nums text-slate-500 w-16 sm:w-24 text-right shrink-0">{m.proje ? fmtTL(m.proje) : '–'}</span>
                   <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">{sym}{fmtTL(m.toplam)}</span>
                 </button>
               ))}
               <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                 <span className="text-sm font-semibold text-slate-900 dark:text-slate-50 flex-1">Toplam</span>
-                <span className="text-xs sm:text-sm tabular-nums font-semibold w-16 sm:w-24 text-right shrink-0">{fmtTL(totalFee)}</span>
+                <span className={`text-xs sm:text-sm tabular-nums font-semibold text-right shrink-0 ${currency === 'USD' ? 'w-20 sm:w-28' : 'w-16 sm:w-24'}`}>{fmtTL(totalFee)}</span>
                 <span className="text-xs sm:text-sm tabular-nums font-semibold w-16 sm:w-24 text-right shrink-0">{fmtTL(totalProje)}</span>
                 <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-20 sm:w-28 text-right shrink-0">{sym}{fmtTL(totalAll)}</span>
               </div>
@@ -357,6 +380,70 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
             </div>
           </div>
         </>
+      )}
+
+      {ozet && (
+        <div className={`${CARD} p-5`}>
+          <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Gelir - Gider Özeti</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Gelirler ve giderler FEE 2026 YENİ dosyasından gelir. Yeşil nokta güncel, kırmızı nokta tahmini aydır.</p>
+          <div className="flex items-center gap-1 sm:gap-2 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            <span className="w-12 sm:w-20 shrink-0">Aylar</span>
+            <span className="flex-1 min-w-0 text-right">Gelirler</span>
+            <span className="flex-1 min-w-0 text-right">Giderler</span>
+            <span className="flex-1 min-w-0 text-right">Fark</span>
+            <span className="w-9 sm:w-14 text-right shrink-0">%</span>
+          </div>
+          {(() => {
+            const gel = (i) => (currency === 'USD' ? ozet.ciroUSD?.[i] : ozet.ciro?.[i]) || 0;
+            const gid = (i) => (currency === 'USD' ? ozet.giderUSD?.[i] : ozet.gider?.[i]) || 0;
+            const idx = months.map((_, i) => i);
+            const guncelIdx = idx.filter((i) => ozet.ayDurumu?.[i] === 'güncel');
+            const tot = (list) => {
+              const g = list.reduce((a, i) => a + gel(i), 0);
+              const d = list.reduce((a, i) => a + gid(i), 0);
+              return { g, d, f: g - d, o: g ? (g - d) / g : 0 };
+            };
+            const cell = 'flex-1 min-w-0 text-[11px] sm:text-sm tabular-nums text-right';
+            const pctCell = 'w-9 sm:w-14 shrink-0 text-[11px] sm:text-sm tabular-nums text-right';
+            const gridCls = 'flex items-center gap-1 sm:gap-2';
+            const rowsEl = idx.map((i) => {
+              const durum = ozet.ayDurumu?.[i];
+              const g = gel(i);
+              const d = gid(i);
+              return (
+                <div key={i} className={`${gridCls} py-2 border-b border-slate-50 dark:border-slate-800`}>
+                  <span className="w-12 sm:w-20 shrink-0 text-xs sm:text-sm text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${durum === 'güncel' ? 'bg-emerald-500' : 'bg-rose-300'}`} />
+                    {months[i]}
+                  </span>
+                  <span className={`${cell} text-slate-700 dark:text-slate-300`}>{fmtTL(g)}</span>
+                  <span className={`${cell} text-slate-700 dark:text-slate-300`}>{fmtTL(d)}</span>
+                  <span className={`${cell} text-slate-900 dark:text-slate-50 font-medium`}>{fmtTL(g - d)}</span>
+                  <span className={`${pctCell} text-slate-400`}>{g ? Math.round(((g - d) / g) * 100) : 0}%</span>
+                </div>
+              );
+            });
+            const totRow = (label, list, strong) => {
+              const t = tot(list);
+              return (
+                <div className={`${gridCls} py-2.5 ${strong ? 'mt-1 border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-lg' : 'border-t border-slate-100 dark:border-slate-800'}`}>
+                  <span className="w-12 sm:w-20 shrink-0 text-[10px] sm:text-xs font-semibold text-slate-900 dark:text-slate-50 uppercase leading-tight">{label}</span>
+                  <span className={`${cell} font-bold text-slate-900 dark:text-slate-50`}>{fmtTL(t.g)}</span>
+                  <span className={`${cell} font-bold text-slate-900 dark:text-slate-50`}>{fmtTL(t.d)}</span>
+                  <span className={`${cell} font-bold text-slate-900 dark:text-slate-50`}>{fmtTL(t.f)}</span>
+                  <span className={`${pctCell} font-semibold text-slate-500`}>{Math.round(t.o * 100)}%</span>
+                </div>
+              );
+            };
+            return (
+              <>
+                {rowsEl}
+                {totRow('Güncel', guncelIdx, false)}
+                {totRow('Toplam', idx, true)}
+              </>
+            );
+          })()}
+        </div>
       )}
     </div>
   );
