@@ -22,60 +22,50 @@ const CLIENT_ALIASES = {
   'ALTINCOM PROJE': 'ALTINCOM',
   'MEHMET ZENGİN': 'TUN GIDA',
   'MEHMET ZENGİN (TUN)': 'TUN GIDA',
+  'MYRA': 'MYRA ÇİKOLATA',
+  'SİLVA KOZMETİK': 'SİLVA',
 };
 
-// Başlık-yazımına sokulmadan, olduğu gibi bırakılması gereken isimler (kısaltmalar, yabancı kökenli kelimeler)
-const SPECIAL_CASE_NAMES = {
-  'B.M.S': 'B.M.S',
-  'HERITAGE': 'Heritage',
-  'WILDFRUITS': 'Wildfruits',
-  'PERSAN - PICULET': 'Persan - Piculet',
-  'PERSONEL SGK': 'Personel SGK',
-  'SGK VE DİĞER DANIŞMANLIK': 'SGK Ve Diğer Danışmanlık',
-  'OGS HGS': 'OGS HGS',
-  'İSKİ SU': 'İSKİ Su',
-  'MTV VE ÖZEL İLETİŞİM VERGİSİ': 'MTV Ve Özel İletişim Vergisi',
-  'BELEDİYE (ÇEVRE TEMİZLİK) - İTO AİDAT': 'Belediye (Çevre Temizlik) - İTO Aidat',
-  'SMM YMM AVUKAT': 'SMM YMM Avukat',
-};
+// Yazım farklarını (boşluk, nokta, Türkçe karakter: "PORTAKAL BAHÇEM" / "PORTAKALBAHCEM", "ALTIN.COM" / "ALTINCOM",
+// "B.M.S" / "BMS") tek anahtarda toplamak için normalize eder.
+export function normalizeNameKey(s) {
+  return String(s || '')
+    .toLocaleUpperCase('tr-TR')
+    .replace(/Ç/g, 'C').replace(/Ğ/g, 'G').replace(/İ|I/g, 'I').replace(/Ö/g, 'O').replace(/Ş/g, 'S').replace(/Ü/g, 'U')
+    .replace(/[^A-Z0-9]/g, '');
+}
 
-// Başlık-yazımı sonrasında kısaltma olarak kalması gereken kelimeler
-const ACRONYM_WORDS = {
-  SGK: 'SGK',
-  SMM: 'SMM',
-  YMM: 'YMM',
-  OGS: 'OGS',
-  HGS: 'HGS',
-  MTV: 'MTV',
-  KDV: 'KDV',
-  İSKİ: 'İSKİ',
-  ISKI: 'İSKİ',
-  İTO: 'İTO',
-  ITO: 'İTO',
+// MARKA DURUM sekmesindeki marka listesi, marka adlarının tek ve resmi yazımıdır. Diğer tüm sekmelerde (aylık gelirler,
+// ödeme listesi, satış tablosu) aynı markanın farklı yazımı gelirse bu yazıma çevrilir; böylece mükerrer satır oluşmaz.
+// Türkçe büyük harf kuralı (i→İ) yabancı kökenli marka adlarını bozar; bunlar Latin I ile yazılır.
+const BRAND_UPPER_FIXES = {
+  'HERİTAGE': 'HERITAGE',
+  'WİLDFRUİTS': 'WILDFRUITS',
+  'PERSAN - PİCULET': 'PERSAN - PICULET',
 };
+let BRAND_CANON = {};
+export function setBrandCanon(markaDurumRows) {
+  const map = {};
+  (Array.isArray(markaDurumRows) ? markaDurumRows : []).forEach((r) => {
+    const name = String(r['MARKA'] || '').trim().replace(/\s+/g, ' ');
+    if (name) {
+      const up = name.toLocaleUpperCase('tr-TR');
+      map[normalizeNameKey(name)] = BRAND_UPPER_FIXES[up] || up;
+    }
+  });
+  BRAND_CANON = map;
+}
 
-// Türkçe kurallara göre "Başlık Şeklinde" yazım (BÜYÜK HARF sheet verisini
-// okunabilir hale getirmek için). "RUMELİ BÖREK 3/4" gibi kesir eklerini de temizler.
+// Marka / departman / gider / kategori isimleri tüm tablolarda BÜYÜK HARF gösterilir (Türkçe kurallarla: i→İ, ı→I).
+// "RUMELİ BÖREK 3/4" gibi kesir eklerini temizler, bilinen yazım farklarını (CLIENT_ALIASES) tek isimde birleştirir.
+// Fonksiyon adı geçmişten kaldı; artık başlık yazımı değil büyük harf döndürür.
 function toTitleCaseTR(raw) {
   if (typeof raw !== 'string') return raw;
-  let s = raw.trim().replace(/\s+\d+\/\d+$/, '').trim();
+  let s = raw.trim().replace(/\s+\d+\/\d+$/, '').replace(/\s+/g, ' ').trim();
   if (!s) return s;
   const upper = s.toLocaleUpperCase('tr-TR');
-  if (CLIENT_ALIASES[upper]) s = CLIENT_ALIASES[upper];
-  const upperAfterAlias = s.toLocaleUpperCase('tr-TR');
-  if (SPECIAL_CASE_NAMES[upperAfterAlias]) return SPECIAL_CASE_NAMES[upperAfterAlias];
-  const titled = s
-    .toLocaleLowerCase('tr-TR')
-    .split(' ')
-    .map((w) => w.replace(/^(\P{L}*)(\p{L})/u, (_, pre, c) => pre + c.toLocaleUpperCase('tr-TR')))
-    .join(' ');
-  return titled
-    .split(' ')
-    .map((w) => {
-      const key = w.replace(/[.,]/g, '').toLocaleUpperCase('tr-TR');
-      return ACRONYM_WORDS[key] || w;
-    })
-    .join(' ');
+  const aliased = CLIENT_ALIASES[upper] ? CLIENT_ALIASES[upper].toLocaleUpperCase('tr-TR') : upper;
+  return BRAND_CANON[normalizeNameKey(aliased)] || aliased;
 }
 
 /* ------------------------------------------------------------------ */
@@ -103,7 +93,7 @@ export function parseGiderler(giderlerRows) {
   const itemizedPerMonth = GIDERLER_MONTH_KEYS.map((_, i) => expenseItemDefs.reduce((s, [, vals]) => s + vals[i], 0));
   const plugPerMonth = giderPerMonth.map((total, i) => Math.round((total - itemizedPerMonth[i]) * 100) / 100);
   if (plugPerMonth.some((v) => Math.abs(v) > 0.5)) {
-    expenseItemDefs.push(['Diğer (Sınıflandırılmamış)', plugPerMonth]);
+    expenseItemDefs.push(['DİĞER (SINIFLANDIRILMAMIŞ)', plugPerMonth]);
   }
 
   return { expenseItemDefs, giderPerMonth };
@@ -126,6 +116,7 @@ export function buildGiderKategorileri(expenseItemDefs) {
   const assigned = personel + vergi + kira + krediler + demirbas + aidat + kidem;
   const diger = grandTotal - assigned;
 
+  const up = (t) => t.toLocaleUpperCase('tr-TR');
   return [
     { name: 'Personel', detay: 'Maaş, SGK, Yemek, Muhtasar', deger: personel, fill: '#2a78d6' },
     { name: 'Vergi', detay: 'Geçici Vergi - Kurumlar Vergisi', deger: vergi, fill: '#4a3aa7' },
@@ -135,7 +126,7 @@ export function buildGiderKategorileri(expenseItemDefs) {
     { name: 'Aidat', detay: 'Apartman Aidatları', deger: aidat, fill: '#e87ba4' },
     { name: 'Kıdem/İhbar', detay: 'Kıdem, İhbar, İzin', deger: kidem, fill: '#9085e9' },
     { name: 'Diğer', detay: 'Kalan tüm gider kalemleri', deger: diger, fill: '#eb6834' },
-  ];
+  ].map((c) => ({ ...c, name: up(c.name), detay: up(c.detay) }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -243,18 +234,35 @@ export function parseRevenueRaw(json) {
 /* ------------------------------------------------------------------ */
 /* MÜŞTERİDEN GELECEK ÖDEMELER: "2026 ÖDEME LİSTESİ" -> alacaklarData  */
 /* ------------------------------------------------------------------ */
-export function parseAlacaklar(odemeListesiRows) {
+// Vade tarihi: "2026-10-01" (Apps Script) veya "01.10.2026 00:00:00" -> Date (yerel gün başlangıcı)
+function parseVade(v) {
+  const t = String(v || '');
+  let m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  m = t.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null;
+}
+
+// Dönüş: [marka, toplam, vadesiGecmis, gelecekVadeli]. Vadesi bugünden önceyse "geçmiş" (TABLO sekmesindeki kırmızılar).
+export function parseAlacaklar(odemeListesiRows, today = new Date()) {
   if (!Array.isArray(odemeListesiRows)) return [];
+  const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const totals = {};
   odemeListesiRows.forEach((r) => {
     const firma = String(r['Firma'] || '').trim();
     const tutar = num(r['Tutar']);
     if (!firma) return; // genel toplam satırını atla
     const label = toTitleCaseTR(firma);
-    totals[label] = (totals[label] || 0) + tutar;
+    const vade = parseVade(r['Ödeme Vadesi']);
+    const gecmis = vade && vade < t0;
+    const o = totals[label] || (totals[label] = { toplam: 0, gecmis: 0, gelecek: 0 });
+    o.toplam += tutar;
+    if (gecmis) o.gecmis += tutar;
+    else o.gelecek += tutar;
   });
+  const r2 = (x) => Math.round(x * 100) / 100;
   return Object.entries(totals)
-    .map(([name, deger]) => [name, Math.round(deger * 100) / 100])
+    .map(([name, o]) => [name, r2(o.toplam), r2(o.gecmis), r2(o.gelecek)])
     .sort((a, b) => b[1] - a[1]);
 }
 
@@ -321,14 +329,14 @@ function formatTarihTR(v) {
 
 // RAPOR DEPARTMAN değerleri sheet'te Türkçe karaktersiz / tutarsız yazılabiliyor; ekranda düzgün adlarla gösterilir
 const DEPARTMAN_ADLARI = {
-  'strateji pazarlama iletisimi': 'Strateji Pazarlama İletişimi',
-  'performans pazarlama': 'Performans Pazarlama',
-  'tasarim': 'Tasarım',
-  'produksiyon': 'Prodüksiyon',
+  'strateji pazarlama iletisimi': 'STRATEJİ PAZARLAMA İLETİŞİMİ',
+  'performans pazarlama': 'PERFORMANS PAZARLAMA',
+  'tasarim': 'TASARIM',
+  'produksiyon': 'PRODÜKSİYON',
 };
 function departmanAdi(raw) {
   const t = String(raw || '').trim();
-  if (!t) return 'Belirsiz';
+  if (!t) return 'BELİRSİZ';
   return DEPARTMAN_ADLARI[normalizeSheetKey(t)] || toTitleCaseTR(t);
 }
 
@@ -389,6 +397,9 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey, sati
   const feeJson = await feeRes.json();
   const odemeJson = await odemeRes.json();
 
+  // Marka adı yazım farklarını tek isimde birleştirmek için resmi marka listesini önce kur
+  setBrandCanon(feeJson['MARKA DURUM']);
+
   // SATIŞ TABLOSU 2026 (isteğe bağlı): hata verirse dashboard'un geri kalanı çalışmaya devam eder
   let satis = null;
   let satisError = null;
@@ -413,6 +424,19 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey, sati
   const revenueRaw = parseRevenueRaw(feeJson);
   const alacaklarData = parseAlacaklar(odemeJson['2026 ÖDEME LİSTESİ']);
   const tahminiProjeToplam = computeTahminiToplam(revenueRaw);
+
+  // Genel kontrol: MARKA DURUM listesinde olmayan marka adları (olası yazım farkı / mükerrer) tarayıcı konsoluna yazılır
+  try {
+    const known = new Set(Object.values(BRAND_CANON));
+    const seen = new Set();
+    Object.values(revenueRaw).forEach((mo) => ['sabit', 'fee', 'fatura', 'diger'].forEach((c) => (mo[c] || []).forEach(([n]) => seen.add(n))));
+    alacaklarData.forEach(([n]) => seen.add(n));
+    (satis?.rows || []).forEach((r) => seen.add(r.marka));
+    const unknown = [...seen].filter((n) => n && !known.has(n));
+    if (unknown.length) console.warn('[Marka kontrolü] MARKA DURUM listesinde olmayan isimler:', unknown.sort());
+  } catch (e) {
+    /* kontrol hatası dashboard'u etkilemez */
+  }
   const pasifMarkalar = parsePasifMarkalar(feeJson['MARKA DURUM']);
 
   return {

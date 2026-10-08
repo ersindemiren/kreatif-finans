@@ -444,7 +444,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               {dashCurrency === 'TL' && (
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
                   <KpiCard icon={Receipt} label="Gider" value={'₺' + fmtM(confirmedGider)} delta={confirmedGiderBuyume} compareLabel={'₺' + fmtM(gider2025Prorated) + ' (2025)'} />
-                  <KpiCard icon={Percent} label="Gider Oranı" value={pct(confirmedGiderOrani)} delta={confirmedGiderOrani - giderOrani2025Prorated} deltaSuffix=" puan" compareLabel={pct(giderOrani2025Prorated) + ' (2025)'} />
+                  <KpiCard icon={Receipt} label="Tahmini Gider" value={'₺' + fmtM(totals.totalGider)} delta={totals.giderBuyume} compareLabel={'₺' + fmtM(totals.gider2025) + ' (2025)'} />
                 </div>
               )}
 
@@ -584,12 +584,12 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 ) : (
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{expenseItemDefs.length} gider kalemi, büyükten küçüğe sıralanmıştır.</p>
                 )}
-                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  <span className="w-5 shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  <span className="w-4 sm:w-5 shrink-0" />
                   <span className="flex-1">Kalem</span>
                   <span className="w-12 sm:w-14 text-right shrink-0">Gidere Oranı</span>
                   <span className="w-12 sm:w-14 text-right shrink-0">Gelir'e Oranı</span>
-                  <span className="w-20 sm:w-28 text-right shrink-0">Tutar</span>
+                  <span className="w-[4.5rem] sm:w-28 text-right shrink-0">Tutar</span>
                 </div>
                 <div className="flex flex-col">
                   {(() => {
@@ -626,20 +626,20 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     return (
                       <>
                         {rows.map((k, i) => (
-                          <div key={k.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
-                            <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
-                            <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">{k.name}</span>
-                            <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? k.amount / periodTotalGider : 0)}</span>
-                            <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? k.amount / periodTotalCiro : 0)}</span>
-                            <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(k.amount)}</span>
+                          <div key={k.name + i} className="flex items-center gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                            <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
+                            <span className="text-[11px] sm:text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">{k.name}</span>
+                            <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? k.amount / periodTotalGider : 0)}</span>
+                            <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? k.amount / periodTotalCiro : 0)}</span>
+                            <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(k.amount)}</span>
                           </div>
                         ))}
-                        <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
-                          <span className="w-5 shrink-0" />
-                          <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? rowsTotal / periodTotalGider : 0)}</span>
-                          <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
-                          <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
+                        <div className="flex items-center gap-1.5 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
+                          <span className="w-4 sm:w-5 shrink-0" />
+                          <span className="text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                          <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalGider ? rowsTotal / periodTotalGider : 0)}</span>
+                          <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
+                          <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
                         </div>
                       </>
                     );
@@ -650,17 +650,17 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
                 <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Gider Oranları</h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">8 gider kategorisi, büyükten küçüğe sıralanmıştır.</p>
-                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  <span className="w-5 shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  <span className="w-4 sm:w-5 shrink-0" />
                   <span className="flex-1">Kategori</span>
                   <span className="w-12 sm:w-14 text-right shrink-0">Gidere Oranı</span>
                   <span className="w-12 sm:w-14 text-right shrink-0">Gelir'e Oranı</span>
-                  <span className="w-20 sm:w-28 text-right shrink-0">Tutar</span>
+                  <span className="w-[4.5rem] sm:w-28 text-right shrink-0">Tutar</span>
                 </div>
                 <div className="flex flex-col">
                   {[...giderYapisi].sort((a, b) => b.deger - a.deger).map((g, i) => (
-                    <div key={g.name} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
-                      <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
+                    <div key={g.name} className="flex items-center gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                      <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
                           <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: g.fill }} />
@@ -668,17 +668,17 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         </span>
                         <span className="block text-xs text-slate-400 dark:text-slate-500 pl-3.5">({g.detay})</span>
                       </span>
-                      <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(g.deger / totals.totalGider)}</span>
-                      <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(g.deger / totals.totalCiro)}</span>
-                      <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(g.deger)}</span>
+                      <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(g.deger / totals.totalGider)}</span>
+                      <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(g.deger / totals.totalCiro)}</span>
+                      <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(g.deger)}</span>
                     </div>
                   ))}
-                  <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
-                    <span className="w-5 shrink-0" />
-                    <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
-                    <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(1)}</span>
-                    <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(totals.totalGider / totals.totalCiro)}</span>
-                    <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(giderYapisi.reduce((s, g) => s + g.deger, 0))}</span>
+                  <div className="flex items-center gap-1.5 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
+                    <span className="w-4 sm:w-5 shrink-0" />
+                    <span className="text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                    <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(1)}</span>
+                    <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(totals.totalGider / totals.totalCiro)}</span>
+                    <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(giderYapisi.reduce((s, g) => s + g.deger, 0))}</span>
                   </div>
                 </div>
               </div>
@@ -791,11 +791,11 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 ) : (
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Sabit gelir, fee faturası ve proje bazlı gelirlerin toplamı, markaya göre birleştirilmiştir.</p>
                 )}
-                <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  <span className="w-5 shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  <span className="w-4 sm:w-5 shrink-0" />
                   <span className="flex-1">Marka</span>
                   <span className="w-12 sm:w-14 text-right shrink-0">Gelir Oranı</span>
-                  <span className="w-20 sm:w-28 text-right shrink-0">Tutar</span>
+                  <span className="w-[4.5rem] sm:w-28 text-right shrink-0">Tutar</span>
                 </div>
                 <div className="flex flex-col">
                   {(() => {
@@ -827,9 +827,9 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     return (
                       <>
                         {rows.map((b, i) => (
-                          <div key={b.name + i} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
-                            <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
-                            <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 flex items-center gap-2 truncate">
+                          <div key={b.name + i} className="flex items-center gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                            <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
+                            <span className="text-[11px] sm:text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 flex items-center gap-2 truncate">
                               <span className="truncate">{b.name}</span>
                               {isPasifMarka(b.name) && (
                                 <span className="shrink-0 text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 rounded-full px-2 py-0.5">
@@ -837,15 +837,15 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                                 </span>
                               )}
                             </span>
-                            <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? b.amount / periodTotalCiro : 0)}</span>
-                            <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">₺{fmtTL(b.amount)}</span>
+                            <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? b.amount / periodTotalCiro : 0)}</span>
+                            <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(b.amount)}</span>
                           </div>
                         ))}
-                        <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
-                          <span className="w-5 shrink-0" />
-                          <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
-                          <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-20 sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
+                        <div className="flex items-center gap-1.5 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
+                          <span className="w-4 sm:w-5 shrink-0" />
+                          <span className="text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                          <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
+                          <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
                         </div>
                       </>
                     );
@@ -870,34 +870,43 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
                 <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Alacak Dağılımı</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Müşterilerden beklenen ödemeler, markaya göre büyükten küçüğe sıralanmıştır.</p>
-                <div className="flex items-center gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  <span className="w-5 shrink-0" />
-                  <span className="flex-1">Marka</span>
-                  <span className="w-14 text-right shrink-0">Alacak Oranı</span>
-                  <span className="w-28 text-right shrink-0">Tutar</span>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Müşterilerden beklenen ödemeler, markaya göre büyükten küçüğe sıralanmıştır. Vadesi bugünden önce olanlar "Vadesi Geçmiş" sütunundadır.</p>
+                <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  <span className="w-4 sm:w-5 shrink-0" />
+                  <span className="flex-1 min-w-0">Marka</span>
+                  <span className="w-10 sm:w-14 text-right shrink-0 leading-tight">Alacak Oranı</span>
+                  <span className="w-[4.25rem] sm:w-24 text-right shrink-0 leading-tight">Vadesi Geçmiş</span>
+                  <span className="w-[4.25rem] sm:w-24 text-right shrink-0 leading-tight">Gelecek Vadeli</span>
+                  <span className="w-[4.5rem] sm:w-28 text-right shrink-0 leading-tight">Toplam Tutar</span>
                 </div>
                 <div className="flex flex-col">
                   {(() => {
                     const toplamAlacak = alacaklarData.reduce((s, [, v]) => s + v, 0);
+                    const toplamGecmis = alacaklarData.reduce((s, [, , g]) => s + (g || 0), 0);
+                    const toplamGelecek = alacaklarData.reduce((s, [, , , f]) => s + (f || 0), 0);
+                    const money = (v) => (v ? '₺' + fmtTL(v) : '–');
                     return (
                       <>
-                        {alacaklarData.map(([name, amount], i) => {
+                        {alacaklarData.map(([name, amount, gecmis, gelecek], i) => {
                           const oran = amount / toplamAlacak;
                           return (
-                            <div key={name} className="flex items-center gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
-                              <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
-                              <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">{name}</span>
-                              <span className={`text-xs tabular-nums w-14 text-right shrink-0 ${oran > 0.1 ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>{pct(oran)}</span>
-                              <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-28 text-right shrink-0">₺{fmtTL(amount)}</span>
+                            <div key={name} className="flex items-center gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                              <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
+                              <span className="text-[11px] sm:text-[11px] sm:text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 break-words">{name}</span>
+                              <span className={`text-[10px] sm:text-xs tabular-nums w-10 sm:w-14 text-right shrink-0 ${oran > 0.1 ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>{pct(oran)}</span>
+                              <span className={`text-[11px] sm:text-sm tabular-nums w-[4.25rem] sm:w-24 text-right shrink-0 ${gecmis ? 'text-rose-600' : 'text-slate-300 dark:text-slate-600'}`}>{money(gecmis)}</span>
+                              <span className={`text-[11px] sm:text-sm tabular-nums w-[4.25rem] sm:w-24 text-right shrink-0 ${gelecek ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'}`}>{money(gelecek)}</span>
+                              <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(amount)}</span>
                             </div>
                           );
                         })}
-                        <div className="flex items-center gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
-                          <span className="w-5 shrink-0" />
-                          <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-14 text-right shrink-0">{pct(1)}</span>
-                          <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-28 text-right shrink-0">₺{fmtTL(toplamAlacak)}</span>
+                        <div className="flex items-center gap-1.5 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
+                          <span className="w-4 sm:w-5 shrink-0" />
+                          <span className="text-[11px] sm:text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                          <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-10 sm:w-14 text-right shrink-0">{pct(1)}</span>
+                          <span className="text-[11px] sm:text-sm tabular-nums text-rose-600 font-bold w-[4.25rem] sm:w-24 text-right shrink-0">{money(toplamGecmis)}</span>
+                          <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.25rem] sm:w-24 text-right shrink-0">{money(toplamGelecek)}</span>
+                          <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(toplamAlacak)}</span>
                         </div>
                       </>
                     );
