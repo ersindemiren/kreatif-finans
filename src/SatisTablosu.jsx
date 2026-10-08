@@ -61,6 +61,9 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
   const scopedRows = brand ? periodRows.filter((r) => r.marka === brand) : periodRows;
 
   const sum = (list, hizmet) => list.reduce((s, r) => s + (!hizmet || r.hizmet === hizmet ? r.tutar : 0), 0);
+  // Fatura kalemleri listesi, Toplam / Fee / Proje seçimine göre süzülür
+  const listRows = scopedRows.filter((r) => gorunum === 'toplam' || (gorunum === 'fee' ? r.hizmet === 'FEE' : r.hizmet === 'PROJE'));
+  const listTotal = sum(listRows);
   const totalAll = sum(scopedRows);
   const totalFee = sum(scopedRows, 'FEE');
   const totalProje = sum(scopedRows, 'PROJE');
@@ -125,7 +128,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Satış Tablosu bağlı değil</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {satisError
-            ? `Veri alınamadı: ${satisError}`
+            ? `Veri alınamadı: ${satisError}${/404/.test(satisError) ? ' — VITE_SATIS_URL adresi bulunamadı. Apps Script web uygulaması URL\'sinin /exec ile bittiğini ve erişimin "Herkes" olduğunu kontrol edin.' : ''}`
             : 'VITE_SATIS_URL ve VITE_SATIS_KEY ortam değişkenleri tanımlanınca SATIŞ TABLOSU 2026 verisi burada görünür.'}
         </p>
       </div>
@@ -330,8 +333,8 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">Fatura Kalemleri</h2>
             <div className="flex flex-col">
-              {scopedRows.length === 0 && <p className="text-sm text-slate-500">Bu dönemde kayıt yok.</p>}
-              {scopedRows.map((r, i) => (
+              {listRows.length === 0 && <p className="text-sm text-slate-500">Bu dönemde kayıt yok.</p>}
+              {listRows.map((r, i) => (
                 <div key={i} className="py-2.5 border-b border-slate-50 dark:border-slate-800 flex flex-col gap-1">
                   <div className="flex items-start gap-3">
                     <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">{r.aciklama || r.departman}</span>
@@ -345,10 +348,10 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
                   </div>
                 </div>
               ))}
-              {scopedRows.length > 0 && (
+              {listRows.length > 0 && (
                 <div className="flex items-center gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                   <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1">Toplam</span>
-                  <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold shrink-0">{sym}{fmtTL(totalAll)}</span>
+                  <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold shrink-0">{sym}{fmtTL(listTotal)}</span>
                 </div>
               )}
             </div>
