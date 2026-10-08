@@ -4,6 +4,23 @@ import React, { useState, useMemo } from 'react';
 
 const fmtTL = (n) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n || 0);
 const fmtM = (n) => ((n || 0) / 1000000).toFixed(2).replace('.', ',') + ' M';
+// Kutu özetleri: 1 milyonun altında 3 basamak korunur (TL: ₺340 B, ₺34,3 B, ₺3,43 B — USD: $230 K, $23,3 K, $2,50 K)
+const sig3 = (v) => {
+  const a = Math.abs(v);
+  return (a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2)).replace('.', ',');
+};
+function fmtBox(n, sym, currency) {
+  const v = n || 0;
+  const a = Math.abs(v);
+  const suffix = currency === 'USD' ? ' K' : ' B';
+  if (a >= 999500) return `${sym}${(v / 1e6).toFixed(2).replace('.', ',')} M`;
+  if (a >= 1000) {
+    const k = v / 1000;
+    if (Math.abs(Number(sig3(k).replace(',', '.'))) >= 1000) return `${sym}${(v / 1e6).toFixed(2).replace('.', ',')} M`;
+    return `${sym}${sig3(k)}${suffix}`;
+  }
+  return `${sym}${sig3(v)}`;
+}
 const pct = (n) => (Number.isFinite(n) ? (n * 100).toFixed(1).replace('.', ',') : '0,0') + '%';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -75,6 +92,22 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
   }, [periodRows, gorunum]);
   const brandTableTotal = brandTable.reduce((s, r) => s + r.amount, 0);
 
+  // Departman bazlı dağılım (RAPOR DEPARTMAN sütunu)
+  const deptTable = useMemo(() => {
+    const map = {};
+    periodRows.forEach((r) => {
+      if (brand && r.marka !== brand) return;
+      if (gorunum === 'fee' && r.hizmet !== 'FEE') return;
+      if (gorunum === 'proje' && r.hizmet !== 'PROJE') return;
+      map[r.departman] = (map[r.departman] || 0) + r.tutar;
+    });
+    return Object.entries(map)
+      .map(([name, amount]) => ({ name, amount }))
+      .filter((r) => r.amount !== 0)
+      .sort((a, b) => b.amount - a.amount);
+  }, [periodRows, gorunum, brand]);
+  const deptTableTotal = deptTable.reduce((s, r) => s + r.amount, 0);
+
   // Seçili markanın aylık dağılımı
   const brandMonthly = useMemo(() => {
     if (!brand) return [];
@@ -108,7 +141,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
   const Box = ({ label, value }) => (
     <div className={`${CARD} p-4`}>
       <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
-      <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{sym}{fmtM(value)}</div>
+      <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{fmtBox(value, sym, currency)}</div>
       {rangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({rangeLabel})</span>}
     </div>
   );
@@ -188,26 +221,53 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
         <Box label="Proje" value={totalProje} />
       </div>
 
+      <div className="flex flex-col gap-3">
+      <div className="flex gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 w-fit">
+          {[
+            { key: 'toplam', label: 'Toplam' },
+            { key: 'fee', label: 'Fee' },
+            { key: 'proje', label: 'Proje' },
+          ].map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setGorunum(opt.key)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                gorunum === opt.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <div className={`${CARD} p-5`}>
+          <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">Departman Bazlı Satış Dağılımı</h2>
+          <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            <span className="w-5 shrink-0" />
+            <span className="flex-1">Departman</span>
+            <span className="w-12 sm:w-14 text-right shrink-0">Pay</span>
+            <span className="w-20 sm:w-28 text-right shrink-0">Tutar</span>
+          </div>
+          {deptTable.map((d, i) => (
+            <div key={d.name} className="flex items-center gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+              <span className="text-xs text-slate-400 dark:text-slate-500 w-5 tabular-nums shrink-0">{i + 1}</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 truncate">{d.name}</span>
+              <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(deptTableTotal ? d.amount / deptTableTotal : 0)}</span>
+              <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-20 sm:w-28 text-right shrink-0">{sym}{fmtTL(d.amount)}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
+            <span className="w-5 shrink-0" />
+            <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+            <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(deptTableTotal ? 1 : 0)}</span>
+            <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-20 sm:w-28 text-right shrink-0">{sym}{fmtTL(deptTableTotal)}</span>
+          </div>
+        </div>
+      </div>
+
       {!brand ? (
         <div className={`${CARD} p-5`}>
           <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Satış Dağılımı</h2>
-          <div className="flex gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 w-fit mb-4 mt-3">
-            {[
-              { key: 'toplam', label: 'Toplam' },
-              { key: 'fee', label: 'Fee' },
-              { key: 'proje', label: 'Proje' },
-            ].map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setGorunum(opt.key)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  gorunum === opt.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
           <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
             <span className="w-5 shrink-0" />
             <span className="flex-1">Marka</span>
@@ -282,15 +342,15 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD }) {
                     <span>{r.tarih}</span>
                     <span>·</span>
                     <span>{r.departman}</span>
-                    {r.fatura && (
-                      <>
-                        <span>·</span>
-                        <span>{r.fatura}</span>
-                      </>
-                    )}
                   </div>
                 </div>
               ))}
+              {scopedRows.length > 0 && (
+                <div className="flex items-center gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
+                  <span className="text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1">Toplam</span>
+                  <span className="text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold shrink-0">{sym}{fmtTL(totalAll)}</span>
+                </div>
+              )}
             </div>
           </div>
         </>
