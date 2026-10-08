@@ -30,6 +30,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
   const [brand, setBrand] = useState(''); // '' = tüm markalar
   const [gorunum, setGorunum] = useState('toplam'); // toplam | fee | proje
   const [currency, setCurrency] = useState('TL'); // TL | USD
+  const [ozetCurrency, setOzetCurrency] = useState('TL'); // Aylık Gelir - Gider Özeti tablosunun kendi ₺ / $ seçimi
   const sym = currency === 'USD' ? '$' : '₺';
 
   // USD görünümünde her satır, kendi ayının kuruyla (FEE 2026 YENİ > DASH 26 > KUR USD) çevrilir
@@ -384,8 +385,23 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
 
       {ozet && (
         <div className={`${CARD} p-5`}>
-          <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Gelir - Gider Özeti</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Gelirler ve giderler FEE 2026 YENİ dosyasından gelir. Yeşil nokta güncel, kırmızı nokta tahmini aydır.</p>
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50">Aylık Gelir - Gider Özeti</h2>
+            <div className="flex gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1 shrink-0">
+              {[['TL', '₺'], ['USD', '$']].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setOzetCurrency(key)}
+                  className={`w-9 py-1 rounded-md text-sm font-medium transition-colors ${
+                    ozetCurrency === key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Gelirler ve giderler FEE 2026 YENİ dosyasından gelir; $ görünümü her ayın kuruyla (DASH 26) hesaplanır. Yeşil nokta güncel, kırmızı nokta tahmini aydır.</p>
           <div className="flex items-center gap-1 sm:gap-2 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
             <span className="w-12 sm:w-20 shrink-0">Aylar</span>
             <span className="flex-1 min-w-0 text-right">Gelirler</span>
@@ -394,8 +410,8 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
             <span className="w-9 sm:w-14 text-right shrink-0">%</span>
           </div>
           {(() => {
-            const gel = (i) => (currency === 'USD' ? ozet.ciroUSD?.[i] : ozet.ciro?.[i]) || 0;
-            const gid = (i) => (currency === 'USD' ? ozet.giderUSD?.[i] : ozet.gider?.[i]) || 0;
+            const gel = (i) => (ozetCurrency === 'USD' ? ozet.ciroUSD?.[i] : ozet.ciro?.[i]) || 0;
+            const gid = (i) => (ozetCurrency === 'USD' ? ozet.giderUSD?.[i] : ozet.gider?.[i]) || 0;
             const idx = months.map((_, i) => i);
             const guncelIdx = idx.filter((i) => ozet.ayDurumu?.[i] === 'güncel');
             const tot = (list) => {
