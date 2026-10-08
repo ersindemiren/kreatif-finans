@@ -265,15 +265,19 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
         const scope = scopedRows.filter((r) => gorunum === 'toplam' || (gorunum === 'fee' ? r.hizmet === 'FEE' : r.hizmet === 'PROJE'));
         const l = lossOf(scope);
         return (
-          <div className={`${CARD} p-4 flex items-center justify-between gap-3`}>
+          <div className={`${CARD} p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3`}>
             <div className="min-w-0">
-              <span className="text-xs text-slate-500 dark:text-slate-400">Kur Kaynaklı Kayıp</span>
-              <div className="text-base sm:text-xl font-semibold text-rose-600 tabular-nums mt-1 whitespace-nowrap">
-                {fmtLossPct(l.ratio)} <span className="text-slate-300 dark:text-slate-600 font-normal">·</span> −${fmtTL(l.loss)}
+              <span className="text-xs text-slate-500 dark:text-slate-400">Kur Kaynaklı Erime</span>
+              <div className="text-[15px] sm:text-xl font-semibold text-rose-600 tabular-nums mt-1 flex flex-wrap items-baseline gap-x-2">
+                <span>{fmtLossPct(l.ratio)}</span>
+                <span className="text-slate-300 dark:text-slate-600 font-normal">·</span>
+                <span>−${fmtTL(l.loss)}</span>
+                <span className="text-slate-300 dark:text-slate-600 font-normal">·</span>
+                <span>−₺{fmtTL(l.loss * kurGuncel)}</span>
               </div>
             </div>
-            <span className="text-[11px] text-slate-400 dark:text-slate-500 text-right leading-snug">
-              Her ayın tutarı, güncel ay ({guncelAy}) kuruna ({kurGuncel.toFixed(2).replace('.', ',')}) göre
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 sm:text-right leading-snug">
+              Her ayın tutarı, güncel ay ({guncelAy}) kuruna ({kurGuncel.toFixed(2).replace('.', ',')}) göre; ₺ karşılığı da bu kurla hesaplanır
             </span>
           </div>
         );
@@ -318,7 +322,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
             <span className="w-4 sm:w-5 shrink-0" />
             <span className="text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
             <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(deptTableTotal ? 1 : 0)}</span>
-            <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">{sym}{fmtTL(deptTableTotal)}</span>
+            <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">{sym}{fmtTL(deptTableTotal)}</span>
           </div>
         </div>
       </div>
@@ -331,7 +335,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
             <span className="flex-1">Marka</span>
             <span className="w-12 sm:w-14 text-right shrink-0">Pay</span>
             <span className="w-[4.5rem] sm:w-28 text-right shrink-0">Tutar</span>
-            {showLoss && <span className="w-14 sm:w-24 text-right shrink-0">Kur Kaybı</span>}
+            {showLoss && <span className="w-14 sm:w-24 text-right shrink-0">Kur Erimesi</span>}
           </div>
           <div className="flex flex-col">
             {brandTable.map((b, i) => (
@@ -356,7 +360,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
               <span className="w-4 sm:w-5 shrink-0" />
               <span className="text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
               <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(brandTableTotal ? 1 : 0)}</span>
-              <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">{sym}{fmtTL(brandTableTotal)}</span>
+              <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">{sym}{fmtTL(brandTableTotal)}</span>
               {showLoss && (() => {
                 const tl = brandTable.reduce((a, b) => a + b.loss, 0);
                 return (
@@ -379,7 +383,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
                 <span className={`text-right shrink-0 w-14 sm:w-24`}>Fee</span>
                 <span className="w-14 sm:w-24 text-right shrink-0">Proje</span>
                 <span className="w-16 sm:w-28 text-right shrink-0">Toplam</span>
-                {showLoss && <span className="w-14 sm:w-24 text-right shrink-0">Kur Kaybı</span>}
+                {showLoss && <span className="w-14 sm:w-24 text-right shrink-0">Kur Erimesi</span>}
               </div>
               {brandMonthly.map((m) => (
                 <button
@@ -404,8 +408,8 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
               <div className="flex items-center gap-1.5 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                 <span className="text-sm font-semibold text-slate-900 dark:text-slate-50 flex-1">Toplam</span>
                 <span className={`text-[11px] sm:text-sm tabular-nums font-semibold text-right shrink-0 w-14 sm:w-24`}>{fmtTL(totalFee)}</span>
-                <span className="text-[11px] sm:text-sm tabular-nums font-semibold w-14 sm:w-24 text-right shrink-0">{fmtTL(totalProje)}</span>
-                <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">{sym}{fmtTL(totalAll)}</span>
+                <span className="text-[10px] sm:text-sm tabular-nums font-semibold w-14 sm:w-24 text-right shrink-0">{fmtTL(totalProje)}</span>
+                <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">{sym}{fmtTL(totalAll)}</span>
                 {showLoss && (() => {
                   const l = lossOf(brandMonthly.map((m) => ({ tutar: m.toplam, kayip: m.loss })));
                   return (
