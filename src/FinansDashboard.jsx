@@ -141,7 +141,8 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashCurrency, setDashCurrency] = useState('TL');
   const [darkMode, setDarkMode] = useState(false);
-  const [kdvDahil, setKdvDahil] = useState(false); // Alacaklar: varsayılan KDV hariç
+  const [kdvDahil, setKdvDahil] = useState(true); // Alacaklar: varsayılan KDV dahil
+  const [ozetGorunum, setOzetGorunum] = useState('toplam'); // Yönetici Özeti: Aylık Gelir-Gider tablosu (toplam | fee | proje)
   const [seciliMarka, setSeciliMarka] = useState(null); // Alacaklar: marka ayrıntı penceresi
   useEffect(() => {
     if (!seciliMarka) return undefined;
@@ -160,11 +161,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const alacaklarData = alacakOlcekle(kdvDahil);
   const alacaklarKdvsiz = kdvDahil ? alacakOlcekle(false) : alacaklarData;
   const isPasifMarka = (name) => (pasifMarkalar || []).includes(name);
-
-  // Çeyrek seçici (Gelirler sayfası)
-  const QUARTER_LABELS = { Ç1: '1. Çeyrek', Ç2: '2. Çeyrek', Ç3: '3. Çeyrek', Ç4: '4. Çeyrek' };
-  const QUARTER_MONTHS = { Ç1: months.slice(0, 3), Ç2: months.slice(3, 6), Ç3: months.slice(6, 9), Ç4: months.slice(9, 12) };
-  const isQuarter = (m) => Object.prototype.hasOwnProperty.call(QUARTER_MONTHS, m);
 
   // "Güncel" / "Tahmini" — FEE 2026 YENİ > DASH 26 sekmesi V sütunundan gelir
   const getAyDurumu = (monthName) => ayDurumu?.[months.indexOf(monthName)] ?? null;
@@ -210,6 +206,20 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     return map;
   }
 
+  // Marka × ay: fee (sabit + fee faturası) ve proje (fee dışı) ayrımı
+  function monthSplitMap(monthKey) {
+    const monthData = revenueRaw[monthKey];
+    const map = {};
+    if (!monthData) return map;
+    const add = (client, key, amount) => {
+      const o = map[client] || (map[client] = { fee: 0, proje: 0 });
+      o[key] += amount;
+    };
+    ['diger', 'fatura'].forEach((cat) => (monthData[cat] || []).forEach(([client, amount]) => add(client, 'fee', amount)));
+    (monthData.feeDisi || []).forEach(([client, , amount]) => add(client, 'proje', amount));
+    return map;
+  }
+
   function monthByBrand(monthKey) {
     return Object.entries(monthDistributedMap(monthKey))
       .map(([name, amount]) => ({ name, amount }))
@@ -218,17 +228,22 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
   const customerPivot = useMemo(() => {
     const totalsByBrand = {};
+    const splitByBrand = {};
     months.forEach((m) => {
       const map = monthDistributedMap(m);
       Object.entries(map).forEach(([client, amount]) => {
         if (!totalsByBrand[client]) totalsByBrand[client] = {};
         totalsByBrand[client][m] = amount;
       });
+      Object.entries(monthSplitMap(m)).forEach(([client, v]) => {
+        if (!splitByBrand[client]) splitByBrand[client] = {};
+        splitByBrand[client][m] = v;
+      });
     });
     return Object.entries(totalsByBrand)
       .map(([name, byMonth]) => {
         const total = months.reduce((s, m) => s + (byMonth[m] || 0), 0);
-        return { name, byMonth, total };
+        return { name, byMonth, total, split: splitByBrand[name] || {} };
       })
       .sort((a, b) => b.total - a.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -329,8 +344,8 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     { id: 'giderler', label: 'Giderler', icon: Receipt },
     { id: 'alacaklar', label: 'Alacaklar', icon: HandCoins },
     { id: 'nakitAkisi', label: 'Nakit Akışı', icon: Landmark },
-    { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
     { id: 'satisTablosu', label: 'Satış Tablosu', icon: Table },
+    { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
   ];
 
   const pageTitle = pages.find((p) => p.id === page)?.label ?? 'Yönetici Özeti';
@@ -472,26 +487,94 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 </div>
               )}
 
-              {tahminiCiroToplam > 0 && (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="shrink-0">
-                    <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">Hedefe Ulaşma</span>
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums">{Math.round(hedefIlerleme * 100)}%</div>
-                  </div>
-                  <SegmentedBar percent={hedefIlerleme} />
-                  <div className="shrink-0 flex items-center gap-3 sm:pl-4 sm:border-l border-slate-100">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                      <AlertTriangle size={14} className="text-slate-400 dark:text-slate-500" />
+              {(() => {
+                const sym = dashCurrency === 'USD' ? '$' : '₺';
+                const baseGel = (i) => (dashCurrency === 'USD' ? ciroUSD?.[i] : ciro?.[i]) || 0;
+                const gid = (i) => (dashCurrency === 'USD' ? giderUSD?.[i] : gider?.[i]) || 0;
+                // Fee = sabit + fee faturası (revenueRaw); Proje = ciro − fee (fee dışı gelirler + toplu "Tahmini Proje").
+                // $ görünümünde aynı pay ayın $ cirosuna uygulanır. Böylece Fee + Proje her zaman Toplam'a eşittir.
+                const feePay = (i) => {
+                  const rr = revenueRaw?.[months[i]];
+                  const c = ciro?.[i] || 0;
+                  if (!rr || !c) return 0;
+                  const fee = [...(rr.diger || []), ...(rr.fatura || [])].reduce((a, r) => a + (typeof r[1] === 'number' ? r[1] : 0), 0);
+                  return Math.min(1, fee / c);
+                };
+                const gel = (i) => (ozetGorunum === 'toplam' ? baseGel(i) : baseGel(i) * (ozetGorunum === 'fee' ? feePay(i) : 1 - feePay(i)));
+                const idx = months.map((_, i) => i);
+                const guncelList = idx.filter((i) => ayDurumu?.[i] === 'güncel');
+                const money = (v) => `${v < 0 ? '−' : ''}${sym}${fmtTL(Math.abs(v))}`;
+                const tot = (list) => {
+                  const g = list.reduce((a, i) => a + gel(i), 0);
+                  const d = list.reduce((a, i) => a + gid(i), 0);
+                  return { g, d, f: g - d, o: g ? (g - d) / g : 0 };
+                };
+                const gelBaslik = ozetGorunum === 'fee' ? 'Fee Gelirleri' : ozetGorunum === 'proje' ? 'Proje Gelirleri' : 'Gelirler';
+                const cell = 'flex-1 min-w-0 text-[11px] sm:text-sm tabular-nums text-right';
+                const pctCell = 'w-9 sm:w-14 shrink-0 text-[11px] sm:text-sm tabular-nums text-right';
+                const gridCls = 'flex items-center gap-1.5 sm:gap-3';
+                const totRow = (label, list, strong) => {
+                  const t = tot(list);
+                  return (
+                    <div className={`${gridCls} py-2.5 ${strong ? 'mt-1 border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-lg' : 'border-t border-slate-100 dark:border-slate-800'}`}>
+                      <span className="w-12 sm:w-20 shrink-0 text-[10px] sm:text-xs font-semibold text-slate-900 dark:text-slate-50 uppercase leading-tight">{label}</span>
+                      <span className={`${cell} font-bold text-slate-900 dark:text-slate-50`}>{money(t.g)}</span>
+                      <span className={`${cell} font-bold text-slate-900 dark:text-slate-50`}>{money(t.d)}</span>
+                      <span className={`${cell} font-bold text-slate-900 dark:text-slate-50`}>{money(t.f)}</span>
+                      <span className={`${pctCell} font-semibold text-slate-500`}>{Math.round(t.o * 100)}%</span>
                     </div>
-                    <div className="min-w-0">
-                      <span className="block text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">Tahmini Hedef Ciro</span>
-                      <div className="text-base font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">
-                        {dashCurrency === 'TL' ? '₺' + fmtTL(tahminiCiroToplam) : '$' + fmtTL(tahminiCiroToplamUSD)}
-                      </div>
+                  );
+                };
+                return (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                    <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Gelir - Gider Özeti</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Gelirler ve giderler FEE 2026 YENİ dosyasından gelir; $ görünümü her ayın kuruyla (DASH 26) hesaplanır. Yeşil nokta güncel, kırmızı nokta tahmini aydır. Fee ve Proje seçildiğinde gelir sütunu o kalemi, gider sütunu toplam gideri gösterir.</p>
+                    <div className="flex gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 w-fit mb-4">
+                      {[
+                        { key: 'toplam', label: 'Toplam' },
+                        { key: 'fee', label: 'Fee' },
+                        { key: 'proje', label: 'Proje' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.key}
+                          onClick={() => setOzetGorunum(opt.key)}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                            ozetGorunum === opt.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
                     </div>
+                    <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                      <span className="w-12 sm:w-20 shrink-0">Aylar</span>
+                      <span className="flex-1 min-w-0 text-right">{gelBaslik}</span>
+                      <span className="flex-1 min-w-0 text-right">Giderler</span>
+                      <span className="flex-1 min-w-0 text-right">Fark</span>
+                      <span className="w-9 sm:w-14 text-right shrink-0">%</span>
+                    </div>
+                    {idx.map((i) => {
+                      const durum = ayDurumu?.[i];
+                      const g = gel(i);
+                      const d = gid(i);
+                      return (
+                        <div key={i} className={`${gridCls} py-2 border-b border-slate-50 dark:border-slate-800`}>
+                          <span className="w-12 sm:w-20 shrink-0 text-[11px] sm:text-sm text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${durum === 'güncel' ? 'bg-emerald-500' : 'bg-rose-300'}`} />
+                            {months[i]}
+                          </span>
+                          <span className={`${cell} text-slate-700 dark:text-slate-300`}>{money(g)}</span>
+                          <span className={`${cell} text-slate-700 dark:text-slate-300`}>{money(d)}</span>
+                          <span className={`${cell} text-slate-900 dark:text-slate-50 font-medium`}>{money(g - d)}</span>
+                          <span className={`${pctCell} text-slate-400`}>{g ? Math.round(((g - d) / g) * 100) : 0}%</span>
+                        </div>
+                      );
+                    })}
+                    {totRow('Güncel', guncelList, false)}
+                    {totRow('Toplam', idx, true)}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
@@ -508,21 +591,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   >
                     Toplam
                   </button>
-                  <select
-                    value={isQuarter(selectedMonth) ? selectedMonth : ''}
-                    onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border cursor-pointer ${
-                      isQuarter(selectedMonth)
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    <option value="" disabled>Çeyrek Seç</option>
-                    <option value="Ç1">1. Çeyrek</option>
-                    <option value="Ç2">2. Çeyrek</option>
-                    <option value="Ç3">3. Çeyrek</option>
-                    <option value="Ç4">4. Çeyrek</option>
-                  </select>
                 </div>
                 <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
                   {months.map((m) => (
@@ -554,14 +622,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(tahminiGiderToplam)}</div>
                     {tahminiRangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({tahminiRangeLabel})</span>}
                   </div>
-                </div>
-              ) : isQuarter(selectedMonth) ? (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-                  <span className="text-sm text-slate-500 dark:text-slate-400">{QUARTER_LABELS[selectedMonth]} Toplam Gider</span>
-                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">
-                    ₺{fmtTL(QUARTER_MONTHS[selectedMonth].reduce((s, m) => s + gider[months.indexOf(m)], 0))}
-                  </div>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 block">({QUARTER_MONTHS[selectedMonth].join('-')})</span>
                 </div>
               ) : (
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex items-center justify-between flex-wrap gap-2">
@@ -626,14 +686,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         periodTotalCiro = totals.totalCiro;
                       }
                       rows.sort((a, b) => b.amount - a.amount);
-                    } else if (isQuarter(selectedMonth)) {
-                      const qMonths = QUARTER_MONTHS[selectedMonth];
-                      rows = expenseItemDefs
-                        .map(([name, vals]) => ({ name, amount: itemAmountForMonths(vals, qMonths) }))
-                        .filter((r) => r.amount !== 0)
-                        .sort((a, b) => b.amount - a.amount);
-                      periodTotalGider = qMonths.reduce((s, m) => s + gider[months.indexOf(m)], 0);
-                      periodTotalCiro = qMonths.reduce((s, m) => s + ciro[months.indexOf(m)], 0);
                     } else {
                       rows = monthByExpense(selectedMonth);
                       periodTotalGider = gider[months.indexOf(selectedMonth)];
@@ -715,21 +767,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   >
                     Toplam
                   </button>
-                  <select
-                    value={isQuarter(selectedMonth) ? selectedMonth : ''}
-                    onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border cursor-pointer ${
-                      isQuarter(selectedMonth)
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    <option value="" disabled>Çeyrek Seç</option>
-                    <option value="Ç1">1. Çeyrek</option>
-                    <option value="Ç2">2. Çeyrek</option>
-                    <option value="Ç3">3. Çeyrek</option>
-                    <option value="Ç4">4. Çeyrek</option>
-                  </select>
                 </div>
                 <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
                   {months.map((m) => (
@@ -761,14 +798,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">₺{fmtM(tahminiCiroToplam)}</div>
                     {tahminiRangeLabel && <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({tahminiRangeLabel})</span>}
                   </div>
-                </div>
-              ) : isQuarter(selectedMonth) ? (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-                  <span className="text-sm text-slate-500 dark:text-slate-400">{QUARTER_LABELS[selectedMonth]} Toplam Ciro</span>
-                  <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">
-                    ₺{fmtTL(QUARTER_MONTHS[selectedMonth].reduce((s, m) => s + ciro[months.indexOf(m)], 0))}
-                  </div>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 block">({QUARTER_MONTHS[selectedMonth].join('-')})</span>
                 </div>
               ) : (
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex items-center justify-between">
@@ -810,58 +839,67 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 )}
                 <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   <span className="w-4 sm:w-5 shrink-0" />
-                  <span className="flex-1">Marka</span>
-                  <span className="w-12 sm:w-14 text-right shrink-0">Gelir Oranı</span>
-                  <span className="w-[4.5rem] sm:w-28 text-right shrink-0">Tutar</span>
+                  <span className="flex-1 min-w-0">Marka</span>
+                  <span className="w-10 sm:w-14 text-right shrink-0 leading-tight">Gelir Oranı</span>
+                  <span className="w-[4.25rem] sm:w-24 text-right shrink-0">Fee</span>
+                  <span className="w-[4.25rem] sm:w-24 text-right shrink-0">Proje</span>
+                  <span className="w-[4.5rem] sm:w-28 text-right shrink-0">Toplam</span>
                 </div>
                 <div className="flex flex-col">
                   {(() => {
-                    let rows, periodTotalCiro;
+                    let periodMonths, periodTotalCiro;
                     if (selectedMonth === 'Toplam') {
                       if (gelirGorunum === 'güncel') {
-                        rows = customerPivot.map((c) => ({ name: c.name, amount: guncelAylar.reduce((s, m) => s + (c.byMonth[m] || 0), 0) })).filter((r) => r.amount > 0);
+                        periodMonths = guncelAylar;
                         periodTotalCiro = confirmedCiro;
                       } else if (gelirGorunum === 'tahmini') {
-                        rows = customerPivot.map((c) => ({ name: c.name, amount: tahminiAylar.reduce((s, m) => s + (c.byMonth[m] || 0), 0) })).filter((r) => r.amount > 0);
+                        periodMonths = tahminiAylar;
                         periodTotalCiro = tahminiCiroToplam;
                       } else {
-                        rows = customerPivot.map((c) => ({ name: c.name, amount: c.total }));
+                        periodMonths = months;
                         periodTotalCiro = totals.totalCiro;
                       }
-                      rows.sort((a, b) => b.amount - a.amount);
-                    } else if (isQuarter(selectedMonth)) {
-                      const qMonths = QUARTER_MONTHS[selectedMonth];
-                      rows = customerPivot
-                        .map((c) => ({ name: c.name, amount: qMonths.reduce((s, m) => s + (c.byMonth[m] || 0), 0) }))
-                        .filter((r) => r.amount > 0)
-                        .sort((a, b) => b.amount - a.amount);
-                      periodTotalCiro = qMonths.reduce((s, m) => s + ciro[months.indexOf(m)], 0);
                     } else {
-                      rows = monthByBrand(selectedMonth);
+                      periodMonths = [selectedMonth];
                       periodTotalCiro = ciro[months.indexOf(selectedMonth)];
                     }
+                    const rows = customerPivot
+                      .map((c) => {
+                        const fee = periodMonths.reduce((s, m) => s + (c.split[m]?.fee || 0), 0);
+                        const proje = periodMonths.reduce((s, m) => s + (c.split[m]?.proje || 0), 0);
+                        return { name: c.name, fee, proje, amount: fee + proje };
+                      })
+                      .filter((r) => r.amount > 0)
+                      .sort((a, b) => b.amount - a.amount);
+                    const feeTotal = rows.reduce((s, r) => s + r.fee, 0);
+                    const projeTotal = rows.reduce((s, r) => s + r.proje, 0);
+                    const tl = (v) => (v ? '₺' + fmtTL(v) : '–');
                     const rowsTotal = rows.reduce((s, r) => s + r.amount, 0);
                     return (
                       <>
                         {rows.map((b, i) => (
-                          <div key={b.name + i} className="flex items-center gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
+                          <div key={b.name + i} className="flex items-start gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
                             <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
-                            <span className="text-[11px] sm:text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 flex items-center gap-2 truncate">
-                              <span className="truncate">{b.name}</span>
+                            <span className="text-[11px] sm:text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 flex flex-wrap items-center gap-x-2 break-words">
+                              <span>{b.name}</span>
                               {isPasifMarka(b.name) && (
                                 <span className="shrink-0 text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 rounded-full px-2 py-0.5">
                                   Pasif
                                 </span>
                               )}
                             </span>
-                            <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? b.amount / periodTotalCiro : 0)}</span>
+                            <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-10 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? b.amount / periodTotalCiro : 0)}</span>
+                            <span className={`text-[11px] sm:text-sm tabular-nums w-[4.25rem] sm:w-24 text-right shrink-0 ${b.fee ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'}`}>{tl(b.fee)}</span>
+                            <span className={`text-[11px] sm:text-sm tabular-nums w-[4.25rem] sm:w-24 text-right shrink-0 ${b.proje ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'}`}>{tl(b.proje)}</span>
                             <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(b.amount)}</span>
                           </div>
                         ))}
                         <div className="flex items-center gap-1.5 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                           <span className="w-4 sm:w-5 shrink-0" />
                           <span className="text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
-                          <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-12 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
+                          <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-10 sm:w-14 text-right shrink-0">{pct(periodTotalCiro ? rowsTotal / periodTotalCiro : 0)}</span>
+                          <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.25rem] sm:w-24 text-right shrink-0">{tl(feeTotal)}</span>
+                          <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.25rem] sm:w-24 text-right shrink-0">{tl(projeTotal)}</span>
                           <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(rowsTotal)}</span>
                         </div>
                       </>
