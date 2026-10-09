@@ -1,6 +1,6 @@
 // Veri kaynağı: Google Sheets "FEE 2026 YENİ" + "MÜŞTERİDEN GELECEK ÖDEMELER"
 // Apps Script web app uç noktaları üzerinden otomatik çekilir (bkz. src/lib/parseData.js)
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
@@ -142,13 +142,20 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [dashCurrency, setDashCurrency] = useState('TL');
   const [darkMode, setDarkMode] = useState(false);
   const [kdvDahil, setKdvDahil] = useState(false); // Alacaklar: varsayılan KDV hariç
+  const [seciliMarka, setSeciliMarka] = useState(null); // Alacaklar: marka ayrıntı penceresi
+  useEffect(() => {
+    if (!seciliMarka) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setSeciliMarka(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [seciliMarka]);
 
   const { months, ciro, ciroUSD, giderUSD, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData: alacaklarHam, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam, ayDurumu, pasifMarkalar } = data;
   // Alacak kaynağı KDV dahildir; KDV'siz görünümde 1,14'e bölünür (yaşlandırma gün ağırlıkları da aynı oranda ölçeklenir)
   const KDV_CARPANI = 1.14;
   const alacakOlcekle = (kdv) => alacaklarHam.map(([n, t, g, f, y]) => {
     const k = (v) => (kdv ? v : v / KDV_CARPANI);
-    return [n, k(t), k(g || 0), k(f || 0), y && { ...y, gunTutar: k(y.gunTutar || 0), kovalar: (y.kovalar || []).map(k) }];
+    return [n, k(t), k(g || 0), k(f || 0), y && { ...y, gunTutar: k(y.gunTutar || 0), kovalar: (y.kovalar || []).map(k), satirlar: (y.satirlar || []).map(([d, t, gn]) => [d, k(t), gn]) }];
   });
   const alacaklarData = alacakOlcekle(kdvDahil);
   const alacaklarKdvsiz = kdvDahil ? alacakOlcekle(false) : alacaklarData;
@@ -948,7 +955,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                           return (
                             <div key={name} className="flex items-start gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
                               <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
-                              <span className="text-[11px] sm:text-[11px] sm:text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 break-words">{name}</span>
+                              <button type="button" onClick={() => setSeciliMarka(name)} className="text-[11px] sm:text-sm text-left text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 flex-1 min-w-0 break-words">{name}</button>
                               <span className={`text-[10px] sm:text-xs tabular-nums w-10 sm:w-14 text-right shrink-0 ${oran > 0.1 ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>{pct(oran)}</span>
                               <span className={`text-[11px] sm:text-sm tabular-nums w-[4.25rem] sm:w-24 text-right shrink-0 leading-tight ${gecmis ? 'text-rose-600' : 'text-slate-300 dark:text-slate-600'}`}>
                                 {money(gecmis)}
@@ -975,6 +982,53 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   })()}
                 </div>
               </div>
+
+              {(() => {
+                const satir = seciliMarka ? alacaklarData.find(([n]) => n === seciliMarka) : null;
+                if (!satir) return null;
+                const lines = satir[4]?.satirlar || [];
+                const gecenler = lines.filter(([, , gn]) => gn > 0);
+                const gecenToplam = gecenler.reduce((s, [, t]) => s + t, 0);
+                const gecenGun = gecenToplam ? gecenler.reduce((s, [, t, gn]) => s + t * gn, 0) / gecenToplam : 0;
+                const genelToplam = lines.reduce((s, [, t]) => s + t, 0);
+                const fmtVade = (iso) => iso.split('-').reverse().join('.');
+                return (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" onClick={() => setSeciliMarka(null)} role="dialog" aria-modal="true" aria-label={`${seciliMarka} alacak ayrıntısı`}>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => setSeciliMarka(null)} aria-label="Kapat" className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <X size={18} />
+                      </button>
+                      <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 pr-8">{seciliMarka}</h2>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">Ödeme vadesine göre alacaklar · {kdvDahil ? 'KDV dahil' : 'KDV hariç'}</p>
+                      <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                        <div className="grid grid-cols-[1fr_1fr_4rem] bg-slate-600 text-white text-xs sm:text-sm font-medium">
+                          <span className="px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 italic font-normal">Ödeme Vadesi</span>
+                          <span className="px-3 py-2 text-right truncate">{seciliMarka}</span>
+                          <span className="px-3 py-2 text-right">Vade Gün</span>
+                        </div>
+                        {lines.map(([iso, tutar, gn]) => (
+                          <div key={iso} className={`grid grid-cols-[1fr_1fr_4rem] text-xs sm:text-sm tabular-nums border-t border-slate-100 dark:border-slate-800 ${gn > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-slate-50'}`}>
+                            <span className="px-3 py-2">{fmtVade(iso)}</span>
+                            <span className="px-3 py-2 text-right">{fmtTL(tutar)}</span>
+                            <span className="px-3 py-2 text-right">{gn}</span>
+                          </div>
+                        ))}
+                        <div className="grid grid-cols-[1fr_1fr_4rem] text-xs sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                          <span className="px-3 py-2 text-slate-900 dark:text-slate-50">Vadesi Geçen</span>
+                          <span className={`px-3 py-2 text-right ${gecenToplam ? 'text-rose-600' : 'text-slate-400'}`}>{gecenToplam ? fmtTL(gecenToplam) : '–'}</span>
+                          <span className={`px-3 py-2 text-right ${gecenToplam ? 'text-rose-600' : 'text-slate-400'}`}>{gecenToplam ? Math.round(gecenGun) : '–'}</span>
+                        </div>
+                        <div className="grid grid-cols-[1fr_1fr_4rem] text-xs sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                          <span className="px-3 py-2 text-slate-900 dark:text-slate-50">Genel Toplam</span>
+                          <span className="px-3 py-2 text-right text-slate-900 dark:text-slate-50">{fmtTL(genelToplam)}</span>
+                          <span />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-3">Vade Gün: vade tarihinin üzerinden bugüne geçen gün (kırmızı = vadesi geçmiş). Vadesi Geçen satırındaki gün, tutar ağırlıklı ortalamadır.</p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

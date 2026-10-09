@@ -248,6 +248,7 @@ export const YASLANDIRMA_KOVALARI = ['0-30 gün', '31-60 gün', '61-90 gün', '9
 const kovaIndex = (gun) => (gun <= 30 ? 0 : gun <= 60 ? 1 : gun <= 90 ? 2 : 3);
 
 // Dönüş: [marka, toplam, vadesiGecmis, gelecekVadeli, yas]. Vadesi bugünden önceyse "geçmiş" (TABLO sekmesindeki kırmızılar).
+// yas.satirlar = [[vade 'YYYY-AA-GG', tutar, gecikme günü (vadesi gelmemişse 0)]] (marka ayrıntı penceresi için)
 // yas = { enEski: en eski vadenin gecikme günü, gunTutar: Σ(tutar × gecikme günü), kovalar: [4 kova tutarı] }
 // Vade tarihi, fatura kesiminden 30 gün sonrasıdır; gecikme günü = bugün − vade tarihi. Tutarlar KDV dahildir.
 export function parseAlacaklar(odemeListesiRows, today = new Date()) {
@@ -261,8 +262,12 @@ export function parseAlacaklar(odemeListesiRows, today = new Date()) {
     const label = toTitleCaseTR(firma);
     const vade = parseVade(r['Ödeme Vadesi']);
     const gecmis = vade && vade < t0;
-    const o = totals[label] || (totals[label] = { toplam: 0, gecmis: 0, gelecek: 0, enEski: 0, gunTutar: 0, kovalar: [0, 0, 0, 0] });
+    const o = totals[label] || (totals[label] = { toplam: 0, gecmis: 0, gelecek: 0, enEski: 0, gunTutar: 0, kovalar: [0, 0, 0, 0], satir: {} });
     o.toplam += tutar;
+    if (vade) { // TABLO sekmesi gibi: marka × vade günü kırılımı (aynı günün kalemleri toplanır)
+      const key = `${vade.getFullYear()}-${String(vade.getMonth() + 1).padStart(2, '0')}-${String(vade.getDate()).padStart(2, '0')}`;
+      o.satir[key] = (o.satir[key] || 0) + tutar;
+    }
     if (gecmis) {
       const gun = Math.round((t0 - vade) / 86400000);
       o.gecmis += tutar;
@@ -273,7 +278,7 @@ export function parseAlacaklar(odemeListesiRows, today = new Date()) {
   });
   const r2 = (x) => Math.round(x * 100) / 100;
   return Object.entries(totals)
-    .map(([name, o]) => [name, r2(o.toplam), r2(o.gecmis), r2(o.gelecek), { enEski: o.enEski, gunTutar: o.gunTutar, kovalar: o.kovalar.map(r2) }])
+    .map(([name, o]) => [name, r2(o.toplam), r2(o.gecmis), r2(o.gelecek), { enEski: o.enEski, gunTutar: o.gunTutar, kovalar: o.kovalar.map(r2), satirlar: Object.keys(o.satir).sort().map((k) => { const v = parseVade(k); return [k, r2(o.satir[k]), v < t0 ? Math.round((t0 - v) / 86400000) : 0]; }) }])
     .sort((a, b) => b[1] - a[1]);
 }
 
