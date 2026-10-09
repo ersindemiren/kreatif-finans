@@ -142,7 +142,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [dashCurrency, setDashCurrency] = useState('TL');
   const [darkMode, setDarkMode] = useState(false);
   const [kdvDahil, setKdvDahil] = useState(true); // Alacaklar: varsayılan KDV dahil
-  const [ozetGorunum, setOzetGorunum] = useState('toplam'); // Yönetici Özeti: Aylık Gelir-Gider tablosu (toplam | fee | proje)
   const [seciliMarka, setSeciliMarka] = useState(null); // Alacaklar: marka ayrıntı penceresi
   useEffect(() => {
     if (!seciliMarka) return undefined;
@@ -491,16 +490,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 const sym = dashCurrency === 'USD' ? '$' : '₺';
                 const baseGel = (i) => (dashCurrency === 'USD' ? ciroUSD?.[i] : ciro?.[i]) || 0;
                 const gid = (i) => (dashCurrency === 'USD' ? giderUSD?.[i] : gider?.[i]) || 0;
-                // Fee = sabit + fee faturası (revenueRaw); Proje = ciro − fee (fee dışı gelirler + toplu "Tahmini Proje").
-                // $ görünümünde aynı pay ayın $ cirosuna uygulanır. Böylece Fee + Proje her zaman Toplam'a eşittir.
-                const feePay = (i) => {
-                  const rr = revenueRaw?.[months[i]];
-                  const c = ciro?.[i] || 0;
-                  if (!rr || !c) return 0;
-                  const fee = [...(rr.diger || []), ...(rr.fatura || [])].reduce((a, r) => a + (typeof r[1] === 'number' ? r[1] : 0), 0);
-                  return Math.min(1, fee / c);
-                };
-                const gel = (i) => (ozetGorunum === 'toplam' ? baseGel(i) : baseGel(i) * (ozetGorunum === 'fee' ? feePay(i) : 1 - feePay(i)));
+                const gel = baseGel;
                 const idx = months.map((_, i) => i);
                 const guncelList = idx.filter((i) => ayDurumu?.[i] === 'güncel');
                 const money = (v) => `${v < 0 ? '−' : ''}${sym}${fmtTL(Math.abs(v))}`;
@@ -509,7 +499,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   const d = list.reduce((a, i) => a + gid(i), 0);
                   return { g, d, f: g - d, o: g ? (g - d) / g : 0 };
                 };
-                const gelBaslik = ozetGorunum === 'fee' ? 'Fee Gelirleri' : ozetGorunum === 'proje' ? 'Proje Gelirleri' : 'Gelirler';
                 const cell = 'flex-1 min-w-0 text-[11px] sm:text-sm tabular-nums text-right';
                 const pctCell = 'w-9 sm:w-14 shrink-0 text-[11px] sm:text-sm tabular-nums text-right';
                 const gridCls = 'flex items-center gap-1.5 sm:gap-3';
@@ -528,27 +517,10 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 return (
                   <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
                     <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Gelir - Gider Özeti</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Gelirler ve giderler FEE 2026 YENİ dosyasından gelir; $ görünümü her ayın kuruyla (DASH 26) hesaplanır. Yeşil nokta güncel, kırmızı nokta tahmini aydır. Fee ve Proje seçildiğinde gelir sütunu o kalemi, gider sütunu toplam gideri gösterir.</p>
-                    <div className="flex gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1 w-fit mb-4">
-                      {[
-                        { key: 'toplam', label: 'Toplam' },
-                        { key: 'fee', label: 'Fee' },
-                        { key: 'proje', label: 'Proje' },
-                      ].map((opt) => (
-                        <button
-                          key={opt.key}
-                          onClick={() => setOzetGorunum(opt.key)}
-                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                            ozetGorunum === opt.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Gelirler ve giderler FEE 2026 YENİ dosyasından gelir; $ görünümü her ayın kuruyla (DASH 26) hesaplanır. Yeşil nokta güncel, kırmızı nokta tahmini aydır.</p>
                     <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                       <span className="w-12 sm:w-20 shrink-0">Aylar</span>
-                      <span className="flex-1 min-w-0 text-right">{gelBaslik}</span>
+                      <span className="flex-1 min-w-0 text-right">Gelirler</span>
                       <span className="flex-1 min-w-0 text-right">Giderler</span>
                       <span className="flex-1 min-w-0 text-right">Fark</span>
                       <span className="w-9 sm:w-14 text-right shrink-0">%</span>
