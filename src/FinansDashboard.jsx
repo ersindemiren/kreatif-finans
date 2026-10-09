@@ -875,10 +875,13 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     ₺{fmtTL(alacaklarData.reduce((s, [, v]) => s + v, 0))}
                   </div>
                 </div>
-                <div className="flex gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
-                  {[[false, "KDV'siz"], [true, "KDV'li"]].map(([v, label]) => (
-                    <button key={label} onClick={() => setKdvDahil(v)} className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${kdvDahil === v ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-50'}`}>{label}</button>
-                  ))}
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
+                    {[[false, "KDV'siz"], [true, "KDV'li"]].map(([v, label]) => (
+                      <button key={label} onClick={() => setKdvDahil(v)} className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${kdvDahil === v ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-50'}`}>{label}</button>
+                    ))}
+                  </div>
+                  {!kdvDahil && <span className="text-[10px] text-slate-400 dark:text-slate-500">(%{Math.round((KDV_CARPANI - 1) * 100)} Tevkifat paylı düşülmüştür)</span>}
                 </div>
               </div>
 
