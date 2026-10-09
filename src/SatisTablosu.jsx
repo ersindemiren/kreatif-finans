@@ -458,7 +458,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50">Aylık Gelir - Gider Özeti</h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Gelirler ve giderler FEE 2026 YENİ dosyasından gelir; $ görünümü her ayın kuruyla (DASH 26) hesaplanır. Yeşil nokta güncel, kırmızı nokta tahmini aydır.</p>
-          <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+          <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
             <span className="w-12 sm:w-20 shrink-0">Aylar</span>
             <span className="flex-1 min-w-0 text-right">Gelirler</span>
             <span className="flex-1 min-w-0 text-right">Giderler</span>

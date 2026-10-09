@@ -243,7 +243,13 @@ function parseVade(v) {
   return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null;
 }
 
-// Dönüş: [marka, toplam, vadesiGecmis, gelecekVadeli]. Vadesi bugünden önceyse "geçmiş" (TABLO sekmesindeki kırmızılar).
+// Gecikme kovaları (gün): 0-30, 31-60, 61-90, 90+
+export const YASLANDIRMA_KOVALARI = ['0-30 gün', '31-60 gün', '61-90 gün', '90+ gün'];
+const kovaIndex = (gun) => (gun <= 30 ? 0 : gun <= 60 ? 1 : gun <= 90 ? 2 : 3);
+
+// Dönüş: [marka, toplam, vadesiGecmis, gelecekVadeli, yas]. Vadesi bugünden önceyse "geçmiş" (TABLO sekmesindeki kırmızılar).
+// yas = { enEski: en eski vadenin gecikme günü, gunTutar: Σ(tutar × gecikme günü), kovalar: [4 kova tutarı] }
+// Vade tarihi, fatura kesiminden 30 gün sonrasıdır; gecikme günü = bugün − vade tarihi. Tutarlar KDV dahildir.
 export function parseAlacaklar(odemeListesiRows, today = new Date()) {
   if (!Array.isArray(odemeListesiRows)) return [];
   const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -255,14 +261,19 @@ export function parseAlacaklar(odemeListesiRows, today = new Date()) {
     const label = toTitleCaseTR(firma);
     const vade = parseVade(r['Ödeme Vadesi']);
     const gecmis = vade && vade < t0;
-    const o = totals[label] || (totals[label] = { toplam: 0, gecmis: 0, gelecek: 0 });
+    const o = totals[label] || (totals[label] = { toplam: 0, gecmis: 0, gelecek: 0, enEski: 0, gunTutar: 0, kovalar: [0, 0, 0, 0] });
     o.toplam += tutar;
-    if (gecmis) o.gecmis += tutar;
-    else o.gelecek += tutar;
+    if (gecmis) {
+      const gun = Math.round((t0 - vade) / 86400000);
+      o.gecmis += tutar;
+      o.gunTutar += tutar * gun;
+      o.enEski = Math.max(o.enEski, gun);
+      o.kovalar[kovaIndex(gun)] += tutar;
+    } else o.gelecek += tutar;
   });
   const r2 = (x) => Math.round(x * 100) / 100;
   return Object.entries(totals)
-    .map(([name, o]) => [name, r2(o.toplam), r2(o.gecmis), r2(o.gelecek)])
+    .map(([name, o]) => [name, r2(o.toplam), r2(o.gecmis), r2(o.gelecek), { enEski: o.enEski, gunTutar: o.gunTutar, kovalar: o.kovalar.map(r2) }])
     .sort((a, b) => b[1] - a[1]);
 }
 
