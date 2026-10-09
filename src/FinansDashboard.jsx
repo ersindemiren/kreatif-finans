@@ -141,8 +141,17 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashCurrency, setDashCurrency] = useState('TL');
   const [darkMode, setDarkMode] = useState(false);
+  const [kdvDahil, setKdvDahil] = useState(false); // Alacaklar: varsayılan KDV hariç
 
-  const { months, ciro, ciroUSD, giderUSD, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam, ayDurumu, pasifMarkalar } = data;
+  const { months, ciro, ciroUSD, giderUSD, gider, expenseItemDefs, giderYapisi, revenueRaw, alacaklarData: alacaklarHam, nakitAkisiData, totals2026, totals2025, tahminiProjeToplam, ayDurumu, pasifMarkalar } = data;
+  // Alacak kaynağı KDV dahildir; KDV'siz görünümde 1,14'e bölünür (yaşlandırma gün ağırlıkları da aynı oranda ölçeklenir)
+  const KDV_CARPANI = 1.14;
+  const alacakOlcekle = (kdv) => alacaklarHam.map(([n, t, g, f, y]) => {
+    const k = (v) => (kdv ? v : v / KDV_CARPANI);
+    return [n, k(t), k(g || 0), k(f || 0), y && { ...y, gunTutar: k(y.gunTutar || 0), kovalar: (y.kovalar || []).map(k) }];
+  });
+  const alacaklarData = alacakOlcekle(kdvDahil);
+  const alacaklarKdvsiz = kdvDahil ? alacakOlcekle(false) : alacaklarData;
   const isPasifMarka = (name) => (pasifMarkalar || []).includes(name);
 
   // Çeyrek seçici (Gelirler sayfası)
@@ -866,7 +875,11 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                     ₺{fmtTL(alacaklarData.reduce((s, [, v]) => s + v, 0))}
                   </div>
                 </div>
-                <span className="bg-amber-50 text-amber-700 text-xs font-medium rounded-full px-3 py-1.5">Müşteriden Gelecek Ödemeler</span>
+                <div className="flex gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
+                  {[[false, "KDV'siz"], [true, "KDV'li"]].map(([v, label]) => (
+                    <button key={label} onClick={() => setKdvDahil(v)} className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${kdvDahil === v ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-50'}`}>{label}</button>
+                  ))}
+                </div>
               </div>
 
               {(() => {
@@ -888,7 +901,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         Ort. gecikme <span className="font-semibold text-slate-900 dark:text-slate-50 tabular-nums">{Math.round(ortGun)} gün</span>
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Vadesi geçmiş alacaklar, vade bitiş tarihinden bugüne geçen güne göre gruplanır; markalardaki gecikme tutar ağırlıklı ortalamadır. Tutarlar KDV dahildir.</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Vadesi geçmiş alacaklar, vade bitiş tarihinden bugüne geçen güne göre gruplanır; markalardaki gecikme tutar ağırlıklı ortalamadır. Tutarlar {kdvDahil ? 'KDV dahildir' : 'KDV hariçtir (KDV dahil tutar ÷ 1,14)'}.</p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                       {YASLANDIRMA_KOVALARI.map((label, i) => (
                         <div key={label} className="rounded-xl border border-slate-100 dark:border-slate-800 p-3">
@@ -966,14 +979,14 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {page === 'nakitAkisi' && (
             <div className="flex flex-col gap-4">
               {(() => {
-                const toplamAlacak = alacaklarData.reduce((s, [, v]) => s + v, 0);
+                const toplamAlacak = alacaklarKdvsiz.reduce((s, [, v]) => s + v, 0);
                 const toplamNakit = toplamAlacak + nakitAkisiData.kasa + nakitAkisiData.banka + nakitAkisiData.cek;
                 return (
                   <>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
                       <span className="text-sm text-slate-500 dark:text-slate-400">Toplam</span>
                       <div className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1">₺{fmtTL(toplamNakit)}</div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Alacaklar + Kasa + Banka + Çek toplamı</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Alacaklar (KDV hariç) + Kasa + Banka + Çek toplamı</p>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-3 min-w-0">
