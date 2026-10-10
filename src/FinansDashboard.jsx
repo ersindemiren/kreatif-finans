@@ -4,9 +4,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
-  Wallet, PiggyBank, Percent, Table,
+  Wallet, PiggyBank, Percent, Table, Clock,
 } from 'lucide-react';
 import SatisTablosu from './SatisTablosu.jsx';
+import SureAnalizi from './SureAnalizi.jsx';
 import { YASLANDIRMA_KOVALARI } from './lib/parseData.js';
 
 
@@ -344,6 +345,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     { id: 'alacaklar', label: 'Alacaklar', icon: HandCoins },
     { id: 'nakitAkisi', label: 'Nakit Akışı', icon: Landmark },
     { id: 'satisTablosu', label: 'Satış Tablosu', icon: Table },
+    { id: 'sureAnalizi', label: 'Süre Analiz', icon: Clock },
     { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
   ];
 
@@ -1095,6 +1097,8 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {page === 'satisTablosu' && (
             <SatisTablosu satis={data.satis} satisError={data.satisError} months={months} kurUSD={data.kurUSD} ozet={{ ciro, gider, ciroUSD, giderUSD, ayDurumu }} />
           )}
+
+          {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
           {page === 'yorumlar' && (
