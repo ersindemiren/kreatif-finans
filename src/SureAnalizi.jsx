@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import sureData from './data/sureler.json';
 import { buildSure, FEE_BAZI } from './lib/sure.js';
+import { normalizeNameKey } from './lib/parseData.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const fmtN = (n) => Math.round(n).toLocaleString('tr-TR');
@@ -15,7 +16,7 @@ const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
 const farkText = (v) => (Math.round(v) > 0 ? 'text-rose-600 dark:text-rose-400' : Math.round(v) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400');
 const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200' : Math.round(v) < 0 ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200' : '');
 
-export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError }) {
+export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar }) {
   const [selected, setSelected] = useState('Toplam');
   const [seciliMarka, setSeciliMarka] = useState(null);
 
@@ -25,6 +26,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [seciliMarka]);
+
+  const pasifKeys = useMemo(() => new Set((pasifMarkalar || []).map((n) => normalizeNameKey(n))), [pasifMarkalar]);
 
   const { brands, disi } = useMemo(
     () => buildSure({ rows: sureData.rows, months, ayDurumu, revenueRaw, satisRows }),
@@ -43,9 +46,9 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     let fark = 0;
     idxs.forEach((i) => {
       hours += b.hours[i];
-      saatBaz += b.hours[i] * FEE_BAZI[i];
+      saatBaz += b.tip === 'ic' ? 0 : b.hours[i] * FEE_BAZI[i];
       fee += b.fee[i] + b.proje[i];
-      fark += b.hours[i] * FEE_BAZI[i] - (b.fee[i] + b.proje[i]);
+      fark += (b.tip === 'ic' ? 0 : b.hours[i] * FEE_BAZI[i]) - (b.fee[i] + b.proje[i]);
     });
     return { hours, saatBaz, fee, fark, faturali: idxs.some((i) => b.faturali[i]) };
   };
@@ -90,22 +93,19 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   );
 
   const Row = ({ r, i, kirmizi, soluk }) => {
-    const sureYok = r.hours === 0;
+    const sureYok = r.tip === 'marka' && r.hours === 0;
     return (
       <div className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
         <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{i}</span>
         <span className="flex-1 min-w-0 break-words text-left">
-          {r.tip === 'marka' ? (
-            <button
-              type="button"
-              onClick={() => setSeciliMarka(r.name)}
-              className={`text-left hover:underline underline-offset-2 ${kirmizi ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400'}`}
-            >
-              {r.name}
-            </button>
-          ) : (
-            <span className={soluk ? 'text-slate-400 dark:text-slate-500' : ''}>{r.name}</span>
-          )}
+          <button
+            type="button"
+            onClick={() => setSeciliMarka(r.name)}
+            className={`text-left hover:underline underline-offset-2 ${kirmizi ? 'text-rose-600 dark:text-rose-400' : soluk ? 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400' : 'text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400'}`}
+          >
+            {r.name}
+          </button>
+          {r.tip === 'marka' && pasifKeys.has(normalizeNameKey(r.name)) && <span className="ml-1.5 text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 rounded-full px-1.5 py-0.5 align-middle whitespace-nowrap">Pasif</span>}
           {!r.eslesti && <span className="ml-1.5 text-[10px] font-medium border border-amber-300 text-amber-600 rounded-full px-1.5 py-0.5 align-middle whitespace-nowrap">eşleşmedi</span>}
           {sureYok && <span className="ml-1.5 text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 rounded-full px-1.5 py-0.5 align-middle whitespace-nowrap">süre girilmemiş</span>}
         </span>
@@ -120,7 +120,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     );
   };
 
-  const lightboxBrand = seciliMarka ? brands.find((b) => b.name === seciliMarka) : null;
+  const lightboxBrand = seciliMarka ? [...brands, ...disi].find((b) => b.name === seciliMarka) : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -236,7 +236,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         const bazOrt = aktifIdx.length ? aktifIdx.reduce((s, i) => s + FEE_BAZI[i], 0) / aktifIdx.length : 0;
         const grid = 'grid grid-cols-[2.75rem_repeat(5,minmax(0,1fr))] sm:grid-cols-[4rem_repeat(5,minmax(0,1fr))]';
         const cell = 'px-1 sm:px-3 py-1.5 sm:py-2 text-center tabular-nums whitespace-nowrap';
-        const hic = !lightboxBrand.faturali.some(Boolean);
+        const hic = lightboxBrand.tip === 'marka' && !lightboxBrand.faturali.some(Boolean);
+        const degerYok = lightboxBrand.tip === 'ic';
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" onClick={() => setSeciliMarka(null)} role="dialog" aria-modal="true" aria-label={`${seciliMarka} süre ayrıntısı`}>
             <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
@@ -257,7 +258,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
                 {idx.map((i) => {
                   const on = ayDurumu?.[i] === 'güncel';
                   const h = lightboxBrand.hours[i];
-                  const saatBaz = h * FEE_BAZI[i];
+                  const saatBaz = degerYok ? 0 : h * FEE_BAZI[i];
                   const fee = lightboxBrand.fee[i] + lightboxBrand.proje[i];
                   const fark = saatBaz - fee;
                   const farkVar = on && (h > 0 || fee > 0);

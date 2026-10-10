@@ -66,8 +66,9 @@ export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   const monthIdx = (ym) => Number(String(ym).slice(5, 7)) - 1;
   const map = new Map();
   const get = (name, tip, eslesti) => {
-    if (!map.has(name)) map.set(name, { name, tip, eslesti, hours: new Array(12).fill(0), fee: new Array(12).fill(0), proje: new Array(12).fill(0), faturali: new Array(12).fill(false) });
-    return map.get(name);
+    const key = tip + '|' + normalizeNameKey(name);
+    if (!map.has(key)) map.set(key, { name, tip, eslesti, hours: new Array(12).fill(0), fee: new Array(12).fill(0), proje: new Array(12).fill(0), faturali: new Array(12).fill(false) });
+    return map.get(key);
   };
   (rows || []).forEach(([client, ym, hours]) => {
     const i = monthIdx(ym);
@@ -88,6 +89,7 @@ export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
     if (i < 0 || SIFIRLANAN_AYLAR.includes(i)) return;
     const name = canonName(r.marka);
     const b = get(name, 'marka', true);
+    b.eslesti = true; // Satış Tablosu'nda fatura kesilmiş marka eşleşmiş sayılır
     b.faturali[i] = true;
     if (r.hizmet === 'FEE') b.fee[i] += r.tutar || 0;
     else b.proje[i] += r.tutar || 0;
