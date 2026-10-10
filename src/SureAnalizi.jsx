@@ -15,7 +15,7 @@ const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
 const farkText = (v) => (Math.round(v) > 0 ? 'text-rose-600 dark:text-rose-400' : Math.round(v) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400');
 const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200' : Math.round(v) < 0 ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200' : '');
 
-export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows }) {
+export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError }) {
   const [selected, setSelected] = useState('Toplam');
   const [seciliMarka, setSeciliMarka] = useState(null);
 
@@ -124,6 +124,11 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
 
   return (
     <div className="flex flex-col gap-5">
+      {!satisRows?.length && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-xs sm:text-sm px-4 py-3">
+          Satış Tablosu verisi alınamadı{satisError ? ` (${satisError})` : ''}; bu yüzden faturalı/faturasız ayrımı ve Fee + Proje değerleri hesaplanamıyor. Sayfayı yenileyip tekrar deneyin.
+        </div>
+      )}
       <div className="flex flex-col gap-2 w-full">
         <div className="flex items-center w-full">
           <button

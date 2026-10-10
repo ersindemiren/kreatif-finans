@@ -420,14 +420,19 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey, sati
   let satis = null;
   let satisError = null;
   if (satisUrl && satisKey) {
-    try {
-      const satisRes = await fetch(`${satisUrl}?key=${encodeURIComponent(satisKey)}`);
-      if (!satisRes.ok) throw new Error(`HTTP ${satisRes.status}`);
-      const satisJson = await satisRes.json();
-      if (satisJson.error) throw new Error(satisJson.error);
-      satis = parseSatisTablosu(satisJson);
-    } catch (err) {
-      satisError = err.message || String(err);
+    // Apps Script zaman zaman geçici hata verebilir: en fazla 3 deneme
+    for (let attempt = 0; attempt < 3 && !satis; attempt += 1) {
+      try {
+        const satisRes = await fetch(`${satisUrl}?key=${encodeURIComponent(satisKey)}`);
+        if (!satisRes.ok) throw new Error(`HTTP ${satisRes.status}`);
+        const satisJson = await satisRes.json();
+        if (satisJson.error) throw new Error(satisJson.error);
+        satis = parseSatisTablosu(satisJson);
+        satisError = null;
+      } catch (err) {
+        satisError = err.message || String(err);
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 800));
+      }
     }
   }
 

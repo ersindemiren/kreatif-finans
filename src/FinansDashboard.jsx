@@ -1098,7 +1098,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
             <SatisTablosu satis={data.satis} satisError={data.satisError} months={months} kurUSD={data.kurUSD} ozet={{ ciro, gider, ciroUSD, giderUSD, ayDurumu }} />
           )}
 
-          {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} />}
+          {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
           {page === 'yorumlar' && (
