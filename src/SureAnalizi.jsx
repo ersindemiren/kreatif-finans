@@ -45,7 +45,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
       hours += b.hours[i];
       saatBaz += b.hours[i] * FEE_BAZI[i];
       fee += b.fee[i] + b.proje[i];
-      if (b.hours[i] > 0) fark += b.hours[i] * FEE_BAZI[i] - (b.fee[i] + b.proje[i]);
+      fark += b.hours[i] * FEE_BAZI[i] - (b.fee[i] + b.proje[i]);
     });
     return { hours, saatBaz, fee, fark, faturali: idxs.some((i) => b.faturali[i]) };
   };
@@ -74,7 +74,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
   const pillClass = (m, active) => {
     const durum = ayDurumu?.[months.indexOf(m)];
     if (durum === 'güncel') return active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
-    return 'bg-rose-50 text-rose-300 cursor-not-allowed';
+    return active ? 'bg-rose-300 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100';
   };
 
   const COL_SURE = 'w-[4.25rem] sm:w-28';
@@ -104,8 +104,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
           {fmtN(r.hours)} sa
           <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(toplam ? r.hours / toplam : 0)}</span>
         </span>
-        <span className={`tabular-nums font-medium ${COL_FARK} text-right shrink-0 whitespace-nowrap ${sureYok && r.tip === 'marka' ? 'text-slate-300 dark:text-slate-600' : farkText(r.fark)}`}>
-          {sureYok && r.tip === 'marka' ? '–' : '₺' + fmtN(Math.abs(r.fark))}
+        <span className={`tabular-nums font-medium ${COL_FARK} text-right shrink-0 whitespace-nowrap ${farkText(r.fark)}`}>
+          {'₺' + fmtN(Math.abs(r.fark))}
         </span>
       </div>
     );
@@ -131,7 +131,6 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
           {months.map((m, i) => (
             <button
               key={m}
-              disabled={ayDurumu?.[i] !== 'güncel'}
               onClick={() => setSelected(m)}
               className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${pillClass(m, selected === m)}`}
             >
@@ -143,14 +142,17 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {[
-          ['Toplam Süre', toplam],
-          ['Aktif Süre', aktif],
-          ['Atanmamış Süre', atil],
-          ['Kayıp Süre', kayip],
-        ].map(([label, v]) => (
+          ['Toplam Süre', toplam, false],
+          ['Aktif Süre', aktif, true],
+          ['Atanmamış Süre', atil, true],
+          ['Kayıp Süre', kayip, true],
+        ].map(([label, v, showPct]) => (
           <div key={label} className={`${CARD} p-4`}>
             <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
-            <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{fmtN(v)} Saat</div>
+            <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">
+              {fmtN(v)} Saat
+              {showPct && <span className="ml-1.5 text-[11px] sm:text-xs font-medium text-slate-400 dark:text-slate-500">{pct1(toplam ? v / toplam : 0)}</span>}
+            </div>
             <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({selected === 'Toplam' ? rangeLabel : selected})</span>
           </div>
         ))}
@@ -159,7 +161,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
       <div className={`${CARD} p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Süre Dağılımı</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-          Fark = harcanan süre × saatlik baz − aynı dönemin Fee + Proje faturası (Satış Tablosu, KDV hariç). Kırmızı: fee'den fazla zaman harcanmış, yeşil: fee içinde kalınmış. Satış Tablosu'nda faturası olup süresi girilmemiş markalar 0 süreyle listelenir; faturası kesilmeyen markalar sonda kırmızıdır. Marka adına tıklayınca aylık ayrıntı açılır.
+          Fark = harcanan süre × saatlik baz − aynı dönemin Fee + Proje faturası (Satış Tablosu, KDV hariç). Satış Tablosu'nda faturası olup süresi girilmemiş markalar 0 süreyle listelenir; faturası kesilmeyen markalar Kayıp Süre başlığı altında, kırmızıdır. Marka adına tıklayınca aylık ayrıntı açılır.
         </p>
         <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
           <span className="w-5 sm:w-6 shrink-0" />
@@ -170,7 +172,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
         <div className="flex flex-col">
           {faturali.map((r) => <Row key={r.name} r={r} i={++sira} />)}
           {faturasiz.length > 0 && (
-            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-rose-500 pt-4 pb-1">Faturası kesilmeyen markalar</div>
+            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-rose-500 pt-4 pb-1">Kayıp Süre <span className="normal-case tracking-normal text-[10px] text-rose-400">(Faturası kesilmeyen markalar)</span></div>
           )}
           {faturasiz.map((r) => <Row key={r.name} r={r} i={++sira} kirmizi />)}
           {markaDisi.length > 0 && (
@@ -196,6 +198,9 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
               <span className={`tabular-nums ${COL_SURE} text-right shrink-0 whitespace-nowrap`}>{fmtN(genel.hours)} sa</span>
               <span className={`tabular-nums ${COL_FARK} text-right shrink-0 whitespace-nowrap ${farkText(genel.fark)}`}>₺{fmtN(Math.abs(genel.fark))}</span>
             </div>
+            <p className="text-[11px] sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mt-4">
+              <span className="text-rose-600 dark:text-rose-400">KIRMIZI</span>, Bütçe'den fazla zaman harcandığını, <span className="text-emerald-600 dark:text-emerald-400">YEŞİL</span>, Bütçe içinde kalındığını gösterir.
+            </p>
           </div>
         </div>
       </div>
@@ -231,7 +236,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
                   const saatBaz = h * FEE_BAZI[i];
                   const fee = lightboxBrand.fee[i] + lightboxBrand.proje[i];
                   const fark = saatBaz - fee;
-                  const farkVar = on && h > 0;
+                  const farkVar = on && (h > 0 || fee > 0);
                   return (
                     <div key={i} className={`${grid} border-t border-slate-100 dark:border-slate-800 ${on ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
                       <span className={`${cell} text-left`}>{months[i]}</span>
@@ -253,10 +258,10 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
                 </div>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-3">
-                Tutarlar ₺ ve KDV hariçtir. Fee + Proje: Satış Tablosu faturaları. Fark = Saat x Baz − (Fee + Proje). Süre girilmemiş aylar Fark'a katılmaz; toplamdaki Baz güncel ayların ortalamasıdır.{hic ? ' Bu markaya Ocak-Eylül arasında fatura kesilmemiştir.' : ''}
+                Tutarlar ₺ ve KDV hariçtir. Fee + Proje: Satış Tablosu faturaları. Fark = Saat x Baz − (Fee + Proje). Toplamdaki Baz güncel ayların ortalamasıdır.{hic ? ' Bu markaya Ocak-Eylül arasında fatura kesilmemiştir.' : ''}
               </p>
               <p className="text-[11px] sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mt-2">
-                <span className="text-rose-600 dark:text-rose-400">KIRMIZI</span>, Fee'den fazla zaman harcandığını, <span className="text-emerald-600 dark:text-emerald-400">YEŞİL</span>, Fee içinde kalındığını gösterir.
+                <span className="text-rose-600 dark:text-rose-400">KIRMIZI</span>, Bütçe'den fazla zaman harcandığını, <span className="text-emerald-600 dark:text-emerald-400">YEŞİL</span>, Bütçe içinde kalındığını gösterir.
               </p>
             </div>
           </div>
