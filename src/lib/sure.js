@@ -95,6 +95,14 @@ export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
     else b.proje[i] += r.tutar || 0;
   });
 
+  // Eşleşme yalnızca Satış Tablosu'na göre: Satış'ta hiç faturası olmayan isim "eşleşmedi" sayılır
+  if ((satisRows || []).length) {
+    const satisKeys = new Set(satisRows.map((r) => normalizeNameKey(canonName(r.marka))));
+    map.forEach((b) => {
+      if (b.tip === 'marka') b.eslesti = satisKeys.has(normalizeNameKey(b.name));
+    });
+  }
+
   const all = [...map.values()];
   return { brands: all.filter((b) => b.tip === 'marka'), disi: all.filter((b) => b.tip !== 'marka') };
 }
