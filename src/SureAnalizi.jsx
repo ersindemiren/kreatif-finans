@@ -53,7 +53,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
   const rows = brands.map((b) => ({ ...b, ...calc(b, periodIdx) })).filter((r) => r.hours > 0 || r.faturali);
   const faturali = rows.filter((r) => r.faturali).sort((a, b) => b.hours - a.hours);
   const faturasiz = rows.filter((r) => !r.faturali).sort((a, b) => b.hours - a.hours);
-  const markaDisi = disi.map((b) => ({ ...b, ...calc(b, periodIdx) })).filter((r) => r.hours > 0);
+  // Kreatif iç süresine TL değer atanmaz (fark 0); atanmamış süre saat x baz ile değerlenir
+  const markaDisi = disi.map((b) => { const c = calc(b, periodIdx); return { ...b, ...c, fark: b.tip === 'ic' ? 0 : c.fark }; }).filter((r) => r.hours > 0);
 
   // Marka dışı ve atanmamış süreler gelir getirmez: fark = saat x baz
   const icRows = markaDisi.filter((r) => r.tip === 'ic');
@@ -63,11 +64,12 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
   const gFaturasiz = grp(faturasiz);
   const gIc = grp(icRows);
   const gAtanmamis = grp(atanmamisRows);
+  const gAtil = { hours: gIc.hours + gAtanmamis.hours, fark: gIc.fark + gAtanmamis.fark };
   const genel = { hours: gFaturali.hours + gFaturasiz.hours + gIc.hours + gAtanmamis.hours, fark: gFaturali.fark + gFaturasiz.fark + gIc.fark + gAtanmamis.fark };
   const toplam = genel.hours;
   const aktif = gFaturali.hours;
   const kayip = gFaturasiz.hours;
-  const atil = gIc.hours + gAtanmamis.hours;
+  const atil = gIc.hours + gAtanmamis.hours; // Atanmamış Süre kartı: iç süre + markaya atanmamış
 
   const pillClass = (m, active) => {
     const durum = ayDurumu?.[months.indexOf(m)];
@@ -102,8 +104,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
           {fmtN(r.hours)} sa
           <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(toplam ? r.hours / toplam : 0)}</span>
         </span>
-        <span className={`tabular-nums font-medium ${COL_FARK} text-right shrink-0 whitespace-nowrap ${sureYok ? 'text-slate-300 dark:text-slate-600' : farkText(r.fark)}`}>
-          {sureYok ? '–' : '₺' + fmtN(Math.abs(r.fark))}
+        <span className={`tabular-nums font-medium ${COL_FARK} text-right shrink-0 whitespace-nowrap ${sureYok && r.tip === 'marka' ? 'text-slate-300 dark:text-slate-600' : farkText(r.fark)}`}>
+          {sureYok && r.tip === 'marka' ? '–' : '₺' + fmtN(Math.abs(r.fark))}
         </span>
       </div>
     );
@@ -143,7 +145,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
         {[
           ['Toplam Süre', toplam],
           ['Aktif Süre', aktif],
-          ['Atıl Süre', atil],
+          ['Atanmamış Süre', atil],
           ['Kayıp Süre', kayip],
         ].map(([label, v]) => (
           <div key={label} className={`${CARD} p-4`}>
@@ -172,21 +174,20 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
           )}
           {faturasiz.map((r) => <Row key={r.name} r={r} i={++sira} kirmizi />)}
           {markaDisi.length > 0 && (
-            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 pt-4 pb-1">Marka dışı süreler</div>
+            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 pt-4 pb-1">Atanmamış süreler</div>
           )}
           {markaDisi.map((r) => <Row key={r.name} r={r} i="·" soluk />)}
           <div className="mt-3 pt-1 border-t-2 border-slate-200 dark:border-slate-700">
             {[
               ['Faturalı Markalar', gFaturali, 'text-slate-700 dark:text-slate-300'],
-              ['Faturası Kesilmeyen Markalar', gFaturasiz, 'text-rose-600 dark:text-rose-400'],
-              ['Marka Dışı Süre', gIc, 'text-slate-700 dark:text-slate-300'],
-              ['Atanmamış Süre', gAtanmamis, 'text-slate-700 dark:text-slate-300'],
+              ['Kayıp Süre', gFaturasiz, 'text-rose-600 dark:text-rose-400'],
+              ['Atanmamış Süre', gAtil, 'text-slate-700 dark:text-slate-300'],
             ].map(([label, g, c]) => (
               <div key={label} className="flex items-start gap-2 sm:gap-3 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
                 <span className="w-5 sm:w-6 shrink-0" />
                 <span className={`flex-1 min-w-0 ${c}`}>{label}</span>
                 <span className={`tabular-nums ${COL_SURE} text-right shrink-0 whitespace-nowrap ${c}`}>{fmtN(g.hours)} sa</span>
-                <span className={`tabular-nums font-medium ${COL_FARK} text-right shrink-0 whitespace-nowrap ${farkText(g.fark)}`}>{g.hours ? '₺' + fmtN(Math.abs(g.fark)) : '–'}</span>
+                <span className={`tabular-nums font-medium ${COL_FARK} text-right shrink-0 whitespace-nowrap ${farkText(g.fark)}`}>{'₺' + fmtN(Math.abs(g.fark))}</span>
               </div>
             ))}
             <div className="flex items-start gap-2 sm:gap-3 pt-3 text-[11px] sm:text-sm leading-5 font-bold text-slate-900 dark:text-slate-50">
@@ -251,8 +252,11 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
                   <span className={`${cell} ${farkCell(t.fark)}`}>{fmtN(Math.abs(t.fark))}</span>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-3">
-                Tutarlar ₺ ve KDV hariçtir. Fee + Proje: Satış Tablosu faturaları. Fark = Saat x Baz − (Fee + Proje); kırmızı fee'den fazla zaman harcandığını, yeşil fee içinde kalındığını gösterir. Süre girilmemiş aylar Fark'a katılmaz; toplamdaki Baz güncel ayların ortalamasıdır.{hic ? ' Bu markaya Ocak-Eylül arasında fatura kesilmemiştir.' : ''}
+              <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-3">
+                Tutarlar ₺ ve KDV hariçtir. Fee + Proje: Satış Tablosu faturaları. Fark = Saat x Baz − (Fee + Proje). Süre girilmemiş aylar Fark'a katılmaz; toplamdaki Baz güncel ayların ortalamasıdır.{hic ? ' Bu markaya Ocak-Eylül arasında fatura kesilmemiştir.' : ''}
+              </p>
+              <p className="text-[11px] sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mt-2">
+                <span className="text-rose-600 dark:text-rose-400">KIRMIZI</span>, Fee'den fazla zaman harcandığını, <span className="text-emerald-600 dark:text-emerald-400">YEŞİL</span>, Fee içinde kalındığını gösterir.
               </p>
             </div>
           </div>
