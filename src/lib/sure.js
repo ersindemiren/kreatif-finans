@@ -1,5 +1,5 @@
 // ============================================================================
-// Süre Analizi: zaman takip raporu (src/data/sureler.json) + FEE 2026 YENİ gelirleri
+// Süre Analizi: zaman takip raporu (src/data/sureler.json) + SATIŞ TABLOSU 2026 (Fee / Proje faturaları)
 // Süre kaynağı canlı bir uç nokta değildir; rapor yeniden dışa aktarıldığında sureler.json güncellenir.
 // ============================================================================
 import { normalizeNameKey } from './parseData.js';
@@ -56,14 +56,14 @@ export const ATANMAMIS_ADI = 'MARKAYA ATANMAMIŞ';
 
 // Dönüş: { brands, disi }
 //  brand = { name, tip: 'marka', eslesti, hours[12], fee[12], faturali[12] }
-//  hours[i] ay süresi (saat), fee[i] o ay fee geliri (sabit + fee faturası, KDV hariç),
+//  hours[i] ay süresi (saat), fee[i] / proje[i] o ay Satış Tablosu'ndaki Fee ve Proje faturaları (KDV hariç),
 //  faturali[i] = o ay Satış Tablosu'nda bu markaya fatura satırı var mı.
 //  Satış Tablosu'nda olup zaman raporunda olmayan markalar da süresi 0 olarak eklenir (zaman girilmemiş demektir).
 export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   const monthIdx = (ym) => Number(String(ym).slice(5, 7)) - 1;
   const map = new Map();
   const get = (name, tip, eslesti) => {
-    if (!map.has(name)) map.set(name, { name, tip, eslesti, hours: new Array(12).fill(0), fee: new Array(12).fill(0), faturali: new Array(12).fill(false) });
+    if (!map.has(name)) map.set(name, { name, tip, eslesti, hours: new Array(12).fill(0), fee: new Array(12).fill(0), proje: new Array(12).fill(0), faturali: new Array(12).fill(false) });
     return map.get(name);
   };
   (rows || []).forEach(([client, ym, hours]) => {
@@ -86,22 +86,8 @@ export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
     const name = canonName(r.marka);
     const b = get(name, 'marka', true);
     b.faturali[i] = true;
-  });
-
-  // FEE 2026 YENİ: ay ay fee (sabit + fee faturası)
-  const feeByKey = {};
-  (months || []).forEach((m, i) => {
-    const rr = revenueRaw?.[m];
-    if (!rr) return;
-    [...(rr.diger || []), ...(rr.fatura || [])].forEach(([n, v]) => {
-      const k = normalizeNameKey(canonName(n));
-      (feeByKey[k] = feeByKey[k] || new Array(12).fill(0))[i] += typeof v === 'number' ? v : 0;
-    });
-  });
-  map.forEach((b) => {
-    if (b.tip !== 'marka') return;
-    const k = normalizeNameKey(b.name);
-    if (feeByKey[k]) b.fee = feeByKey[k];
+    if (r.hizmet === 'FEE') b.fee[i] += r.tutar || 0;
+    else b.proje[i] += r.tutar || 0;
   });
 
   const all = [...map.values()];
