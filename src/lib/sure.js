@@ -59,6 +59,9 @@ export const ATANMAMIS_ADI = 'MARKAYA ATANMAMIŞ';
 //  hours[i] ay süresi (saat), fee[i] / proje[i] o ay Satış Tablosu'ndaki Fee ve Proje faturaları (KDV hariç),
 //  faturali[i] = o ay Satış Tablosu'nda bu markaya fatura satırı var mı.
 //  Satış Tablosu'nda olup zaman raporunda olmayan markalar da süresi 0 olarak eklenir (zaman girilmemiş demektir).
+// Bu aylar tamamlanana kadar süre ve fatura değerleri sıfır alınır (Ekim = 9)
+const SIFIRLANAN_AYLAR = [9];
+
 export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   const monthIdx = (ym) => Number(String(ym).slice(5, 7)) - 1;
   const map = new Map();
@@ -68,7 +71,7 @@ export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   };
   (rows || []).forEach(([client, ym, hours]) => {
     const i = monthIdx(ym);
-    if (i < 0 || i > 11) return;
+    if (i < 0 || i > 11 || SIFIRLANAN_AYLAR.includes(i)) return;
     let b;
     if (!client) b = get(ATANMAMIS_ADI, 'atanmamis', true);
     else if (normalizeNameKey(client) === IC_KEY) b = get(IC_ADI, 'ic', true);
@@ -82,7 +85,7 @@ export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   // Satış Tablosu: hangi marka hangi ay faturalandı (süresi olmayanlar da listeye eklenir)
   (satisRows || []).forEach((r) => {
     const i = months.indexOf(r.ay);
-    if (i < 0) return;
+    if (i < 0 || SIFIRLANAN_AYLAR.includes(i)) return;
     const name = canonName(r.marka);
     const b = get(name, 'marka', true);
     b.faturali[i] = true;

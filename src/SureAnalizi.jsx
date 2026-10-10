@@ -80,6 +80,15 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
   const COL_SURE = 'w-[4.25rem] sm:w-28';
   const COL_FARK = 'w-[5.25rem] sm:w-32';
 
+  const TableHead = ({ label }) => (
+    <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+      <span className="w-5 sm:w-6 shrink-0" />
+      <span className="flex-1 min-w-0">{label}</span>
+      <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
+      <span className={`${COL_FARK} text-right shrink-0`}>Fark</span>
+    </div>
+  );
+
   const Row = ({ r, i, kirmizi, soluk }) => {
     const sureYok = r.hours === 0;
     return (
@@ -111,7 +120,6 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
     );
   };
 
-  let sira = 0;
   const lightboxBrand = seciliMarka ? brands.find((b) => b.name === seciliMarka) : null;
 
   return (
@@ -161,48 +169,59 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows })
       <div className={`${CARD} p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Süre Dağılımı</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-          Fark = harcanan süre × saatlik baz − aynı dönemin Fee + Proje faturası (Satış Tablosu, KDV hariç). Satış Tablosu'nda faturası olup süresi girilmemiş markalar 0 süreyle listelenir; faturası kesilmeyen markalar Kayıp Süre başlığı altında, kırmızıdır. Marka adına tıklayınca aylık ayrıntı açılır.
+          Fark = harcanan süre × saatlik baz − aynı dönemin Fee + Proje faturası (Satış Tablosu, KDV hariç). Satış Tablosu'nda faturası olup süresi girilmemiş markalar 0 süreyle listelenir. Marka adına tıklayınca aylık ayrıntı açılır.
         </p>
-        <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-          <span className="w-5 sm:w-6 shrink-0" />
-          <span className="flex-1 min-w-0">Marka</span>
-          <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
-          <span className={`${COL_FARK} text-right shrink-0`}>Fark</span>
-        </div>
+        <TableHead label="Marka" />
         <div className="flex flex-col">
-          {faturali.map((r) => <Row key={r.name} r={r} i={++sira} />)}
-          {faturasiz.length > 0 && (
-            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-rose-500 pt-4 pb-1">Kayıp Süre <span className="normal-case tracking-normal text-[10px] text-rose-400">(Faturası kesilmeyen markalar)</span></div>
-          )}
-          {faturasiz.map((r) => <Row key={r.name} r={r} i={++sira} kirmizi />)}
-          {markaDisi.length > 0 && (
-            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 pt-4 pb-1">Atanmamış süreler</div>
-          )}
-          {markaDisi.map((r) => <Row key={r.name} r={r} i="·" soluk />)}
-          <div className="mt-3 pt-1 border-t-2 border-slate-200 dark:border-slate-700">
-            {[
-              ['Faturalı Markalar', gFaturali, 'text-slate-700 dark:text-slate-300'],
-              ['Kayıp Süre', gFaturasiz, 'text-rose-600 dark:text-rose-400'],
-              ['Atanmamış Süre', gAtil, 'text-slate-700 dark:text-slate-300'],
-            ].map(([label, g, c]) => (
-              <div key={label} className="flex items-start gap-2 sm:gap-3 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
-                <span className="w-5 sm:w-6 shrink-0" />
-                <span className={`flex-1 min-w-0 ${c}`}>{label}</span>
-                <span className={`tabular-nums ${COL_SURE} text-right shrink-0 whitespace-nowrap ${c}`}>{fmtN(g.hours)} sa</span>
-                <span className={`tabular-nums font-medium ${COL_FARK} text-right shrink-0 whitespace-nowrap ${farkText(g.fark)}`}>{'₺' + fmtN(Math.abs(g.fark))}</span>
-              </div>
-            ))}
-            <div className="flex items-start gap-2 sm:gap-3 pt-3 text-[11px] sm:text-sm leading-5 font-bold text-slate-900 dark:text-slate-50">
-              <span className="w-5 sm:w-6 shrink-0" />
-              <span className="flex-1 min-w-0">Genel Toplam</span>
-              <span className={`tabular-nums ${COL_SURE} text-right shrink-0 whitespace-nowrap`}>{fmtN(genel.hours)} sa</span>
-              <span className={`tabular-nums ${COL_FARK} text-right shrink-0 whitespace-nowrap ${farkText(genel.fark)}`}>₺{fmtN(Math.abs(genel.fark))}</span>
-            </div>
-            <p className="text-[11px] sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mt-4">
-              <span className="text-rose-600 dark:text-rose-400">KIRMIZI</span>, Bütçe'den fazla zaman harcandığını, <span className="text-emerald-600 dark:text-emerald-400">YEŞİL</span>, Bütçe içinde kalındığını gösterir.
-            </p>
-          </div>
+          {faturali.map((r, k) => <Row key={r.name} r={r} i={k + 1} />)}
+          {faturali.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için veri yok.</div>}
         </div>
+      </div>
+
+      <div className={`${CARD} p-5 border-rose-200 dark:border-rose-900/60`}>
+        <h2 className="font-serif text-lg text-rose-600 dark:text-rose-400 mb-1">Kayıp Süre</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Faturası kesilmeyen markalara harcanan süre.</p>
+        <TableHead label="Marka" />
+        <div className="flex flex-col">
+          {faturasiz.map((r, k) => <Row key={r.name} r={r} i={k + 1} kirmizi />)}
+          {faturasiz.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için kayıt yok.</div>}
+        </div>
+      </div>
+
+      <div className={`${CARD} p-5`}>
+        <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Atanmamış Süre</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kreatif iç süresi ve markaya atanmamış kayıtlar.</p>
+        <TableHead label="Kalem" />
+        <div className="flex flex-col">
+          {markaDisi.map((r) => <Row key={r.name} r={r} i="·" soluk />)}
+          {markaDisi.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için kayıt yok.</div>}
+        </div>
+      </div>
+
+      <div className={`${CARD} p-5`}>
+        <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">Genel Toplam</h2>
+        <TableHead label="Grup" />
+        {[
+          ['Faturalı Markalar', gFaturali, 'text-slate-700 dark:text-slate-300'],
+          ['Kayıp Süre', gFaturasiz, 'text-rose-600 dark:text-rose-400'],
+          ['Atanmamış Süre', gAtil, 'text-slate-700 dark:text-slate-300'],
+        ].map(([label, g, c]) => (
+          <div key={label} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
+            <span className="w-5 sm:w-6 shrink-0" />
+            <span className={`flex-1 min-w-0 ${c}`}>{label}</span>
+            <span className={`tabular-nums ${COL_SURE} text-right shrink-0 whitespace-nowrap ${c}`}>{fmtN(g.hours)} sa</span>
+            <span className={`tabular-nums font-medium ${COL_FARK} text-right shrink-0 whitespace-nowrap ${farkText(g.fark)}`}>{'₺' + fmtN(Math.abs(g.fark))}</span>
+          </div>
+        ))}
+        <div className="flex items-start gap-2 sm:gap-3 pt-3 text-[11px] sm:text-sm leading-5 font-bold text-slate-900 dark:text-slate-50 border-t-2 border-slate-200 dark:border-slate-700 mt-1">
+          <span className="w-5 sm:w-6 shrink-0" />
+          <span className="flex-1 min-w-0">Genel Toplam</span>
+          <span className={`tabular-nums ${COL_SURE} text-right shrink-0 whitespace-nowrap`}>{fmtN(genel.hours)} sa</span>
+          <span className={`tabular-nums ${COL_FARK} text-right shrink-0 whitespace-nowrap ${farkText(genel.fark)}`}>₺{fmtN(Math.abs(genel.fark))}</span>
+        </div>
+        <p className="text-[11px] sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mt-8 pt-2 text-center leading-relaxed">
+          <span className="text-rose-600 dark:text-rose-400">KIRMIZI</span>, Bütçe'den fazla zaman harcandığını, <span className="text-emerald-600 dark:text-emerald-400">YEŞİL</span>, Bütçe içinde kalındığını gösterir.
+        </p>
       </div>
 
       {lightboxBrand && (() => {
