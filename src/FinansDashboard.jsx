@@ -213,20 +213,6 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     return map;
   }
 
-  // Marka × ay: fee (sabit + fee faturası) ve proje (fee dışı) ayrımı
-  function monthSplitMap(monthKey) {
-    const monthData = revenueRaw[monthKey];
-    const map = {};
-    if (!monthData) return map;
-    const add = (client, key, amount) => {
-      const o = map[client] || (map[client] = { fee: 0, proje: 0 });
-      o[key] += amount;
-    };
-    ['diger', 'fatura'].forEach((cat) => (monthData[cat] || []).forEach(([client, amount]) => add(client, 'fee', amount)));
-    (monthData.feeDisi || []).forEach(([client, , amount]) => add(client, 'proje', amount));
-    return map;
-  }
-
   function monthByBrand(monthKey) {
     return Object.entries(monthDistributedMap(monthKey))
       .map(([name, amount]) => ({ name, amount }))
@@ -235,22 +221,17 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
 
   const customerPivot = useMemo(() => {
     const totalsByBrand = {};
-    const splitByBrand = {};
     months.forEach((m) => {
       const map = monthDistributedMap(m);
       Object.entries(map).forEach(([client, amount]) => {
         if (!totalsByBrand[client]) totalsByBrand[client] = {};
         totalsByBrand[client][m] = amount;
       });
-      Object.entries(monthSplitMap(m)).forEach(([client, v]) => {
-        if (!splitByBrand[client]) splitByBrand[client] = {};
-        splitByBrand[client][m] = v;
-      });
     });
     return Object.entries(totalsByBrand)
       .map(([name, byMonth]) => {
         const total = months.reduce((s, m) => s + (byMonth[m] || 0), 0);
-        return { name, byMonth, total, split: splitByBrand[name] || {} };
+        return { name, byMonth, total };
       })
       .sort((a, b) => b.total - a.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -844,20 +825,27 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                       periodMonths = [selectedMonth];
                       periodTotalCiro = ciro[months.indexOf(selectedMonth)];
                     }
-                    const rows = customerPivot
-                      .map((c) => {
-                        const fee = periodMonths.reduce((s, m) => s + (c.split[m]?.fee || 0), 0);
-                        const proje = periodMonths.reduce((s, m) => s + (c.split[m]?.proje || 0), 0);
-                        return { name: c.name, fee, proje, amount: fee + proje };
-                      })
+                    // Fee / Proje / Toplam: SATIŞ TABLOSU 2026 faturalarından (KDV hariç)
+                    const donem = new Set(periodMonths);
+                    const byBrand = {};
+                    (data.satis?.rows || []).forEach((r) => {
+                      if (!donem.has(r.ay)) return;
+                      const o = byBrand[r.marka] || (byBrand[r.marka] = { name: r.marka, fee: 0, proje: 0 });
+                      if (r.hizmet === 'FEE') o.fee += r.tutar;
+                      else o.proje += r.tutar;
+                    });
+                    const rows = Object.values(byBrand)
+                      .map((o) => ({ ...o, amount: o.fee + o.proje }))
                       .filter((r) => r.amount > 0)
                       .sort((a, b) => b.amount - a.amount);
                     const feeTotal = rows.reduce((s, r) => s + r.fee, 0);
                     const projeTotal = rows.reduce((s, r) => s + r.proje, 0);
                     const tl = (v) => (v ? '₺' + fmtTL(v) : '–');
                     const rowsTotal = rows.reduce((s, r) => s + r.amount, 0);
+                    periodTotalCiro = rowsTotal; // Gelir oranı: Satış Tablosu dönem toplamına göre
                     return (
                       <>
+                        {rows.length === 0 && <div className="py-4 text-xs text-slate-400">Bu dönem için Satış Tablosu'nda fatura kaydı yok (tahmini aylar henüz faturalanmadı).</div>}
                         {rows.map((b, i) => (
                           <div key={b.name + i} className="flex items-start gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
                             <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
