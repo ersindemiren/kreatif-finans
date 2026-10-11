@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import SatisTablosu from './SatisTablosu.jsx';
 import SureAnalizi from './SureAnalizi.jsx';
-import { YASLANDIRMA_KOVALARI } from './lib/parseData.js';
+import { YASLANDIRMA_KOVALARI, normalizeNameKey } from './lib/parseData.js';
 
 
 /* ------------------------------------------------------------------ */
@@ -890,14 +890,17 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
               </div>
 
               {gelirMarka && (() => {
-                const c = customerPivot.find((x) => x.name === gelirMarka);
+                // Fee / Proje ayrımı SATIŞ TABLOSU 2026'dan alınır (FEE 2026 YENİ'de bu ayrım toplu)
+                const anahtar = normalizeNameKey(gelirMarka);
+                const marktaSatis = (data.satis?.rows || []).filter((r) => normalizeNameKey(r.marka) === anahtar);
                 const satirlar = months
-                  .map((m, i) => {
-                    const fee = c?.split[m]?.fee || 0;
-                    const proje = c?.split[m]?.proje || 0;
-                    return { m, fee, proje, toplam: fee + proje, tahmini: ayDurumu?.[i] !== 'güncel' };
+                  .map((m) => {
+                    const ayRows = marktaSatis.filter((r) => r.ay === m);
+                    const fee = ayRows.filter((r) => r.hizmet === 'FEE').reduce((t, r) => t + r.tutar, 0);
+                    const proje = ayRows.filter((r) => r.hizmet !== 'FEE').reduce((t, r) => t + r.tutar, 0);
+                    return { m, fee, proje, toplam: fee + proje };
                   })
-                  .filter((r) => r.toplam > 0);
+                  .filter((r) => r.toplam !== 0);
                 const feeT = satirlar.reduce((s, r) => s + r.fee, 0);
                 const projeT = satirlar.reduce((s, r) => s + r.proje, 0);
                 const tl = (v) => (v ? fmtTL(v) : '–');
@@ -918,21 +921,21 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         <span className="text-right">Toplam</span>
                       </div>
                       {satirlar.map((r) => (
-                        <div key={r.m} className={`${grid} gap-x-2 sm:gap-x-3 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm ${r.tahmini ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
-                          <span className="py-2.5">{r.m}{r.tahmini && <span className="block text-[9px] leading-none text-slate-400">tahmini</span>}</span>
+                        <div key={r.m} className={`${grid} gap-x-2 sm:gap-x-3 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm text-slate-700 dark:text-slate-300`}>
+                          <span className="py-2.5">{r.m}</span>
                           <span className={cell}>{tl(r.fee)}</span>
                           <span className={cell}>{tl(r.proje)}</span>
-                          <span className={`${cell} font-medium ${r.tahmini ? '' : 'text-slate-900 dark:text-slate-50'}`}>₺{fmtTL(r.toplam)}</span>
+                          <span className={`${cell} font-medium text-slate-900 dark:text-slate-50`}>₺{fmtTL(r.toplam)}</span>
                         </div>
                       ))}
-                      {satirlar.length === 0 && <div className="py-4 text-xs text-slate-400">Bu marka için gelir kaydı yok.</div>}
+                      {satirlar.length === 0 && <div className="py-4 text-xs text-slate-400">Bu marka için Satış Tablosu'nda fatura kaydı yok.</div>}
                       <div className={`${grid} gap-x-2 sm:gap-x-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700 text-[11px] sm:text-sm font-bold text-slate-900 dark:text-slate-50`}>
                         <span className="py-3">Toplam</span>
                         <span className="py-3 text-right tabular-nums whitespace-nowrap">{tl(feeT)}</span>
                         <span className="py-3 text-right tabular-nums whitespace-nowrap">{tl(projeT)}</span>
                         <span className="py-3 text-right tabular-nums whitespace-nowrap">₺{fmtTL(feeT + projeT)}</span>
                       </div>
-                      {satirlar.some((r) => r.tahmini) && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">Soluk satırlar tahmini aylardır; toplama dahildir.</p>}
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">Kaynak: Satış Tablosu 2026 (KDV hariç fatura tutarları).</p>
                     </div>
                   </div>
                 );
