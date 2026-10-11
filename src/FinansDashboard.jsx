@@ -144,6 +144,13 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
   const [darkMode, setDarkMode] = useState(false);
   const [kdvDahil, setKdvDahil] = useState(true); // Alacaklar: varsayılan KDV dahil
   const [seciliMarka, setSeciliMarka] = useState(null); // Alacaklar: marka ayrıntı penceresi
+  const [gelirMarka, setGelirMarka] = useState(null); // Gelirler: marka aylık dağılım penceresi
+  useEffect(() => {
+    if (!gelirMarka) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setGelirMarka(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [gelirMarka]);
   useEffect(() => {
     if (!seciliMarka) return undefined;
     const onKey = (e) => e.key === 'Escape' && setSeciliMarka(null);
@@ -855,7 +862,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                           <div key={b.name + i} className="flex items-start gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
                             <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
                             <span className="text-[11px] sm:text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0 flex flex-wrap items-center gap-x-2 break-words">
-                              <span>{b.name}</span>
+                              <button type="button" onClick={() => setGelirMarka(b.name)} className="text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2">{b.name}</button>
                               {isPasifMarka(b.name) && (
                                 <span className="shrink-0 text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 rounded-full px-2 py-0.5">
                                   Pasif
@@ -881,6 +888,55 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                   })()}
                 </div>
               </div>
+
+              {gelirMarka && (() => {
+                const c = customerPivot.find((x) => x.name === gelirMarka);
+                const satirlar = months
+                  .map((m, i) => {
+                    const fee = c?.split[m]?.fee || 0;
+                    const proje = c?.split[m]?.proje || 0;
+                    return { m, fee, proje, toplam: fee + proje, tahmini: ayDurumu?.[i] !== 'güncel' };
+                  })
+                  .filter((r) => r.toplam > 0);
+                const feeT = satirlar.reduce((s, r) => s + r.fee, 0);
+                const projeT = satirlar.reduce((s, r) => s + r.proje, 0);
+                const tl = (v) => (v ? fmtTL(v) : '–');
+                const grid = 'grid grid-cols-[3rem_repeat(3,minmax(0,1fr))] sm:grid-cols-[4rem_repeat(3,minmax(0,1fr))]';
+                const cell = 'py-2.5 text-right tabular-nums whitespace-nowrap';
+                return (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" onClick={() => setGelirMarka(null)} role="dialog" aria-modal="true" aria-label={`${gelirMarka} aylık dağılım`}>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md max-h-[88vh] overflow-y-auto p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => setGelirMarka(null)} aria-label="Kapat" className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <X size={18} />
+                      </button>
+                      <h2 className="font-serif text-xl text-slate-900 dark:text-slate-50 pr-8">{gelirMarka}</h2>
+                      <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mb-4">Aylık Dağılım</p>
+                      <div className={`${grid} gap-x-2 sm:gap-x-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500`}>
+                        <span>Ay</span>
+                        <span className="text-right">Fee</span>
+                        <span className="text-right">Proje</span>
+                        <span className="text-right">Toplam</span>
+                      </div>
+                      {satirlar.map((r) => (
+                        <div key={r.m} className={`${grid} gap-x-2 sm:gap-x-3 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm ${r.tahmini ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
+                          <span className="py-2.5">{r.m}{r.tahmini && <span className="block text-[9px] leading-none text-slate-400">tahmini</span>}</span>
+                          <span className={cell}>{tl(r.fee)}</span>
+                          <span className={cell}>{tl(r.proje)}</span>
+                          <span className={`${cell} font-medium ${r.tahmini ? '' : 'text-slate-900 dark:text-slate-50'}`}>₺{fmtTL(r.toplam)}</span>
+                        </div>
+                      ))}
+                      {satirlar.length === 0 && <div className="py-4 text-xs text-slate-400">Bu marka için gelir kaydı yok.</div>}
+                      <div className={`${grid} gap-x-2 sm:gap-x-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700 text-[11px] sm:text-sm font-bold text-slate-900 dark:text-slate-50`}>
+                        <span className="py-3">Toplam</span>
+                        <span className="py-3 text-right tabular-nums whitespace-nowrap">{tl(feeT)}</span>
+                        <span className="py-3 text-right tabular-nums whitespace-nowrap">{tl(projeT)}</span>
+                        <span className="py-3 text-right tabular-nums whitespace-nowrap">₺{fmtTL(feeT + projeT)}</span>
+                      </div>
+                      {satirlar.some((r) => r.tahmini) && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">Soluk satırlar tahmini aylardır; toplama dahildir.</p>}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
