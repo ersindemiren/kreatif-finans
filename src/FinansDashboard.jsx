@@ -1046,11 +1046,13 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 const satir = seciliMarka ? alacaklarData.find(([n]) => n === seciliMarka) : null;
                 if (!satir) return null;
                 const lines = satir[4]?.satirlar || [];
-                const gecenler = lines.filter(([, , gn]) => gn > 0);
-                const gecenToplam = gecenler.reduce((s, [, t]) => s + t, 0);
-                const gecenGun = gecenToplam ? gecenler.reduce((s, [, t, gn]) => s + t * gn, 0) / gecenToplam : 0;
-                const genelToplam = lines.reduce((s, [, t]) => s + t, 0);
+                const gecenToplam = lines.filter(([, , gn]) => gn > 0).reduce((t, [, v]) => t + v, 0);
+                const gelmemisToplam = lines.filter(([, , gn]) => gn <= 0).reduce((t, [, v]) => t + v, 0);
+                const genelToplam = lines.reduce((t, [, v]) => t + v, 0);
                 const fmtVade = (iso) => iso.split('-').reverse().join('.');
+                const bugun = new Date();
+                const bugunUTC = Date.UTC(bugun.getFullYear(), bugun.getMonth(), bugun.getDate());
+                const kalanGun = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - bugunUTC) / 86400000); };
                 return (
                   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" onClick={() => setSeciliMarka(null)} role="dialog" aria-modal="true" aria-label={`${seciliMarka} alacak ayrıntısı`}>
                     <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
@@ -1060,30 +1062,35 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                       <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 pr-8">{seciliMarka}</h2>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">Ödeme vadesine göre alacaklar · {kdvDahil ? 'KDV dahil' : 'KDV hariç'}</p>
                       <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-                        <div className="grid grid-cols-[1fr_1fr_4rem] bg-slate-600 text-white text-xs sm:text-sm font-medium">
+                        <div className="grid grid-cols-[1fr_1fr_6.5rem] bg-slate-600 text-white text-xs sm:text-sm font-medium">
                           <span className="px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 italic font-normal">Ödeme Vadesi</span>
                           <span className="px-3 py-2 text-right truncate">{seciliMarka}</span>
                           <span className="px-3 py-2 text-right">Vade Gün</span>
                         </div>
                         {lines.map(([iso, tutar, gn]) => (
-                          <div key={iso} className={`grid grid-cols-[1fr_1fr_4rem] text-xs sm:text-sm tabular-nums border-t border-slate-100 dark:border-slate-800 ${gn > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-slate-50'}`}>
+                          <div key={iso} className={`grid grid-cols-[1fr_1fr_6.5rem] text-xs sm:text-sm tabular-nums border-t border-slate-100 dark:border-slate-800 ${gn > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-slate-50'}`}>
                             <span className="px-3 py-2">{fmtVade(iso)}</span>
                             <span className="px-3 py-2 text-right">{fmtTL(tutar)}</span>
-                            <span className="px-3 py-2 text-right">{gn}</span>
+                            <span className="px-3 py-2 text-right whitespace-nowrap">{gn > 0 ? gn : <span className="text-slate-500 dark:text-slate-400 text-[11px] sm:text-xs">{kalanGun(iso) === 0 ? "bugün" : `${kalanGun(iso)} gün kaldı`}</span>}</span>
                           </div>
                         ))}
-                        <div className="grid grid-cols-[1fr_1fr_4rem] text-xs sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                        <div className="grid grid-cols-[1fr_1fr_6.5rem] text-xs sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
                           <span className="px-3 py-2 text-slate-900 dark:text-slate-50">Vadesi Geçen</span>
                           <span className={`px-3 py-2 text-right ${gecenToplam ? 'text-rose-600' : 'text-slate-400'}`}>{gecenToplam ? fmtTL(gecenToplam) : '–'}</span>
-                          <span className={`px-3 py-2 text-right ${gecenToplam ? 'text-rose-600' : 'text-slate-400'}`}>{gecenToplam ? Math.round(gecenGun) : '–'}</span>
+                          <span />
                         </div>
-                        <div className="grid grid-cols-[1fr_1fr_4rem] text-xs sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                        <div className="grid grid-cols-[1fr_1fr_6.5rem] text-xs sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                          <span className="px-3 py-2 text-slate-900 dark:text-slate-50">Vadesi Gelmemiş</span>
+                          <span className={`px-3 py-2 text-right ${gelmemisToplam ? 'text-slate-900 dark:text-slate-50' : 'text-slate-400'}`}>{gelmemisToplam ? fmtTL(gelmemisToplam) : '–'}</span>
+                          <span />
+                        </div>
+                        <div className="grid grid-cols-[1fr_1fr_6.5rem] text-xs sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
                           <span className="px-3 py-2 text-slate-900 dark:text-slate-50">Genel Toplam</span>
                           <span className="px-3 py-2 text-right text-slate-900 dark:text-slate-50">{fmtTL(genelToplam)}</span>
                           <span />
                         </div>
                       </div>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-3">Vade Gün: vade tarihinin üzerinden bugüne geçen gün (kırmızı = vadesi geçmiş). Vadesi Geçen satırındaki gün, tutar ağırlıklı ortalamadır.</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-3">Vade Gün: vade tarihinin üzerinden bugüne geçen gün (kırmızı = vadesi geçmiş). Vadesi gelmemiş faturalarda vadeye kalan gün yazılır.</p>
                     </div>
                   </div>
                 );
