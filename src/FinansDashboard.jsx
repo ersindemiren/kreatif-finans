@@ -1056,19 +1056,19 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 const fmtVade = (iso) => iso.split('-').reverse().join('.');
                 const bugunUTC = Date.UTC(bugun.getFullYear(), bugun.getMonth(), bugun.getDate());
                 const kalanGun = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - bugunUTC) / 86400000); };
-                const COLS = 'grid-cols-[5.5rem_minmax(0,1fr)_5.75rem] sm:grid-cols-[7.5rem_minmax(0,1fr)_7.5rem]';
-                const cell = 'flex items-center h-9 sm:h-10 px-2 sm:px-4';
-                const tutarCell = 'pr-3 sm:pr-8';
+                const COLS = 'grid-cols-[6.75rem_minmax(0,1fr)_4.5rem] sm:grid-cols-[8rem_minmax(0,1fr)_7.5rem]';
+                const cell = 'flex items-center h-9 sm:h-10 px-1.5 sm:px-4 whitespace-nowrap';
+                const tutarCell = 'pr-1.5 sm:pr-8';
                 const oran = temerrutOrani(bugun.getFullYear());
                 return (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" onClick={() => setSeciliMarka(null)} role="dialog" aria-modal="true" aria-label={`${seciliMarka} alacak ayrıntısı`}>
-                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-lg max-h-[88vh] overflow-y-auto p-4 sm:p-5" onClick={(e) => e.stopPropagation()}>
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/50" onClick={() => setSeciliMarka(null)} role="dialog" aria-modal="true" aria-label={`${seciliMarka} alacak ayrıntısı`}>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-lg max-h-[88vh] overflow-y-auto p-3 sm:p-5" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => setSeciliMarka(null)} aria-label="Kapat" className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800">
                         <X size={18} />
                       </button>
                       <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 pr-8">{seciliMarka}</h2>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">Ödeme vadesine göre alacaklar · {kdvDahil ? 'KDV dahil' : 'KDV hariç'}</p>
-                      <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="flex items-start gap-2 sm:gap-4">
                         <div className="flex-1 min-w-0 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
                           <div className={`grid ${COLS} bg-slate-600 text-white text-[11px] sm:text-sm font-medium leading-tight`}>
                             <span className={`${cell} bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 italic font-normal`}>Ödeme Vadesi</span>
@@ -1100,7 +1100,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         </div>
 
                         {/* Faiz: ana tablodan ayrı, ekran görüntüsünde kolayca dışarıda bırakılabilir */}
-                        <div className="w-[5.5rem] sm:w-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                        <div className="w-[4.5rem] sm:w-28 shrink-0 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
                           <div className="bg-slate-600 text-white text-[11px] sm:text-sm font-medium leading-tight">
                             <span className={`${cell} justify-end`}>Faiz</span>
                           </div>
