@@ -1056,8 +1056,9 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 const fmtVade = (iso) => iso.split('-').reverse().join('.');
                 const bugunUTC = Date.UTC(bugun.getFullYear(), bugun.getMonth(), bugun.getDate());
                 const kalanGun = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - bugunUTC) / 86400000); };
-                const COLS = 'grid-cols-[5.25rem_minmax(0,1fr)_5.5rem] sm:grid-cols-[1fr_1fr_6.5rem]';
-                const cell = 'flex items-center h-9 sm:h-10 px-1.5 sm:px-3';
+                const COLS = 'grid-cols-[5.5rem_minmax(0,1fr)_5.75rem] sm:grid-cols-[7.5rem_minmax(0,1fr)_7.5rem]';
+                const cell = 'flex items-center h-9 sm:h-10 px-2 sm:px-4';
+                const tutarCell = 'pr-3 sm:pr-8';
                 const oran = temerrutOrani(bugun.getFullYear());
                 return (
                   <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" onClick={() => setSeciliMarka(null)} role="dialog" aria-modal="true" aria-label={`${seciliMarka} alacak ayrıntısı`}>
@@ -1071,29 +1072,29 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                         <div className="flex-1 min-w-0 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
                           <div className={`grid ${COLS} bg-slate-600 text-white text-[11px] sm:text-sm font-medium leading-tight`}>
                             <span className={`${cell} bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 italic font-normal`}>Ödeme Vadesi</span>
-                            <span className={`${cell} justify-end overflow-hidden whitespace-nowrap`}>{seciliMarka}</span>
-                            <span className={`${cell} justify-end`}>Vade Gün</span>
+                            <span className={`${cell} ${tutarCell} justify-end overflow-hidden whitespace-nowrap`}>{seciliMarka}</span>
+                            <span className={`${cell} justify-center text-center`}>Vade Gün</span>
                           </div>
                           {lines.map(([iso, tutar, gn]) => (
                             <div key={iso} className={`grid ${COLS} text-[11px] sm:text-sm tabular-nums border-t border-slate-100 dark:border-slate-800 ${gn > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-slate-50'}`}>
                               <span className={cell}>{fmtVade(iso)}</span>
-                              <span className={`${cell} justify-end`}>{fmtTL(tutar)}</span>
-                              <span className={`${cell} justify-end whitespace-nowrap`}>{gn > 0 ? gn : <span className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs">{kalanGun(iso) === 0 ? 'bugün' : `${kalanGun(iso)} gün kaldı`}</span>}</span>
+                              <span className={`${cell} ${tutarCell} justify-end`}>{fmtTL(tutar)}</span>
+                              <span className={`${cell} justify-center text-center whitespace-nowrap`}>{gn > 0 ? gn : <span className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs">{kalanGun(iso) === 0 ? 'bugün' : `${kalanGun(iso)} gün kaldı`}</span>}</span>
                             </div>
                           ))}
                           <div className={`grid ${COLS} text-[11px] sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700`}>
                             <span className={`${cell} text-slate-900 dark:text-slate-50 leading-tight`}>Vadesi Geçen</span>
-                            <span className={`${cell} justify-end ${gecenToplam ? 'text-rose-600' : 'text-slate-400'}`}>{gecenToplam ? fmtTL(gecenToplam) : '–'}</span>
+                            <span className={`${cell} ${tutarCell} justify-end ${gecenToplam ? 'text-rose-600' : 'text-slate-400'}`}>{gecenToplam ? fmtTL(gecenToplam) : '–'}</span>
                             <span className={cell} />
                           </div>
                           <div className={`grid ${COLS} text-[11px] sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700`}>
                             <span className={`${cell} text-slate-900 dark:text-slate-50 leading-tight`}>Vadesi Gelmemiş</span>
-                            <span className={`${cell} justify-end ${gelmemisToplam ? 'text-slate-900 dark:text-slate-50' : 'text-slate-400'}`}>{gelmemisToplam ? fmtTL(gelmemisToplam) : '–'}</span>
+                            <span className={`${cell} ${tutarCell} justify-end ${gelmemisToplam ? 'text-slate-900 dark:text-slate-50' : 'text-slate-400'}`}>{gelmemisToplam ? fmtTL(gelmemisToplam) : '–'}</span>
                             <span className={cell} />
                           </div>
                           <div className={`grid ${COLS} text-[11px] sm:text-sm tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700`}>
                             <span className={`${cell} text-slate-900 dark:text-slate-50 leading-tight`}>Genel Toplam</span>
-                            <span className={`${cell} justify-end text-slate-900 dark:text-slate-50`}>{fmtTL(genelToplam)}</span>
+                            <span className={`${cell} ${tutarCell} justify-end text-slate-900 dark:text-slate-50`}>{fmtTL(genelToplam)}</span>
                             <span className={cell} />
                           </div>
                         </div>
