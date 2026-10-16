@@ -992,11 +992,11 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Müşterilerden beklenen ödemeler, markaya göre büyükten küçüğe sıralanmıştır. Vadesi bugünden önce olanlar "Vadesi Geçmiş" sütunundadır.</p>
                 <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                   <span className="w-4 sm:w-5 shrink-0" />
-                  <span className="flex-1 min-w-0">Marka</span>
+                  <span className="flex-1 min-w-[4.5rem] sm:min-w-0">Marka</span>
                   <span className="w-10 sm:w-14 text-right shrink-0 leading-tight">Alacak Oranı</span>
-                  <span className="w-[4.25rem] sm:w-24 text-right shrink-0 leading-tight">Vadesi Geçmiş</span>
-                  <span className="w-[4.25rem] sm:w-24 text-right shrink-0 leading-tight">Gelecek Vadeli</span>
-                  <span className="w-[4.5rem] sm:w-28 text-right shrink-0 leading-tight">Toplam Tutar</span>
+                  <span className="w-14 sm:w-24 text-right shrink-0 leading-tight">Vadesi Geçmiş</span>
+                  <span className="w-14 sm:w-24 text-right shrink-0 leading-tight">Gelecek Vadeli</span>
+                  <span className="w-14 sm:w-28 text-right shrink-0 leading-tight">Toplam Tutar</span>
                 </div>
                 <div className="flex flex-col">
                   {(() => {
@@ -1015,27 +1015,27 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
                           return (
                             <div key={name} className="flex items-start gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
                               <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
-                              <button type="button" onClick={() => setSeciliMarka(name)} className="text-[11px] sm:text-sm text-left text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 flex-1 min-w-0 break-words">{name}</button>
+                              <button type="button" onClick={() => setSeciliMarka(name)} className="text-[11px] sm:text-sm text-left text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 flex-1 min-w-[4.5rem] sm:min-w-0 break-words">{name}</button>
                               <span className={`text-[10px] sm:text-xs tabular-nums w-10 sm:w-14 text-right shrink-0 ${oran > 0.1 ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>{pct(oran)}</span>
-                              <span className={`text-[11px] sm:text-sm tabular-nums w-[4.25rem] sm:w-24 text-right shrink-0 leading-tight ${gecmis ? 'text-rose-600' : 'text-slate-300 dark:text-slate-600'}`}>
+                              <span className={`text-[10px] sm:text-sm tabular-nums w-14 sm:w-24 text-right shrink-0 leading-tight ${gecmis ? 'text-rose-600' : 'text-slate-300 dark:text-slate-600'}`}>
                                 {money(gecmis)}
                                 {gun > 0 && <span className={`block text-[10px] sm:text-[11px] ${gunTone}`} title={enEski ? `En eski vade: ${enEski} gün` : undefined}>ort. {gun} gün</span>}
                               </span>
-                              <span className={`text-[11px] sm:text-sm tabular-nums w-[4.25rem] sm:w-24 text-right shrink-0 ${gelecek ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'}`}>{money(gelecek)}</span>
-                              <span className="text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(amount)}</span>
+                              <span className={`text-[10px] sm:text-sm tabular-nums w-14 sm:w-24 text-right shrink-0 ${gelecek ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'}`}>{money(gelecek)}</span>
+                              <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-medium w-14 sm:w-28 text-right shrink-0">₺{fmtTL(amount)}</span>
                             </div>
                           );
                         })}
                         <div className="flex items-start gap-1.5 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
                           <span className="w-4 sm:w-5 shrink-0" />
-                          <span className="text-[11px] sm:text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-0">Toplam</span>
+                          <span className="text-[11px] sm:text-[11px] sm:text-sm text-slate-900 dark:text-slate-50 font-semibold flex-1 min-w-[4.5rem] sm:min-w-0">Toplam</span>
                           <span className="text-[10px] sm:text-xs tabular-nums text-slate-400 dark:text-slate-500 w-10 sm:w-14 text-right shrink-0">{pct(1)}</span>
-                          <span className="text-[10px] sm:text-sm tabular-nums text-rose-600 font-bold w-[4.25rem] sm:w-24 text-right shrink-0 leading-tight">
+                          <span className="text-[10px] sm:text-sm tabular-nums text-rose-600 font-bold w-14 sm:w-24 text-right shrink-0 leading-tight">
                             {money(toplamGecmis)}
                             {toplamGecmis > 0 && <span className="block text-[10px] sm:text-[11px] font-normal text-slate-500">ort. {Math.round(toplamGunTutar / toplamGecmis)} gün</span>}
                           </span>
-                          <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.25rem] sm:w-24 text-right shrink-0">{money(toplamGelecek)}</span>
-                          <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-[4.5rem] sm:w-28 text-right shrink-0">₺{fmtTL(toplamAlacak)}</span>
+                          <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-14 sm:w-24 text-right shrink-0">{money(toplamGelecek)}</span>
+                          <span className="text-[10px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 font-bold w-14 sm:w-28 text-right shrink-0">₺{fmtTL(toplamAlacak)}</span>
                         </div>
                       </>
                     );
