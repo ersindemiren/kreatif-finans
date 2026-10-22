@@ -36,9 +36,6 @@ function FtChart({ b, nowT }) {
   const innerH = H - padT - padB;
   const slot = (W - padL - padR) / n;
   const bw = Math.max(slot * 0.68, 3);
-  const evByT = new Map();
-  b.events.forEach((e) => { if (!evByT.has(e.t)) evByT.set(e.t, []); evByT.get(e.t).push(e.tip); });
-  const markerColor = (tips) => (tips.some((x) => x === 'bitti' || x === 'ara') ? '#f43f5e' : tips.includes('fiyat') ? '#3b82f6' : tips.some((x) => x === 'eklendi' || x === 'baslangic' || x === 'devam') ? '#10b981' : '#94a3b8');
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => yMax * f);
   return (
     <div>
@@ -66,14 +63,11 @@ function FtChart({ b, nowT }) {
               acc += v;
               return <rect key={s.key} x={x} y={y} width={bw} height={Math.max(h, 0.5)} fill={FT_PALETTE[si % FT_PALETTE.length]} fillOpacity={planned ? 0.4 : 1} />;
             });
-            const tips = evByT.get(p.t);
-            const topY = padT + innerH - (p.total / yMax) * innerH;
             return (
               <g key={p.t}>
                 <title>{`${tLabelUzun(p.t)}${planned ? ' (plan)' : ''} · ${ftTL(p.total)}\n${b.services.filter((s) => (s.vals.get(p.t) || 0) > 0).map((s) => `${s.label}: ${ftTL(s.vals.get(p.t))}`).join('\n')}`}</title>
                 <rect x={padL + i * slot} y={padT} width={slot} height={innerH} fill="transparent" />
                 {segs}
-                {tips && <circle cx={x + bw / 2} cy={Math.max(topY - 6, 5)} r="2.8" fill={markerColor(tips)} />}
                 {m % 3 === 0 && <text x={x + bw / 2} y={H - 18} textAnchor="middle" fontSize="10" className="fill-slate-400">{AY_KISA[m]}</text>}
                 {m === 0 && <text x={x + bw / 2} y={H - 5} textAnchor="middle" fontSize="10" fontWeight="600" className="fill-slate-500">{Math.floor(p.t / 12)}</text>}
               </g>
@@ -89,12 +83,7 @@ function FtChart({ b, nowT }) {
           </span>
         ))}
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">
-        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />fiyat değişimi</span>
-        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />yeni hizmet / başlangıç</span>
-        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />hizmet sona erdi</span>
-        <span>soluk sütunlar: planlanan aylar</span>
-      </div>
+      <div className="mt-2 text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">Soluk sütunlar: planlanan aylar</div>
     </div>
   );
 }
@@ -169,13 +158,12 @@ function FtMatrix({ b, nowT }) {
 const EV_ORDER = { baslangic: 0, devam: 1, ara: 2, fiyat: 3, eklendi: 4, bitti: 5, sapma: 6 };
 
 function FtJournal({ b, nowT }) {
-  const [all, setAll] = useState(false);
   const groups = useMemo(() => {
     const m = new Map();
     b.events.forEach((e) => { if (!m.has(e.t)) m.set(e.t, []); m.get(e.t).push(e); });
     return [...m.entries()].sort((a, c) => c[0] - a[0]).map(([t, list]) => ({ t, list: [...list].sort((x, y) => EV_ORDER[x.tip] - EV_ORDER[y.tip]) }));
   }, [b]);
-  const shown = all ? groups : groups.slice(0, 8);
+  const shown = groups;
   const total = (t) => b.series.find((p) => p.t === t)?.total || 0;
   const line = (e) => {
     switch (e.tip) {
@@ -223,66 +211,6 @@ function FtJournal({ b, nowT }) {
           );
         })}
       </div>
-      {groups.length > 8 && (
-        <button type="button" onClick={() => setAll((v) => !v)} className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline underline-offset-2">
-          {all ? 'Son 8 ayı göster' : `Tümünü göster (${groups.length} ay)`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function FtDecomp({ b }) {
-  const [pid, setPid] = useState('son12');
-  const p = b.periods.find((x) => x.id === pid) || b.periods[0];
-  const order = { fiyat: 0, yeni: 1, iptal: 2, sabit: 3 };
-  const items = [...p.items].sort((x, y) => order[x.tip] - order[y.tip] || Math.abs(y.diff) - Math.abs(x.diff));
-  const net = p.before > 0 ? p.after / p.before - 1 : null;
-  const tipLabel = { fiyat: 'Fiyat', yeni: 'Yeni', iptal: 'Sona erdi', sabit: 'Değişmedi' };
-  const tipCls = { fiyat: 'text-amber-600 dark:text-amber-400', yeni: 'text-emerald-600 dark:text-emerald-400', iptal: 'text-rose-600 dark:text-rose-400', sabit: 'text-slate-400' };
-  return (
-    <div>
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {b.periods.map((x) => (
-          <button key={x.id} type="button" onClick={() => setPid(x.id)} className={`px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-colors ${x.id === pid ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'}`}>{x.label}</button>
-        ))}
-      </div>
-      {p.before === 0 && p.after === 0 ? (
-        <p className="text-sm text-slate-400">Bu dönem için veri yok.</p>
-      ) : (
-        <>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-3">
-            {tLabel(p.fromT)} → {tLabel(p.toT)}: aylık fee <span className="tabular-nums font-medium">{ftTL(p.before)}</span> → <span className="tabular-nums font-medium">{ftTL(p.after)}</span>
-            {net !== null && <span className={`ml-1 tabular-nums ${ftDegisimCls(net)}`}>({ftPct(net)})</span>}
-            {p.brandNew && <span className="block text-[11px] text-slate-400 mt-0.5">Marka bu dönemde başladığı için tüm hizmetler yeni sayılır.</span>}
-          </p>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {[['Fiyat değişimi', p.fiyat, 'text-amber-600 dark:text-amber-400'], ['Yeni hizmet', p.yeni, 'text-emerald-600 dark:text-emerald-400'], ['Sona eren', -p.iptal, 'text-rose-600 dark:text-rose-400']].map(([l, v, cls]) => (
-              <div key={l} className="rounded-xl border border-slate-100 dark:border-slate-800 px-2.5 py-2">
-                <div className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">{l}</div>
-                <div className={`text-xs sm:text-sm font-semibold tabular-nums ${Math.abs(v) < 0.5 ? 'text-slate-300 dark:text-slate-600' : cls}`}>{Math.abs(v) < 0.5 ? '–' : `${v > 0 ? '+' : '−'}${ftTL(Math.abs(v))}`}</div>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-start gap-2 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-            <span className="flex-1 min-w-0">Hizmet</span>
-            <span className="w-16 sm:w-24 text-right shrink-0">Önce</span>
-            <span className="w-16 sm:w-24 text-right shrink-0">Sonra</span>
-            <span className="w-16 sm:w-28 text-right shrink-0">Fark</span>
-          </div>
-          {items.map((it) => (
-            <div key={it.key} className="flex items-start gap-2 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
-              <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300">
-                {it.label}
-                <span className={`block text-[10px] sm:text-[11px] leading-4 ${tipCls[it.tip]}`}>{tipLabel[it.tip]}{it.tip === 'fiyat' && it.pct !== null ? ` · ${ftPct(it.pct)}` : ''}</span>
-              </span>
-              <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{it.before ? ftTL(it.before) : '–'}</span>
-              <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{it.after ? ftTL(it.after) : '–'}</span>
-              <span className={`w-16 sm:w-28 text-right shrink-0 tabular-nums font-medium ${it.tip === 'sabit' ? 'text-slate-300 dark:text-slate-600' : tipCls[it.tip]}`}>{it.tip === 'sabit' ? '–' : `${it.diff > 0 ? '+' : '−'}${ftTL(Math.abs(it.diff))}`}</span>
-            </div>
-          ))}
-        </>
-      )}
     </div>
   );
 }
@@ -340,7 +268,6 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
 
   const { list, totals, nowT, warnings } = analiz;
   const brand = sec ? list.find((x) => x.name === sec) : null;
-  const badgesOf = (x) => [...(pasifKeys.has(normalizeNameKey(x.name)) ? ['Pasif'] : []), ...x.badges];
 
   /* ---------------- FEE TAKİP'TE OLMAYAN MARKA (BOŞ İÇ SAYFA) ---------------- */
   const eksikBrand = sec && !brand ? eksik.find((x) => x.name === sec) : null;
@@ -348,7 +275,7 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
     return (
       <div className="flex flex-col gap-5">
         <div className={`${FT_CARD} p-5`}>
-          <button type="button" onClick={() => setSec(null)} className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 mb-3">
+          <button type="button" onClick={() => setSec(null)} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-700 transition-colors mb-4">
             <ArrowLeft size={14} /> Tüm markalar
           </button>
           <div className="flex flex-wrap items-center gap-2">
@@ -370,12 +297,12 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
     return (
       <div className="flex flex-col gap-5">
         <div className={`${FT_CARD} p-5`}>
-          <button type="button" onClick={() => setSec(null)} className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 mb-3">
+          <button type="button" onClick={() => setSec(null)} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-700 transition-colors mb-4">
             <ArrowLeft size={14} /> Tüm markalar
           </button>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50">{b.name}</h2>
-            {badgesOf(b).map(ftBadge)}
+            {pasifKeys.has(normalizeNameKey(b.name)) && ftBadge('Pasif')}
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-4">
             <div>
@@ -422,7 +349,7 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
 
         <div className={`${FT_CARD} p-5`}>
           <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Fee Seyri</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Sütunlar hizmetlere göre renklenir; üstteki noktalar o ayda yaşanan değişimi gösterir.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Sütunlar hizmetlere göre renklenir.</p>
           <FtChart b={b} nowT={nowT} />
         </div>
 
@@ -436,12 +363,6 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
           <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Değişim Günlüğü</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Hizmet ekleme, sona erme ve fiyat değişimleri veriden otomatik çıkarılır; en yeni üstte.</p>
           <FtJournal b={b} nowT={nowT} />
-        </div>
-
-        <div className={`${FT_CARD} p-5`}>
-          <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Artış Ayrıştırma</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Aylık fee’deki değişim; mevcut hizmetlerin fiyat değişimi, yeni hizmet ve sona eren hizmet olarak ayrılır.</p>
-          <FtDecomp b={b} />
         </div>
 
         <div className={`${FT_CARD} p-5`}>
