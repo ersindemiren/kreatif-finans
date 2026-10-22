@@ -100,7 +100,18 @@ export function parseFeeTakip(grid, deps) {
       continue;
     }
     if (!cur) continue;
-    if (k0.startsWith('HIZMETBASLANGIC')) { cur.startRaw = firstFilled(r); continue; }
+    if (k0.startsWith('HIZMETBASLANGIC')) {
+      cur.startRaw = firstFilled(r);
+      // marka bazlı oran: etiket bu satırda, değer hemen altındaki satırda (veya sağında)
+      for (let j = 1; j < r.length; j += 1) {
+        const m = /^(\d{4})FIYATGUNCELLEMEORANI$/.exec(nk(ftTxt(r[j])));
+        if (!m) continue;
+        const below = (rows[i + 1] || [])[j];
+        const o = parseOran(ftTxt(below) !== '' ? below : r[j + 1]);
+        if (o !== null) cur.oran = { yil: Number(m[1]), oran: o };
+      }
+      continue;
+    }
     if (k0.startsWith('FIYATGUNCELLEME')) { cur.updRaw = firstFilled(r); continue; }
     const yearMatch = /(\d{4})\s+AYLIK\s+FEE/i.exec(c0);
     if (yearMatch && nk(ftTxt(r[1])) === 'OCAK') {
@@ -166,7 +177,7 @@ export function parseFeeTakip(grid, deps) {
       });
     });
 
-    brands.push({ name, startRaw: ftTxt(b.startRaw), updRaw: ftTxt(b.updRaw), start, upd, tMin, tMax, years, planYears, services, series, sheetTotalWarn, oran: oran2027 });
+    brands.push({ name, startRaw: ftTxt(b.startRaw), updRaw: ftTxt(b.updRaw), start, upd, tMin, tMax, years, planYears, services, series, sheetTotalWarn, oran: b.oran || oran2027 });
   });
   return brands;
 }
