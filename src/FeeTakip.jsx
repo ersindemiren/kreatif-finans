@@ -89,11 +89,20 @@ function FtChart({ b, nowT }) {
 }
 
 function FtMatrix({ b, nowT }) {
-  const defYear = b.years.includes(Math.floor(nowT / 12)) ? Math.floor(nowT / 12) : b.years[b.years.length - 1];
+  const proj = b.proj;
+  const tabs = [...b.years, ...(proj ? [proj.yil] : [])];
+  const defYear = tabs.includes(Math.floor(nowT / 12)) ? Math.floor(nowT / 12) : tabs[tabs.length - 1];
   const [year, setYear] = useState(defYear);
+  const isProj = !!proj && year === proj.yil;
   const evMap = new Map();
-  b.events.forEach((e) => { if (e.svc) evMap.set(`${e.t}|${e.svc}`, e); });
-  const rows = b.services.filter((s) => { for (let m = 0; m < 12; m += 1) if ((s.vals.get(year * 12 + m) || 0) > 0) return true; return false; });
+  if (isProj) {
+    // tahmin: ilk ay tüm hizmetlerde fiyat artışı olarak işaretlenir
+    proj.services.forEach((sv) => evMap.set(`${year * 12}|${sv.label}`, { tip: 'fiyat', pct: proj.oran, from: sv.from, to: sv.to }));
+  } else {
+    b.events.forEach((e) => { if (e.svc) evMap.set(`${e.t}|${e.svc}`, e); });
+  }
+  const services = isProj ? proj.services : b.services;
+  const rows = services.filter((s) => { for (let m = 0; m < 12; m += 1) if ((s.vals.get(year * 12 + m) || 0) > 0) return true; return false; });
   const cellCls = (e, v, planned) => {
     if (e && e.tip === 'fiyat') return e.pct > 0 ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200' : 'bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200';
     if (e && e.tip === 'eklendi') return 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200';
@@ -102,14 +111,19 @@ function FtMatrix({ b, nowT }) {
     if (!v) return 'text-slate-300 dark:text-slate-600';
     return planned ? 'text-slate-400 dark:text-slate-500 italic' : 'text-slate-700 dark:text-slate-300';
   };
-  const colTotals = Array.from({ length: 12 }, (_, m) => b.series.find((p) => p.t === year * 12 + m)?.total || 0);
+  const colTotals = Array.from({ length: 12 }, (_, m) => (isProj ? proj.aylik : b.series.find((p) => p.t === year * 12 + m)?.total || 0));
   return (
     <div>
       <div className="flex flex-wrap gap-1.5 mb-3">
-        {b.years.map((y) => (
-          <button key={y} type="button" onClick={() => setYear(y)} className={`px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-colors ${y === year ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'}`}>{y}</button>
+        {tabs.map((y) => (
+          <button key={y} type="button" onClick={() => setYear(y)} className={`px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-colors ${y === year ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'}`}>{proj && y === proj.yil ? `${y} (tahmini)` : y}</button>
         ))}
       </div>
+      {isProj && (
+        <p className="text-xs text-slate-600 dark:text-slate-300 mb-3 leading-5">
+          {year} tutarları, {year - 1} Aralık ayındaki aktif hizmetlere <span className="font-semibold">{ftPct(proj.oran, false)}</span> artış uygulanarak hesaplandı (sheet: “{year} FİYAT GÜNCELLEME ORANI”). Sheet’teki {year} tablosu doldurulunca bu görünüm sheet’teki rakamları gösterir.
+        </p>
+      )}
       <div className="overflow-x-auto -mx-1">
         <table className="w-full text-[11px] sm:text-xs tabular-nums border-separate border-spacing-0" style={{ minWidth: 680 }}>
           <thead>
@@ -318,7 +332,7 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
             <div>
               <div className="text-xs text-slate-500 dark:text-slate-400">Son Fiyat Değişimi (veriden)</div>
               <div className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-50 mt-0.5">{b.lastPriceT !== null ? tLabelUzun(b.lastPriceT) : 'Yok'}</div>
-              <div className="text-[11px] text-slate-400 dark:text-slate-500">Sheet: {b.upd ? b.upd.label : 'boş'}</div>
+              <div className="text-[11px] text-slate-400 dark:text-slate-500">{b.upd ? (b.upd.t > nowT ? `Planlanan güncelleme: ${b.upd.label}` : `Sheet: ${b.upd.label}`) : 'Sheet: boş'}</div>
             </div>
             <div>
               <div className="text-xs text-slate-500 dark:text-slate-400">Aktif Hizmet</div>
@@ -383,7 +397,16 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
               <span className={`w-14 sm:w-16 text-right shrink-0 ${ftDegisimCls(y.sonAyDegisim)}`}>{y.sonAyDegisim === null ? '–' : ftPct(y.sonAyDegisim)}</span>
             </div>
           ))}
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">* Yıl henüz bitmedi: toplam, planlanan aylar dahil sheet’teki tutarlardır. Değişim, bir önceki yılın son aylık fee’sine göredir.</p>
+          {b.proj && (
+            <div className="flex items-start gap-2 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm tabular-nums">
+              <span className="w-12 shrink-0 text-slate-700 dark:text-slate-300 leading-tight">{b.proj.yil}<span className="block text-[10px] text-slate-400">tahmini</span></span>
+              <span className="flex-1 min-w-0 text-right text-slate-900 dark:text-slate-50 font-medium">{ftTL(b.proj.aylik * 12)}</span>
+              <span className="flex-1 min-w-0 text-right text-slate-600 dark:text-slate-300">{ftTL(b.proj.aylik)}</span>
+              <span className="flex-1 min-w-0 text-right text-slate-600 dark:text-slate-300">{ftTL(b.proj.aylik)}</span>
+              <span className={`w-14 sm:w-16 text-right shrink-0 ${ftDegisimCls(b.proj.oran)}`}>{ftPct(b.proj.oran)}</span>
+            </div>
+          )}
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">* Yıl henüz bitmedi: toplam, planlanan aylar dahil sheet’teki tutarlardır. Değişim, bir önceki yılın son aylık fee’sine göredir.{b.proj ? ` ${b.proj.yil} (tahmini): ${b.proj.yil - 1} Aralık ayındaki aktif hizmetlere ${ftPct(b.proj.oran, false)} artış uygulanmıştır.` : ''}</p>
         </div>
       </div>
     );

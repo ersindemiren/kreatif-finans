@@ -18,6 +18,16 @@ export function parseTRNumber(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// "35%", "%35", 0.35, 35 → 0.35 ; boş/okunamayan → null
+export function parseOran(v) {
+  if (v === null || v === undefined || ftTxt(v) === '') return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? (v > 1 ? v / 100 : v) : null;
+  const str = ftTxt(v);
+  if (!/\d/.test(str)) return null;
+  const n = parseTRNumber(str.replace('%', ''));
+  return str.includes('%') ? n / 100 : n > 1 ? n / 100 : n;
+}
+
 // "27.05.2020" veya ISO tarih → { y, m (0-11), d, label, t }
 export function parseTarih(v) {
   const s = ftTxt(v);
@@ -61,6 +71,19 @@ export function parseFeeTakip(grid, deps) {
     return false;
   };
 
+  // Sayfanın en üstü: "2027 FİYAT GÜNCELLEME ORANI" + altındaki oran hücresi
+  let oran2027 = null;
+  for (let i = 0; i < Math.min(rows.length, 20); i += 1) {
+    const r = rows[i] || [];
+    for (let j = 0; j < r.length; j += 1) {
+      const m = /^(\d{4})FIYATGUNCELLEMEORANI$/.exec(nk(ftTxt(r[j])));
+      if (!m) continue;
+      const below = (rows[i + 1] || [])[j];
+      const o = parseOran(ftTxt(below) !== '' ? below : r[j + 1]);
+      if (o !== null) oran2027 = { yil: Number(m[1]), oran: o };
+    }
+  }
+
   const raw = [];
   let cur = null;
   let block = null;
@@ -103,7 +126,6 @@ export function parseFeeTakip(grid, deps) {
     const upd = parseTarih(b.updRaw);
     const years = [...new Set(b.blocks.map((x) => x.year))].sort((a, c) => a - c);
     const tMin = years[0] * 12;
-    const tMax = years[years.length - 1] * 12 + 11;
 
     // hizmetler: anahtar = normalize edilmiş ad; etiket = en yeni yıldaki yazım
     const svc = new Map();
@@ -122,6 +144,12 @@ export function parseFeeTakip(grid, deps) {
     });
     const services = [...svc.values()].map((o) => ({ key: o.key, label: o.label.toLocaleUpperCase('tr-TR'), vals: o.vals }));
 
+    // Sonda hiç tutar girilmemiş yıllar (örn. boş 2027 tablosu) analizden ayrılır; tahmin için ayrıca kullanılır
+    const yearHas = (y) => services.some((sv) => { for (let m = 0; m < 12; m += 1) if ((sv.vals.get(y * 12 + m) || 0) > 0) return true; return false; });
+    const planYears = [];
+    while (years.length > 1 && !yearHas(years[years.length - 1])) planYears.unshift(years.pop());
+    const tMax = years[years.length - 1] * 12 + 11;
+
     const series = [];
     const sheetTotalWarn = [];
     for (let t = tMin; t <= tMax; t += 1) {
@@ -130,7 +158,7 @@ export function parseFeeTakip(grid, deps) {
       series.push({ t, total });
     }
     b.blocks.forEach((blk) => {
-      if (!blk.sheetTotal) return;
+      if (!blk.sheetTotal || blk.year > years[years.length - 1]) return;
       blk.sheetTotal.forEach((v, m) => {
         const t = blk.year * 12 + m;
         const comp = series[t - tMin]?.total || 0;
@@ -138,7 +166,7 @@ export function parseFeeTakip(grid, deps) {
       });
     });
 
-    brands.push({ name, startRaw: ftTxt(b.startRaw), updRaw: ftTxt(b.updRaw), start, upd, tMin, tMax, years, services, series, sheetTotalWarn });
+    brands.push({ name, startRaw: ftTxt(b.startRaw), updRaw: ftTxt(b.updRaw), start, upd, tMin, tMax, years, planYears, services, series, sheetTotalWarn, oran: oran2027 });
   });
   return brands;
 }
@@ -220,7 +248,9 @@ export function analyzeBrand(brand, nowT) {
   const lastPriceT = priceTs.length ? Math.max(...priceTs) : null;
 
   // --- tarih uyarıları (sheet tarihi ↔ veriden hesaplanan) ---
-  if (brand.upd) {
+  if (brand.upd && brand.upd.t > cm) {
+    // sheet'teki tarih ileri bir tarihse planlanan güncellemedir; geçmişle karşılaştırılmaz
+  } else if (brand.upd) {
     if (lastPriceT === null) {
       if (brand.upd.t >= tMin) warnings.push({ tip: 'tarih', text: `Sheet'te fiyat güncelleme tarihi ${brand.upd.label} yazıyor ama veride bu dönemde fiyat değişimi görünmüyor.` });
     } else if (brand.upd.t !== lastPriceT) {
@@ -255,6 +285,27 @@ export function analyzeBrand(brand, nowT) {
   if (firstActive !== null && firstActive > tMin && startT !== null && cm - startT <= 6) badges.push('Yeni');
   if (cur === 0 || (peak > 0 && cur / peak <= 0.8)) badges.push('Düştü');
   if (cur > 0 && sincePrice !== null && sincePrice >= 12 && !badges.includes('Yeni')) badges.push('Artış bekliyor');
+
+  // 2027 tahmini: sheet'teki 2027 tablosu boşsa, Aralık ayındaki aktif hizmetlere oran uygulanır
+  let proj = null;
+  if (brand.oran && firstActive !== null) {
+    const Y = brand.oran.yil;
+    const decT = (Y - 1) * 12 + 11;
+    if (!brand.years.includes(Y) && decT >= tMin && decT <= tMax) {
+      const rows = [];
+      let toplam = 0; let onceki = 0;
+      brand.services.forEach((sv) => {
+        const v = sv.vals.get(decT) || 0;
+        if (v <= 0) return;
+        const nv = Math.round(v * (1 + brand.oran.oran));
+        const vals = new Map();
+        for (let m = 0; m < 12; m += 1) vals.set(Y * 12 + m, nv);
+        rows.push({ key: sv.key, label: sv.label, vals, from: v, to: nv });
+        toplam += nv; onceki += v;
+      });
+      if (rows.length) proj = { yil: Y, oran: brand.oran.oran, services: rows, aylik: toplam, onceki };
+    }
+  }
 
   const periods = [
     { id: 'son12', label: 'Son 12 ay', ...decompose(brand, cm - 12, cm) },
@@ -322,12 +373,12 @@ export function analyzeBrand(brand, nowT) {
   if (sapmalar.length) comments.push({ tone: 'info', text: `Tek aylık sapma: ${sapmalar.map((e) => `${e.svc} ${tLabel(e.t)} (₺${ftMoney(e.to)}, diğer aylar ₺${ftMoney(e.from)})`).join('; ')}. Veri girişi ya da geçici kampanya olabilir; fiyat değişimi sayılmadı.` });
   events.filter((e) => e.tip === 'ara').forEach((e) => {
     const resume = events.find((x) => x.tip === 'devam' && x.t > e.t);
-    comments.push({ tone: 'info', text: `Hizmete ara verilmiş: ${tLabel(e.t)}${resume ? `–${tLabel(resume.t - 1)}` : ' sonrası'} fee yok${resume ? `; ${tLabelUzun(resume.t)} ayında yeniden başladı` : ''}.` });
+    comments.push({ tone: 'info', text: `Hizmete ara verilmiş: ${tLabel(e.t)}${resume && resume.t - 1 > e.t ? `–${tLabel(resume.t - 1)}` : ''}${resume ? '' : ' sonrası'} fee yok${resume ? `; ${tLabelUzun(resume.t)} ayında yeniden başladı` : ''}.` });
   });
   if (kistT !== null && brand.start) comments.push({ tone: 'info', text: `${tLabelUzun(kistT)} ayı yarım ay (hizmet ${brand.start.label} tarihinde başladı); tam aya geçiş fiyat değişimi sayılmadı.` });
 
   return {
-    ...brand, cm, firstActive, events, lastPriceT, warnings, cur, prev12, degisim, peak, peakT, age, sincePrice, aktifHizmet, spark, badges, periods, yillik, comments, kistT,
+    ...brand, cm, firstActive, events, lastPriceT, warnings, cur, prev12, degisim, peak, peakT, age, sincePrice, aktifHizmet, spark, badges, periods, yillik, comments, kistT, proj,
   };
 }
 
