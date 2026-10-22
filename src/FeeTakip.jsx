@@ -303,7 +303,7 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
       if (String(r.hizmet).toUpperCase() !== 'FEE' || !(r.tutar > 0)) return;
       const k0 = normalizeNameKey(r.marka);
       const k = ALIAS[k0] || k0;
-      if (have.has(k)) return;
+      if (have.has(k) || pasifKeys.has(k0) || pasifKeys.has(k)) return; // pasif markalarda artış beklenmez
       if (!map.has(k)) map.set(k, { name: r.marka, toplam: 0, aylar: new Set() });
       const o = map.get(k);
       o.toplam += r.tutar;
@@ -315,7 +315,7 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
         return { name: o.name, toplam: o.toplam, ilk: idx[0], son: idx[idx.length - 1] };
       })
       .sort((a, c) => c.toplam - a.toplam);
-  }, [feeTakip, satisRows]);
+  }, [feeTakip, satisRows, pasifKeys]);
   const eksikAraligi = (x) => (x.ilk === undefined ? '' : x.ilk === x.son ? AY_KISA[x.ilk] : `${AY_KISA[x.ilk]}–${AY_KISA[x.son]}`);
 
   useEffect(() => {
@@ -353,7 +353,6 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
           </button>
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50">{eksikBrand.name}</h2>
-            {pasifKeys.has(normalizeNameKey(eksikBrand.name)) && ftBadge('Pasif')}
           </div>
         </div>
         <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 text-amber-800 dark:text-amber-200 text-xs sm:text-sm px-4 py-3">
@@ -523,7 +522,7 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
         {eksik.length > 0 && (
           <div className="mt-8">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">FEE TAKİP sekmesinde olmayan markalar ({eksik.length})</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 mb-2">Satış Tablosu’nda Fee faturası kesilmiş ama FEE TAKİP sekmesinde hizmet geçmişi girilmemiş. Marka bloğu eklendikçe yukarıdaki listeye otomatik taşınır.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 mb-2">Satış Tablosu’nda Fee faturası kesilen, pasif olmayan ama FEE TAKİP sekmesinde hizmet geçmişi girilmemiş markalar. Marka bloğu eklendikçe yukarıdaki listeye otomatik taşınır.</p>
             <div className="flex items-start gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-700">
               <span className="flex-1 min-w-0">Marka</span>
               <span className="w-28 sm:w-40 text-right shrink-0 leading-tight">Satış Tablosu Fee Faturası</span>
@@ -532,7 +531,6 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
               <div key={x.name} className="flex items-start gap-1.5 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800">
                 <span className="flex-1 min-w-0 break-words text-[11px] sm:text-sm">
                   <button type="button" onClick={() => openBrand(x.name)} className="text-left text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2">{x.name}</button>
-                  {pasifKeys.has(normalizeNameKey(x.name)) && <span className="flex flex-wrap gap-1 mt-0.5">{ftBadge('Pasif')}</span>}
                 </span>
                 <span className="w-28 sm:w-40 text-right shrink-0 text-[11px] sm:text-sm tabular-nums text-slate-900 dark:text-slate-50 leading-tight">
                   {ftTL(x.toplam)}
