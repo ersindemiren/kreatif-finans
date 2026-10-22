@@ -23,16 +23,6 @@ const ftBadge = (label) => (
 const ftSure = (m) => (m === null || m === undefined || m < 0 ? '' : m < 12 ? `${m} ay` : `${Math.floor(m / 12)} yıl${m % 12 ? ` ${m % 12} ay` : ''}`);
 const ftDegisimCls = (x) => (x === null ? 'text-slate-300 dark:text-slate-600' : x > 0.0005 ? 'text-emerald-600 dark:text-emerald-400' : x < -0.0005 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400');
 
-function FtSpark({ values }) {
-  const max = Math.max(...values, 1);
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 80},${18 - (v / max) * 16}`).join(' ');
-  return (
-    <svg viewBox="0 0 80 20" className="w-20 h-5" aria-hidden="true">
-      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" className="text-slate-400 dark:text-slate-500" />
-    </svg>
-  );
-}
-
 function FtChart({ b, nowT }) {
   const scrollRef = useRef(null);
   useEffect(() => {
@@ -448,24 +438,6 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        {[
-          ['Toplam Aylık Fee', ftTL(totals.cur), `(${tLabelUzun(nowT)})`, 'text-slate-900 dark:text-slate-50'],
-          ['Fiyat Değişimi', `${totals.fiyat >= 0 ? '+' : '−'}${ftTL(Math.abs(totals.fiyat))}`, totals.prev12 ? `(son 12 ay · ${ftPct(totals.fiyat / totals.prev12)})` : '(son 12 ay)', 'text-amber-600 dark:text-amber-400'],
-          ['Yeni Hizmet / Marka', `+${ftTL(totals.yeni)}`, '(son 12 ay)', 'text-emerald-600 dark:text-emerald-400'],
-          ['Sona Eren Hizmet', `−${ftTL(totals.iptal)}`, '(son 12 ay)', 'text-rose-600 dark:text-rose-400'],
-        ].map(([label, v, note, cls]) => (
-          <div key={label} className={`${FT_CARD} p-4`}>
-            <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
-            <div className={`text-base sm:text-xl lg:text-2xl font-semibold tabular-nums mt-1 whitespace-nowrap ${cls}`}>{v}</div>
-            <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">{note}</span>
-          </div>
-        ))}
-      </div>
-      <p className="text-xs text-slate-500 dark:text-slate-400 -mt-2">
-        12 ay önce {ftTL(totals.prev12)} → şimdi {ftTL(totals.cur)}{netDeg !== null && <span className={`ml-1 ${ftDegisimCls(netDeg)}`}>({ftPct(netDeg)})</span>}. Fark = fiyat değişimi + yeni hizmet − sona eren hizmet.
-      </p>
-
       <div className={`${FT_CARD} p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Fee Takibi</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kaynak: FEE 2026 YENİ › FEE TAKİP. Marka adına tıklayınca hizmet bazlı geçmiş, değişim günlüğü ve yorumlar açılır.</p>
@@ -476,8 +448,6 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar }) {
           <span className="hidden sm:block w-24 text-right shrink-0 leading-tight">12 Ay Önce</span>
           <button type="button" onClick={() => toggleSort('cur')} className="w-20 sm:w-24 text-right shrink-0 leading-tight uppercase">Güncel Fee{arrow('cur')}</button>
           <button type="button" onClick={() => toggleSort('degisim')} className="w-12 sm:w-16 text-right shrink-0 leading-tight uppercase">Değişim{arrow('degisim')}</button>
-          <span className="hidden md:block w-20 text-right shrink-0 leading-tight">Son Fiyat Değişimi</span>
-          <span className="hidden md:block w-20 text-right shrink-0 leading-tight">Trend</span>
         </div>
         <div className="flex flex-col">
           {sorted.map((x, i) => (
@@ -485,15 +455,12 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar }) {
               <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 w-4 sm:w-5 tabular-nums shrink-0">{i + 1}</span>
               <span className="flex-1 min-w-0 break-words text-[11px] sm:text-sm">
                 <button type="button" onClick={() => openBrand(x.name)} className={`text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 ${x.cur ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400'}`}>{x.name}</button>
-                {x.warnings.length > 0 && <span title={x.warnings.map((w) => w.text).join('\n')} className="inline-block ml-1 align-middle text-amber-500"><AlertTriangle size={12} /></span>}
-                <span className="flex flex-wrap gap-1 mt-0.5">{badgesOf(x).map(ftBadge)}</span>
+                {pasifKeys.has(normalizeNameKey(x.name)) && <span className="flex flex-wrap gap-1 mt-0.5">{ftBadge('Pasif')}</span>}
               </span>
               <span className="hidden sm:block w-20 text-right shrink-0 text-xs tabular-nums text-slate-500 dark:text-slate-400">{x.start ? x.start.label : '–'}</span>
               <span className="hidden sm:block w-24 text-right shrink-0 text-sm tabular-nums text-slate-500 dark:text-slate-400">{x.prev12 ? ftTL(x.prev12) : '–'}</span>
               <span className="w-20 sm:w-24 text-right shrink-0 text-[11px] sm:text-sm tabular-nums font-medium text-slate-900 dark:text-slate-50">{x.cur ? ftTL(x.cur) : '–'}</span>
-              <span className={`w-12 sm:w-16 text-right shrink-0 text-[10px] sm:text-xs tabular-nums ${ftDegisimCls(x.degisim)}`}>{x.degisim === null ? (x.cur && !x.prev12 ? 'yeni' : '–') : ftPct(x.degisim)}</span>
-              <span className="hidden md:block w-20 text-right shrink-0 text-xs text-slate-500 dark:text-slate-400">{x.lastPriceT !== null ? tLabel(x.lastPriceT) : '–'}</span>
-              <span className="hidden md:flex w-20 justify-end shrink-0"><FtSpark values={x.spark} /></span>
+              <span className={`w-12 sm:w-16 text-right shrink-0 text-[10px] sm:text-xs tabular-nums ${ftDegisimCls(x.degisim)}`}>{x.degisim === null ? '–' : ftPct(x.degisim)}</span>
             </div>
           ))}
           <div className="flex items-start gap-1.5 sm:gap-3 pt-3 mt-1 border-t-2 border-slate-200 dark:border-slate-700">
@@ -503,8 +470,6 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar }) {
             <span className="hidden sm:block w-24 text-right shrink-0 text-sm tabular-nums font-bold text-slate-900 dark:text-slate-50">{ftTL(totals.prev12)}</span>
             <span className="w-20 sm:w-24 text-right shrink-0 text-[10px] sm:text-sm tabular-nums font-bold text-slate-900 dark:text-slate-50">{ftTL(totals.cur)}</span>
             <span className={`w-12 sm:w-16 text-right shrink-0 text-[10px] sm:text-xs tabular-nums font-bold ${ftDegisimCls(netDeg)}`}>{netDeg === null ? '–' : ftPct(netDeg)}</span>
-            <span className="hidden md:block w-20 shrink-0" />
-            <span className="hidden md:block w-20 shrink-0" />
           </div>
         </div>
       </div>
