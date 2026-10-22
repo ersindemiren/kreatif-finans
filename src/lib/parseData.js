@@ -4,7 +4,9 @@
 // alacaklarData, nakitAkisiData, totals...) dönüştürür.
 // ============================================================================
 
-export const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+import { parseFeeTakip } from './feeTakip.js';
+
+const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 // "OCAK".."ARALIK" sekme adları -> kısa ay kodu eşleşmesi (ham grid sekmeleri için)
 const REVENUE_SHEET_NAMES = ['OCAK', 'ŞUBAT', 'MART', 'NİSAN', 'MAYIS', 'HAZİRAN', 'TEMMUZ', 'AGUSTOS', 'EYLUL', 'EKIM', 'KASIM', 'ARALIK'];
@@ -66,6 +68,16 @@ function toTitleCaseTR(raw) {
   const upper = s.toLocaleUpperCase('tr-TR');
   const aliased = CLIENT_ALIASES[upper] ? CLIENT_ALIASES[upper].toLocaleUpperCase('tr-TR') : upper;
   return BRAND_CANON[normalizeNameKey(aliased)] || aliased;
+}
+
+// FEE TAKİP gibi sekmelerde marka adı kısa yazılabilir ("SAYGIN", "MYRA"): önce birebir, yoksa tek bir resmi markayla başlayan ada eşlenir.
+export function canonBrandName(raw) {
+  const name = toTitleCaseTR(String(raw || ''));
+  const key = normalizeNameKey(name);
+  if (!key) return name;
+  if (BRAND_CANON[key]) return BRAND_CANON[key];
+  const hits = Object.keys(BRAND_CANON).filter((k) => k.startsWith(key) || key.startsWith(k));
+  return hits.length === 1 ? BRAND_CANON[hits[0]] : name;
 }
 
 /* ------------------------------------------------------------------ */
@@ -460,6 +472,18 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey, sati
   }
   const pasifMarkalar = parsePasifMarkalar(feeJson['MARKA DURUM']);
 
+  // FEE TAKİP sekmesi (isteğe bağlı): bulunamazsa/okunamazsa sadece Fee Takip sayfası uyarı gösterir
+  let feeTakip = null;
+  let feeTakipError = null;
+  try {
+    const ftKey = Object.keys(feeJson).find((k) => k.endsWith('_RAW') && normalizeSheetKey(k.slice(0, -4)) === 'fee takip');
+    if (!ftKey) throw new Error("Apps Script çıktısında 'FEE TAKİP' sekmesi yok");
+    feeTakip = parseFeeTakip(feeJson[ftKey], { normalizeNameKey, resolveName: canonBrandName });
+    if (!feeTakip.length) throw new Error("'FEE TAKİP' sekmesinde marka bloğu bulunamadı");
+  } catch (err) {
+    feeTakipError = err.message || String(err);
+  }
+
   return {
     months: MONTHS,
     ciro,
@@ -481,5 +505,7 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey, sati
     lastUpdatedOdeme: odemeJson._lastUpdated || null,
     satis,
     satisError,
+    feeTakip,
+    feeTakipError,
   };
 }

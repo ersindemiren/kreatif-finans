@@ -4,10 +4,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
-  Wallet, PiggyBank, Percent, Table, Clock,
+  Wallet, PiggyBank, Percent, Table, Clock, LineChart,
 } from 'lucide-react';
 import SatisTablosu from './SatisTablosu.jsx';
 import SureAnalizi from './SureAnalizi.jsx';
+import FeeTakip from './FeeTakip.jsx';
 import { YASLANDIRMA_KOVALARI, normalizeNameKey } from './lib/parseData.js';
 import { temerrutFaizi, temerrutOrani } from './lib/temerrut.js';
 
@@ -335,6 +336,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
     { id: 'nakitAkisi', label: 'Nakit Akışı', icon: Landmark },
     { id: 'satisTablosu', label: 'Satış Tablosu', icon: Table },
     { id: 'sureAnalizi', label: 'Süre Analiz', icon: Clock },
+    { id: 'feeTakip', label: 'Fee Takip', icon: LineChart },
     { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
   ];
 
@@ -1204,6 +1206,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
+          {page === 'feeTakip' && <FeeTakip feeTakip={data.feeTakip} feeTakipError={data.feeTakipError} pasifMarkalar={pasifMarkalar} />}
           {page === 'yorumlar' && (
             <div className="flex flex-col gap-5">
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
