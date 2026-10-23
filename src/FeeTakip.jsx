@@ -104,13 +104,14 @@ function FtMatrix({ b, nowT, kurUSD }) {
   const kurs = Array.isArray(kurUSD) ? kurUSD : [];
   const sonKur = [...kurs].reverse().find((k) => k > 0) || 0;
   const usd = cur === 'USD' && sonKur > 0;
+  const kaynaksiz = usd && year < 2026; // 2026 öncesi için kur kaynağı yok
   // 2026'da sheet'teki aylık kur, diğer dönemlerde (2025 ve öncesi, planlanan aylar, 2027) son bilinen kur
   const conv = (v, t) => {
     if (!usd) return v;
     const k = Math.floor(t / 12) === 2026 && kurs[t % 12] > 0 ? kurs[t % 12] : sonKur;
     return v / k;
   };
-  const fmt = (v, t) => ftShort(conv(v, t), usd);
+  const fmt = (v, t) => (kaynaksiz ? '–' : ftShort(conv(v, t), usd));
   const isProj = !!proj && year === proj.yil;
   const evMap = new Map();
   if (isProj) {
@@ -146,7 +147,7 @@ function FtMatrix({ b, nowT, kurUSD }) {
       </div>
       {usd && (
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 leading-5">
-          USD karşılığı: 2026 aylarında sheet’teki aylık kur, diğer dönemlerde (2025 ve öncesi, planlanan aylar, 2027) son bilinen kur ({ftNum(sonKur, 2)} ₺) kullanıldı.
+          USD karşılığı: 2026 aylarında sheet’teki aylık kur, planlanan aylarda ve 2027’de son bilinen kur ({ftNum(sonKur, 2)} ₺) kullanıldı. 2026 öncesi için kur kaynağı olmadığından USD gösterilmiyor (–).
         </p>
       )}
       {isProj && (
@@ -175,14 +176,14 @@ function FtMatrix({ b, nowT, kurUSD }) {
                     const e = evMap.get(`${t}|${s.label}`);
                     return <td key={m} className={`text-right py-1.5 px-1 border-t border-slate-50 dark:border-slate-800 ${cellCls(e, v, t > nowT)}`} title={e ? (e.tip === 'fiyat' ? `${ftTL(e.from)} → ${ftTL(e.to)} (${ftPct(e.pct)})` : e.tip === 'eklendi' ? 'Hizmet eklendi' : e.tip === 'bitti' ? `Hizmet sona erdi (önceki ${ftTL(e.from)})` : 'Tek aylık sapma') : undefined}>{fmt(v, t)}</td>;
                   })}
-                  <td className="text-right py-1.5 pl-2 font-medium text-slate-700 dark:text-slate-300 border-t border-slate-50 dark:border-slate-800">{ftShort(rowTotal, usd)}</td>
+                  <td className="text-right py-1.5 pl-2 font-medium text-slate-700 dark:text-slate-300 border-t border-slate-50 dark:border-slate-800">{kaynaksiz ? '–' : ftShort(rowTotal, usd)}</td>
                 </tr>
               );
             })}
             <tr className="font-semibold text-slate-900 dark:text-slate-50">
               <td className="py-2 pr-2 sticky left-0 bg-white dark:bg-slate-900 z-10 border-t-2 border-slate-200 dark:border-slate-700">TOPLAM</td>
               {colTotals.map((v, m) => <td key={m} className={`text-right py-2 px-1 border-t-2 border-slate-200 dark:border-slate-700 ${year * 12 + m > nowT ? 'opacity-60' : ''}`}>{fmt(v, year * 12 + m)}</td>)}
-              <td className="text-right py-2 pl-2 border-t-2 border-slate-200 dark:border-slate-700">{ftShort(colTotals.reduce((a, c, m) => a + conv(c, year * 12 + m), 0), usd)}</td>
+              <td className="text-right py-2 pl-2 border-t-2 border-slate-200 dark:border-slate-700">{kaynaksiz ? '–' : ftShort(colTotals.reduce((a, c, m) => a + conv(c, year * 12 + m), 0), usd)}</td>
             </tr>
           </tbody>
         </table>
