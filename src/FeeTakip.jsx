@@ -7,7 +7,14 @@ import { normalizeNameKey } from './lib/parseData.js';
 
 const FT_CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const ftTL = (n) => '₺' + ftMoney(n);
-const ftK = (v) => (!v ? '–' : v >= 1000 ? (v / 1000).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + 'K' : ftMoney(v));
+const ftNum = (v, d) => v.toLocaleString('tr-TR', { maximumFractionDigits: d });
+// TL: 200B (bin) / 3,25M (milyon) · USD: 200K / 3,25M
+const ftShort = (v, usd) => {
+  if (!v) return '–';
+  if (v >= 1e6) return ftNum(v / 1e6, 2) + 'M';
+  if (v >= 1e3) return ftNum(v / 1e3, 1) + (usd ? 'K' : 'B');
+  return ftMoney(v);
+};
 const ftAxis = (v) => (v >= 1e6 ? (v / 1e6).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + 'M' : v >= 1e3 ? Math.round(v / 1e3) + 'K' : String(Math.round(v)));
 const FT_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#64748b', '#f97316'];
 const FT_TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', warn: 'bg-amber-500', info: 'bg-slate-400' };
@@ -88,11 +95,22 @@ function FtChart({ b, nowT }) {
   );
 }
 
-function FtMatrix({ b, nowT }) {
+function FtMatrix({ b, nowT, kurUSD }) {
   const proj = b.proj;
   const tabs = [...b.years, ...(proj ? [proj.yil] : [])];
   const defYear = tabs.includes(Math.floor(nowT / 12)) ? Math.floor(nowT / 12) : tabs[tabs.length - 1];
   const [year, setYear] = useState(defYear);
+  const [cur, setCur] = useState('TL');
+  const kurs = Array.isArray(kurUSD) ? kurUSD : [];
+  const sonKur = [...kurs].reverse().find((k) => k > 0) || 0;
+  const usd = cur === 'USD' && sonKur > 0;
+  // 2026'da sheet'teki aylık kur, diğer dönemlerde (2025 ve öncesi, planlanan aylar, 2027) son bilinen kur
+  const conv = (v, t) => {
+    if (!usd) return v;
+    const k = Math.floor(t / 12) === 2026 && kurs[t % 12] > 0 ? kurs[t % 12] : sonKur;
+    return v / k;
+  };
+  const fmt = (v, t) => ftShort(conv(v, t), usd);
   const isProj = !!proj && year === proj.yil;
   const evMap = new Map();
   if (isProj) {
@@ -114,11 +132,23 @@ function FtMatrix({ b, nowT }) {
   const colTotals = Array.from({ length: 12 }, (_, m) => (isProj ? proj.aylik : b.series.find((p) => p.t === year * 12 + m)?.total || 0));
   return (
     <div>
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
         {tabs.map((y) => (
           <button key={y} type="button" onClick={() => setYear(y)} className={`px-3 py-1 rounded-lg text-xs sm:text-sm font-medium transition-colors ${y === year ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'}`}>{proj && y === proj.yil ? `${y} (tahmini)` : y}</button>
         ))}
+        {sonKur > 0 && (
+          <div className="ml-auto inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs sm:text-sm font-medium">
+            {['TL', 'USD'].map((c) => (
+              <button key={c} type="button" onClick={() => setCur(c)} className={`px-3 py-1 transition-colors ${cur === c ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 text-slate-500 hover:bg-slate-100'}`}>{c}</button>
+            ))}
+          </div>
+        )}
       </div>
+      {usd && (
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 leading-5">
+          USD karşılığı: 2026 aylarında sheet’teki aylık kur, diğer dönemlerde (2025 ve öncesi, planlanan aylar, 2027) son bilinen kur ({ftNum(sonKur, 2)} ₺) kullanıldı.
+        </p>
+      )}
       {isProj && (
         <p className="text-xs text-slate-600 dark:text-slate-300 mb-3 leading-5">
           {year} tutarları, {year - 1} Aralık ayındaki aktif hizmetlere <span className="font-semibold">{ftPct(proj.oran, false)}</span> artış uygulanarak hesaplandı (sheet: “{year} FİYAT GÜNCELLEME ORANI”). Sheet’teki {year} tablosu doldurulunca bu görünüm sheet’teki rakamları gösterir.
@@ -135,7 +165,7 @@ function FtMatrix({ b, nowT }) {
           </thead>
           <tbody>
             {rows.map((s) => {
-              const rowTotal = Array.from({ length: 12 }, (_, m) => s.vals.get(year * 12 + m) || 0).reduce((a, c) => a + c, 0);
+              const rowTotal = Array.from({ length: 12 }, (_, m) => conv(s.vals.get(year * 12 + m) || 0, year * 12 + m)).reduce((a, c) => a + c, 0);
               return (
                 <tr key={s.key} className="border-t border-slate-50 dark:border-slate-800">
                   <td className="py-1.5 pr-2 text-slate-700 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 z-10 border-t border-slate-50 dark:border-slate-800 leading-tight">{s.label}</td>
@@ -143,16 +173,16 @@ function FtMatrix({ b, nowT }) {
                     const t = year * 12 + m;
                     const v = s.vals.get(t) || 0;
                     const e = evMap.get(`${t}|${s.label}`);
-                    return <td key={m} className={`text-right py-1.5 px-1 border-t border-slate-50 dark:border-slate-800 ${cellCls(e, v, t > nowT)}`} title={e ? (e.tip === 'fiyat' ? `${ftTL(e.from)} → ${ftTL(e.to)} (${ftPct(e.pct)})` : e.tip === 'eklendi' ? 'Hizmet eklendi' : e.tip === 'bitti' ? `Hizmet sona erdi (önceki ${ftTL(e.from)})` : 'Tek aylık sapma') : undefined}>{ftK(v)}</td>;
+                    return <td key={m} className={`text-right py-1.5 px-1 border-t border-slate-50 dark:border-slate-800 ${cellCls(e, v, t > nowT)}`} title={e ? (e.tip === 'fiyat' ? `${ftTL(e.from)} → ${ftTL(e.to)} (${ftPct(e.pct)})` : e.tip === 'eklendi' ? 'Hizmet eklendi' : e.tip === 'bitti' ? `Hizmet sona erdi (önceki ${ftTL(e.from)})` : 'Tek aylık sapma') : undefined}>{fmt(v, t)}</td>;
                   })}
-                  <td className="text-right py-1.5 pl-2 font-medium text-slate-700 dark:text-slate-300 border-t border-slate-50 dark:border-slate-800">{ftK(rowTotal)}</td>
+                  <td className="text-right py-1.5 pl-2 font-medium text-slate-700 dark:text-slate-300 border-t border-slate-50 dark:border-slate-800">{ftShort(rowTotal, usd)}</td>
                 </tr>
               );
             })}
             <tr className="font-semibold text-slate-900 dark:text-slate-50">
               <td className="py-2 pr-2 sticky left-0 bg-white dark:bg-slate-900 z-10 border-t-2 border-slate-200 dark:border-slate-700">TOPLAM</td>
-              {colTotals.map((v, m) => <td key={m} className={`text-right py-2 px-1 border-t-2 border-slate-200 dark:border-slate-700 ${year * 12 + m > nowT ? 'opacity-60' : ''}`}>{ftK(v)}</td>)}
-              <td className="text-right py-2 pl-2 border-t-2 border-slate-200 dark:border-slate-700">{ftK(colTotals.reduce((a, c) => a + c, 0))}</td>
+              {colTotals.map((v, m) => <td key={m} className={`text-right py-2 px-1 border-t-2 border-slate-200 dark:border-slate-700 ${year * 12 + m > nowT ? 'opacity-60' : ''}`}>{fmt(v, year * 12 + m)}</td>)}
+              <td className="text-right py-2 pl-2 border-t-2 border-slate-200 dark:border-slate-700">{ftShort(colTotals.reduce((a, c, m) => a + conv(c, year * 12 + m), 0), usd)}</td>
             </tr>
           </tbody>
         </table>
@@ -163,7 +193,7 @@ function FtMatrix({ b, nowT }) {
         <span className="px-1.5 rounded bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">yeni hizmet</span>
         <span className="px-1.5 rounded bg-rose-50 text-rose-400 dark:bg-rose-900/20">hizmet sona erdi</span>
         <span className="px-1.5 rounded bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-200">tek aylık sapma</span>
-        <span className="italic">soluk / italik: planlanan ay · K = bin ₺</span>
+        <span className="italic">soluk / italik: planlanan ay · {usd ? 'K = bin $ · M = milyon $' : 'B = bin ₺ · M = milyon ₺'}</span>
       </div>
     </div>
   );
@@ -229,7 +259,7 @@ function FtJournal({ b, nowT }) {
   );
 }
 
-export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satisRows }) {
+export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satisRows, kurUSD }) {
   const [sec, setSec] = useState(null);
   const [sort, setSort] = useState({ key: 'cur', dir: -1 });
   const analiz = useMemo(() => (feeTakip && feeTakip.length ? analyzeFeeTakip(feeTakip, new Date()) : null), [feeTakip]);
@@ -370,7 +400,7 @@ export default function FeeTakip({ feeTakip, feeTakipError, pasifMarkalar, satis
         <div className={`${FT_CARD} p-5`}>
           <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Hizmet × Ay Matrisi</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Boş hücre = hizmet yok (0). Renkli hücreler o ay değişen hizmetleri gösterir.</p>
-          <FtMatrix b={b} nowT={nowT} />
+          <FtMatrix b={b} nowT={nowT} kurUSD={kurUSD} />
         </div>
 
         <div className={`${FT_CARD} p-5`}>

@@ -1206,7 +1206,7 @@ export default function FinansDashboard({ data, lastUpdatedFee, lastUpdatedOdeme
           {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
-          {page === 'feeTakip' && <FeeTakip feeTakip={data.feeTakip} feeTakipError={data.feeTakipError} pasifMarkalar={pasifMarkalar} satisRows={data.satis?.rows} />}
+          {page === 'feeTakip' && <FeeTakip feeTakip={data.feeTakip} feeTakipError={data.feeTakipError} pasifMarkalar={pasifMarkalar} satisRows={data.satis?.rows} kurUSD={data.kurUSD} />}
           {page === 'yorumlar' && (
             <div className="flex flex-col gap-5">
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
