@@ -1,15 +1,16 @@
 // Veri kaynağı: Google Sheets "FEE 2026 YENİ" + "MÜŞTERİDEN GELECEK ÖDEMELER"
 // Apps Script web app uç noktaları üzerinden otomatik çekilir (bkz. src/lib/parseData.js)
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
-  Wallet, PiggyBank, Percent, Table, Clock, LineChart, LogOut, ShieldCheck,
+  Wallet, PiggyBank, Percent, Table, Clock, LineChart, LogOut, ShieldCheck, Eye, EyeOff,
 } from 'lucide-react';
 import SatisTablosu from './SatisTablosu.jsx';
 import SureAnalizi from './SureAnalizi.jsx';
 import FeeTakip from './FeeTakip.jsx';
 import Yonetim from './Yonetim.jsx';
+import { useMaskNumbers } from './lib/maskNumbers.js';
 import { YASLANDIRMA_KOVALARI, normalizeNameKey } from './lib/parseData.js';
 import { temerrutFaizi, temerrutOrani } from './lib/temerrut.js';
 
@@ -103,6 +104,9 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashCurrency, setDashCurrency] = useState('TL');
   const [darkMode, setDarkMode] = useState(false);
+  const [gizli, setGizli] = useState(false); // sağ üst göz simgesi: tüm sayıları ***** yapar
+  const icerikRef = useRef(null);
+  useMaskNumbers(gizli, icerikRef);
   const [kdvDahil, setKdvDahil] = useState(true); // Alacaklar: varsayılan KDV dahil
   const [seciliMarka, setSeciliMarka] = useState(null); // Alacaklar: marka ayrıntı penceresi
   const [gelirMarka, setGelirMarka] = useState(null); // Gelirler: marka aylık dağılım penceresi
@@ -386,7 +390,7 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
       )}
 
       {/* İçerik */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0" ref={icerikRef}>
         <div className="px-4 sm:px-8 py-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3">
           <button className="md:hidden text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shrink-0" onClick={() => setMobileMenuOpen(true)}>
             <Menu size={24} strokeWidth={2.25} />
@@ -395,12 +399,22 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
           {SHOW_DARK_MODE_TOGGLE && (
             <button
               onClick={() => setDarkMode((v) => !v)}
-              className="md:hidden ml-auto flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500"
+              className="md:hidden flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500"
             >
               {darkMode ? <Sun size={14} /> : <Moon size={14} />}
               {darkMode ? 'Gündüz' : 'Gece'}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setGizli((v) => !v)}
+            aria-pressed={gizli}
+            aria-label={gizli ? 'Rakamları göster' : 'Rakamları gizle'}
+            title={gizli ? 'Rakamları göster' : 'Rakamları gizle'}
+            className={`ml-auto p-2 rounded-lg transition-colors ${gizli ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+          >
+            {gizli ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
         </div>
 
         <div className="p-4 sm:p-8 flex flex-col gap-6">
