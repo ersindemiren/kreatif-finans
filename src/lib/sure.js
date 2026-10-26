@@ -1,6 +1,6 @@
 // ============================================================================
-// Süre Analizi: zaman takip raporu (src/data/sureler.json) + SATIŞ TABLOSU 2026 (Fee / Proje faturaları)
-// Süre kaynağı canlı bir uç nokta değildir; rapor yeniden dışa aktarıldığında sureler.json güncellenir.
+// Süre Analizi: zaman takip raporu (api/_data/sureler.js) + SATIŞ TABLOSU 2026 (Fee / Proje faturaları)
+// Süre kaynağı canlı bir uç nokta değildir; rapor yeniden dışa aktarıldığında api/_data/sureler.js güncellenir.
 // ============================================================================
 import { normalizeNameKey } from './parseData.js';
 

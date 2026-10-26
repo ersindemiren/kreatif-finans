@@ -1,30 +1,36 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import FinansDashboard from './FinansDashboard.jsx';
-import PasswordGate from './PasswordGate.jsx';
+import Login from './Login.jsx';
 import { useFinansData } from './lib/useFinansData.js';
+import { useAuth } from './lib/auth.js';
 
 export default function App() {
+  const { loading, user, login, logout } = useAuth();
+
+  if (loading) return <Spinner text="Oturum kontrol ediliyor..." />;
+  if (!user) return <Login onCredential={login} />;
+  return <FinansApp user={user} onLogout={logout} />;
+}
+
+function Spinner({ text }) {
   return (
-    <PasswordGate>
-      <FinansApp />
-    </PasswordGate>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3 text-slate-500">
+        <Loader2 size={28} className="animate-spin" />
+        <span className="text-sm">{text}</span>
+      </div>
+    </div>
   );
 }
 
-function FinansApp() {
-  const { loading, error, data, reload } = useFinansData();
+function FinansApp({ user, onLogout }) {
+  const { loading, error, data, reload, unauthorized } = useFinansData();
 
-  if (loading && !data) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-slate-500">
-          <Loader2 size={28} className="animate-spin" />
-          <span className="text-sm">Google Sheets'ten veri çekiliyor...</span>
-        </div>
-      </div>
-    );
-  }
+  // Oturum sunucuda sona erdiyse (12 saat dolduysa ya da yetki kaldırıldıysa) giriş ekranına dön
+  useEffect(() => { if (unauthorized) onLogout(); }, [unauthorized, onLogout]);
+
+  if (loading && !data) return <Spinner text="Veriler yükleniyor..." />;
 
   if (error) {
     return (
@@ -42,6 +48,7 @@ function FinansApp() {
             <RefreshCw size={14} />
             Tekrar dene
           </button>
+          <button onClick={onLogout} className="text-xs text-slate-500 hover:text-slate-900">Çıkış yap</button>
         </div>
       </div>
     );
@@ -50,6 +57,8 @@ function FinansApp() {
   return (
     <FinansDashboard
       data={data}
+      user={user}
+      onLogout={onLogout}
       lastUpdatedFee={data.lastUpdatedFee}
       lastUpdatedOdeme={data.lastUpdatedOdeme}
       onRefresh={reload}

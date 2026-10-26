@@ -1,9 +1,8 @@
 // Süre Analizi: markalara harcanan süre, saatlik baza göre tüketilen bütçe ve fee ile farkı.
-// Süre: src/data/sureler.json (zaman takip raporu). Fee + Proje: SATIŞ TABLOSU 2026 faturaları (KDV hariç).
+// Süre: zaman takip raporu (sunucuda api/_data/sureler.js; yalnızca yetkili kullanıcıya gelir). Fee + Proje: SATIŞ TABLOSU 2026 faturaları (KDV hariç).
 // Fatura durumu: Satış Tablosu. Satış Tablosu'nda olup süre girilmemiş markalar 0 süreyle listelenir.
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import sureData from './data/sureler.json';
 import { buildSure, FEE_BAZI } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
 
@@ -16,7 +15,7 @@ const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
 const farkText = (v) => (Math.round(v) > 0 ? 'text-rose-600 dark:text-rose-400' : Math.round(v) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400');
 const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200' : Math.round(v) < 0 ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200' : '');
 
-export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar }) {
+export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData }) {
   const [selected, setSelected] = useState('Toplam');
   const [seciliMarka, setSeciliMarka] = useState(null);
 
@@ -30,8 +29,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const pasifKeys = useMemo(() => new Set((pasifMarkalar || []).map((n) => normalizeNameKey(n))), [pasifMarkalar]);
 
   const { brands, disi } = useMemo(
-    () => buildSure({ rows: sureData.rows, months, ayDurumu, revenueRaw, satisRows }),
-    [months, ayDurumu, revenueRaw, satisRows]
+    () => buildSure({ rows: sureData?.rows || [], months, ayDurumu, revenueRaw, satisRows }),
+    [months, ayDurumu, revenueRaw, satisRows, sureData]
   );
 
   const guncelIdx = months.map((_, i) => i).filter((i) => ayDurumu?.[i] === 'güncel');

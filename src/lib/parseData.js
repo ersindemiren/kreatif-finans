@@ -413,39 +413,29 @@ export function parseSatisTablosu(json) {
 /* ------------------------------------------------------------------ */
 /* ANA GİRİŞ NOKTASI                                                    */
 /* ------------------------------------------------------------------ */
-export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey, satisUrl, satisKey }) {
-  const [feeRes, odemeRes] = await Promise.all([
-    fetch(`${feeUrl}?key=${encodeURIComponent(feeKey)}`),
-    fetch(`${odemeUrl}?key=${encodeURIComponent(odemeKey)}`),
-  ]);
+export class AuthError extends Error {}
 
-  if (!feeRes.ok) throw new Error(`FEE 2026 YENİ verisi alınamadı (HTTP ${feeRes.status})`);
-  if (!odemeRes.ok) throw new Error(`MÜŞTERİDEN GELECEK ÖDEMELER verisi alınamadı (HTTP ${odemeRes.status})`);
-
-  const feeJson = await feeRes.json();
-  const odemeJson = await odemeRes.json();
+// Ham veri artık tarayıcıdan Google Sheets'e değil, giriş yapmış kullanıcının yetkisine göre süzülmüş olarak
+// sunucudan (/api/data) gelir. Yetkisi olmayan veri hiç gelmez; ilgili parçalar boş/sıfır olarak okunur.
+export async function fetchFinansData() {
+  const res = await fetch('/api/data', { credentials: 'same-origin' });
+  if (res.status === 401) throw new AuthError('Oturum gerekli');
+  let payload = null;
+  try { payload = await res.json(); } catch { /* aşağıda hata verilir */ }
+  if (!res.ok || !payload) throw new Error((payload && payload.error) || `Veri alınamadı (HTTP ${res.status})`);
+  const feeJson = payload.fee || {};
+  const odemeJson = payload.odeme || {};
+  const yorumlar = payload.yorumlar || null;
+  const sureler = payload.sureler || null;
 
   // Marka adı yazım farklarını tek isimde birleştirmek için resmi marka listesini önce kur
   setBrandCanon(feeJson['MARKA DURUM']);
 
-  // SATIŞ TABLOSU 2026 (isteğe bağlı): hata verirse dashboard'un geri kalanı çalışmaya devam eder
+  // SATIŞ TABLOSU 2026 (yetkiliyse gelir): hata verirse dashboard'un geri kalanı çalışmaya devam eder
   let satis = null;
-  let satisError = null;
-  if (satisUrl && satisKey) {
-    // Apps Script zaman zaman geçici hata verebilir: en fazla 3 deneme
-    for (let attempt = 0; attempt < 3 && !satis; attempt += 1) {
-      try {
-        const satisRes = await fetch(`${satisUrl}?key=${encodeURIComponent(satisKey)}`);
-        if (!satisRes.ok) throw new Error(`HTTP ${satisRes.status}`);
-        const satisJson = await satisRes.json();
-        if (satisJson.error) throw new Error(satisJson.error);
-        satis = parseSatisTablosu(satisJson);
-        satisError = null;
-      } catch (err) {
-        satisError = err.message || String(err);
-        if (attempt < 2) await new Promise((r) => setTimeout(r, 800));
-      }
-    }
+  let satisError = payload.satisError || null;
+  if (payload.satis) {
+    try { satis = parseSatisTablosu(payload.satis); satisError = null; } catch (err) { satisError = err.message || String(err); }
   }
 
   if (feeJson.error) throw new Error(`FEE 2026 YENİ: ${feeJson.error}`);
@@ -501,6 +491,8 @@ export async function fetchFinansData({ feeUrl, feeKey, odemeUrl, odemeKey, sati
     tahminiProjeToplam,
     ayDurumu,
     pasifMarkalar,
+    yorumlar,
+    sureler,
     lastUpdatedFee: feeJson._lastUpdated || null,
     lastUpdatedOdeme: odemeJson._lastUpdated || null,
     satis,

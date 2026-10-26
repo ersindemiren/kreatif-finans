@@ -44,3 +44,9 @@ npm run dev
 
 - Müşteri/marka isimleri sheet'te BÜYÜK HARF olduğu için otomatik "Başlık Şeklinde" çeviriliyor (örn. "ALTINCOM" → "Altıncom"). Bazı marka isimleri (örn. "Altın.com") stil olarak orijinal yazımından farklı görünebilir — toplam rakamlar her zaman doğrudur, bu sadece görsel bir detaydır.
 - Sheet'lerde satır/sütun yapısı büyük ölçüde değişirse (örn. DASH 26 sekmesinin genel düzeni yeniden tasarlanırsa) `parseData.js` içindeki pozisyon bazlı okuma mantığının güncellenmesi gerekir.
+
+## Giriş ve yetkilendirme (kullanıcı bazlı)
+
+Google hesabı ile giriş; yalnızca tanımlı kullanıcılar girer. Veri `/api/data` sunucu fonksiyonundan gelir ve yetkisiz sayfaların verisi hiç gönderilmez. Admin, `Yönetim` sayfasından üye ekler/çıkarır ve sayfa yetkilerini günceller.
+
+Vercel ortam değişkenleri (sunucu): `SESSION_SECRET` (≥32 karakter), `GOOGLE_CLIENT_ID`, `FEE_URL`, `FEE_KEY`, `ODEME_URL`, `ODEME_KEY`, `SATIS_URL`, `SATIS_KEY`; Vercel Blob deposu bağlı olmalı (`BLOB_READ_WRITE_TOKEN`). İstemci: `VITE_GOOGLE_CLIENT_ID`. Eski `VITE_*` anahtar/URL ve `VITE_SITE_PASSWORD` değişkenleri kaldırılmalı.
