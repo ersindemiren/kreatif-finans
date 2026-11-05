@@ -493,6 +493,7 @@ export async function fetchFinansData() {
     pasifMarkalar,
     yorumlar,
     sureler,
+    sureError: payload.sureError || null,
     lastUpdatedFee: feeJson._lastUpdated || null,
     lastUpdatedOdeme: odemeJson._lastUpdated || null,
     satis,

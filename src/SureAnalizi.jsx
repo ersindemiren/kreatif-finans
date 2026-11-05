@@ -3,7 +3,7 @@
 // Fatura durumu: Satış Tablosu. Satış Tablosu'nda olup süre girilmemiş markalar 0 süreyle listelenir.
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { buildSure, FEE_BAZI } from './lib/sure.js';
+import { buildSure, buildPersonel, FEE_BAZI } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -15,8 +15,10 @@ const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
 const farkText = (v) => (Math.round(v) > 0 ? 'text-rose-600 dark:text-rose-400' : Math.round(v) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400');
 const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200' : Math.round(v) < 0 ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200' : '');
 
-export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData }) {
+export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData, sureError }) {
   const [selected, setSelected] = useState('Toplam');
+  const [gorunum, setGorunum] = useState('musteri'); // 'musteri' | 'personel'
+  const [acikKisi, setAcikKisi] = useState(null);
   const [seciliMarka, setSeciliMarka] = useState(null);
 
   useEffect(() => {
@@ -51,6 +53,9 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     });
     return { hours, saatBaz, fee, fark, faturali: idxs.some((i) => b.faturali[i]) };
   };
+
+  const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx }), [sureData, selected, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
+  const personelToplam = personel.reduce((s, u) => s + u.hours, 0);
 
   const rows = brands.map((b) => ({ ...b, ...calc(b, periodIdx) })).filter((r) => r.hours > 0 || r.faturali);
   const faturali = rows.filter((r) => r.faturali).sort((a, b) => b.hours - a.hours);
@@ -123,6 +128,11 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
 
   return (
     <div className="flex flex-col gap-5">
+      {sureError && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-xs sm:text-sm px-4 py-3">
+          Everhour verisi alınamadı ({sureError}); son dışa aktarılan rapor gösteriliyor.
+        </div>
+      )}
       {!satisRows?.length && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-xs sm:text-sm px-4 py-3">
           Satış Tablosu verisi alınamadı{satisError ? ` (${satisError})` : ''}; bu yüzden faturalı/faturasız ayrımı ve Fee + Proje değerleri hesaplanamıyor. Sayfayı yenileyip tekrar deneyin.
@@ -138,6 +148,15 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           >
             Toplam
           </button>
+          <select
+            value={gorunum}
+            onChange={(e) => setGorunum(e.target.value)}
+            aria-label="Görünüm"
+            className="ml-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400"
+          >
+            <option value="musteri">Müşteri</option>
+            <option value="personel">Personel</option>
+          </select>
         </div>
         <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
           {months.map((m, i) => (
@@ -152,6 +171,57 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         </div>
       </div>
 
+      {gorunum === 'personel' ? (
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
+            <div className={`${CARD} p-4`}>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Toplam Süre</span>
+              <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{fmtN(personelToplam)} Saat</div>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({selected === 'Toplam' ? rangeLabel : selected})</span>
+            </div>
+            <div className={`${CARD} p-4`}>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Personel</span>
+              <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{personel.length} Kişi</div>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">Süre girmiş</span>
+            </div>
+          </div>
+          <div className={`${CARD} p-5`}>
+            <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca hangi müşteriye ne kadar süre harcadığı açılır.</p>
+            <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              <span className="w-5 sm:w-6 shrink-0" />
+              <span className="flex-1 min-w-0">Personel</span>
+              <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
+            </div>
+            <div className="flex flex-col">
+              {personel.map((u, k) => (
+                <div key={u.name} className="border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
+                  <button type="button" onClick={() => setAcikKisi(acikKisi === u.name ? null : u.name)} className="w-full flex items-start gap-2 sm:gap-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
+                    <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300">{u.name}</span>
+                    <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
+                      {fmtN(u.hours)} sa
+                      <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>
+                    </span>
+                  </button>
+                  {acikKisi === u.name && (
+                    <div className="pb-3 pl-7 sm:pl-9 pr-1 flex flex-col gap-1">
+                      {u.clients.map((c) => (
+                        <div key={c.name} className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
+                          <span className="flex-1 min-w-0 break-words">{c.name}</span>
+                          <span className="tabular-nums whitespace-nowrap">{fmtN(c.hours)} sa · {pct1(u.hours ? c.hours / u.hours : 0)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {personel.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için personel verisi yok{sureData?.personel ? '' : ' (kişi bazlı veri yalnızca Everhour kaynağından gelir)'}.</div>}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {[
           ['Toplam Süre', toplam, false],
@@ -227,6 +297,9 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           <span className="text-rose-600 dark:text-rose-400">KIRMIZI</span>, Bütçe'den fazla zaman harcandığını, <span className="text-emerald-600 dark:text-emerald-400">YEŞİL</span>, Bütçe içinde kalındığını gösterir.
         </p>
       </div>
+
+        </>
+      )}
 
       {lightboxBrand && (() => {
         const idx = months.map((_, i) => i);

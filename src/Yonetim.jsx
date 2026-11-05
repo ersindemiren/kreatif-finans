@@ -1,11 +1,84 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Trash2, UserPlus, ShieldCheck, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
+import { autoBrand } from './lib/sure.js';
+import { normalizeNameKey } from './lib/parseData.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 
 // Admin: üye ekleme/çıkarma ve sayfa yetkileri. Değişiklikler anında kaydedilir; çıkarılan kişinin oturumu bir sonraki istekte düşer.
-export default function Yonetim({ me, tumSayfalar }) {
+// Everhour müşteri adlarını dashboard markalarıyla eşleştirir. Otomatik eşleşenler "otomatik" görünür, eşleşmeyenler seçilmeyi bekler.
+function EverhourEslestirme({ markalar }) {
+  const [state, setState] = useState({ loading: true, musteriler: [], map: {}, error: '' });
+  const [busy, setBusy] = useState('');
+
+  const load = useCallback(async () => {
+    const r = await api('/api/everhour');
+    if (r.ok) setState({ loading: false, musteriler: r.data.musteriler || [], map: r.data.map || {}, error: '' });
+    else setState((s) => ({ ...s, loading: false, error: r.data.error || 'Everhour verisi alınamadı' }));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const markaKeys = new Set((markalar || []).map((m) => normalizeNameKey(m)));
+  const durum = (name) => {
+    if (state.map[name]) return { tip: 'elle', brand: state.map[name] };
+    const a = autoBrand(name);
+    if (a) return { tip: 'otomatik', brand: a };
+    if (markaKeys.has(normalizeNameKey(name))) return { tip: 'otomatik', brand: name };
+    return { tip: 'yok', brand: '' };
+  };
+
+  const sec = async (name, brand) => {
+    setBusy(name);
+    const r = await api('/api/everhour', { method: 'PUT', body: { name, brand } });
+    if (r.ok) setState((s) => ({ ...s, map: r.data.map, error: '' }));
+    else setState((s) => ({ ...s, error: r.data.error || 'Kaydedilemedi' }));
+    setBusy('');
+  };
+
+  const eslesmeyen = state.musteriler.filter((m) => durum(m.name).tip === 'yok');
+  const siralanmis = [...eslesmeyen, ...state.musteriler.filter((m) => durum(m.name).tip !== 'yok')];
+
+  return (
+    <div className={`${CARD} p-4 sm:p-5`}>
+      <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Everhour Müşteri Eşleştirme</h3>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Süre Analiz, Everhour'daki müşteri adlarını dashboard markalarıyla eşleştirir. Adı farklı yazılanları buradan seçin (örnek: Everhour'da "BMS Design Center", dashboard'da "B.M.S"). Seçim bir sonraki yenilemede uygulanır.</p>
+      {state.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Everhour müşterileri okunuyor...</div>}
+      {state.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{state.error}</div>}
+      {!state.loading && !state.error && (
+        <>
+          <div className="text-xs text-slate-500 mb-3">{state.musteriler.length} müşteri · <span className={eslesmeyen.length ? 'text-amber-600 font-medium' : ''}>{eslesmeyen.length} eşleşmedi</span></div>
+          <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+            {siralanmis.map((m) => {
+              const d = durum(m.name);
+              return (
+                <div key={m.name} className="py-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200">
+                    {m.name}
+                    <span className="ml-2 text-[11px] text-slate-400 tabular-nums">{m.hours} sa</span>
+                    {d.tip === 'yok' && <span className="ml-2 text-[10px] font-medium border border-amber-300 text-amber-600 rounded-full px-1.5 py-0.5">eşleşmedi</span>}
+                    {d.tip === 'otomatik' && <span className="ml-2 text-[10px] text-slate-400">otomatik → {d.brand}</span>}
+                  </div>
+                  <select
+                    value={state.map[m.name] || ''}
+                    disabled={busy === m.name}
+                    onChange={(e) => sec(m.name, e.target.value)}
+                    className="sm:w-60 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-slate-400"
+                  >
+                    <option value="">{d.tip === 'otomatik' ? 'Otomatik' : 'Marka seçin...'}</option>
+                    {(markalar || []).map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function Yonetim({ me, tumSayfalar, markalar }) {
   const [users, setUsers] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -125,6 +198,8 @@ export default function Yonetim({ me, tumSayfalar }) {
           <span className="text-[11px] text-slate-400">Yeni üye başta hiçbir sayfayı göremez; yukarıdan yetki verin.</span>
         </div>
       </form>
+
+      <EverhourEslestirme markalar={markalar} />
     </div>
   );
 }

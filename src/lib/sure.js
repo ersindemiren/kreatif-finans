@@ -1,6 +1,6 @@
 // ============================================================================
-// Süre Analizi: zaman takip raporu (api/_data/sureler.js) + SATIŞ TABLOSU 2026 (Fee / Proje faturaları)
-// Süre kaynağı canlı bir uç nokta değildir; rapor yeniden dışa aktarıldığında api/_data/sureler.js güncellenir.
+// Süre Analizi: Everhour zaman kayıtları + SATIŞ TABLOSU 2026 (Fee / Proje faturaları)
+// Süre kaynağı: Everhour (sunucu /api/data). Everhour alınamazsa yedek olarak api/_data/sureler.js (son dışa aktarım) kullanılır.
 // ============================================================================
 import { normalizeNameKey } from './parseData.js';
 
@@ -45,6 +45,13 @@ const MAP = {
 };
 const MAP_BY_KEY = Object.fromEntries(Object.entries(MAP).map(([k, v]) => [normalizeNameKey(k), v]));
 
+// Everhour müşteri adı otomatik olarak hangi dashboard markasına denk geliyor? (Yönetim eşleştirme ekranı için)
+export function autoBrand(name) {
+  const k = normalizeNameKey(name);
+  if (k === IC_KEY) return IC_ADI;
+  return MAP_BY_KEY[k] || null;
+}
+
 // Gelir / satış tarafında birleştirilen markalar (anahtar -> hedef marka). Heritage, Kassandra ile tek marka sayılır.
 const REVENUE_ALIAS = { [normalizeNameKey('HERITAGE')]: 'KASSANDRA' };
 const canonName = (name) => REVENUE_ALIAS[normalizeNameKey(name)] || name;
@@ -61,6 +68,24 @@ export const ATANMAMIS_ADI = 'MARKAYA ATANMAMIŞ';
 //  Satış Tablosu'nda olup zaman raporunda olmayan markalar da süresi 0 olarak eklenir (zaman girilmemiş demektir).
 // Bu aylar tamamlanana kadar süre ve fatura değerleri sıfır alınır (Ekim = 9)
 const SIFIRLANAN_AYLAR = [9];
+
+// Personel görünümü: kişi bazında süre (saat) ve müşteri kırılımı. rows: [kişi, 'YYYY-MM', müşteri, saat]
+export function buildPersonel({ rows, idxs }) {
+  const map = new Map();
+  (rows || []).forEach(([user, ym, client, hours]) => {
+    const i = Number(String(ym).slice(5, 7)) - 1;
+    if (!idxs.includes(i) || SIFIRLANAN_AYLAR.includes(i)) return;
+    if (!map.has(user)) map.set(user, { name: user, hours: 0, clients: new Map() });
+    const u = map.get(user);
+    u.hours += hours;
+    const c = !client ? ATANMAMIS_ADI : normalizeNameKey(client) === IC_KEY ? IC_ADI : (MAP_BY_KEY[normalizeNameKey(client)] || client);
+    u.clients.set(c, (u.clients.get(c) || 0) + hours);
+  });
+  return [...map.values()]
+    .map((u) => ({ name: u.name, hours: u.hours, clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
+    .filter((u) => u.hours > 0)
+    .sort((a, b) => b.hours - a.hours);
+}
 
 export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   const monthIdx = (ym) => Number(String(ym).slice(5, 7)) - 1;

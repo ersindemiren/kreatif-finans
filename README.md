@@ -49,4 +49,4 @@ npm run dev
 
 Google hesabı ile giriş; yalnızca tanımlı kullanıcılar girer. Veri `/api/data` sunucu fonksiyonundan gelir ve yetkisiz sayfaların verisi hiç gönderilmez. Admin, `Yönetim` sayfasından üye ekler/çıkarır ve sayfa yetkilerini günceller.
 
-Vercel ortam değişkenleri (sunucu): `SESSION_SECRET` (≥32 karakter), `GOOGLE_CLIENT_ID`, `FEE_URL`, `FEE_KEY`, `ODEME_URL`, `ODEME_KEY`, `SATIS_URL`, `SATIS_KEY`; Vercel Blob deposu bağlı olmalı (`BLOB_READ_WRITE_TOKEN`). İstemci: `VITE_GOOGLE_CLIENT_ID`. Eski `VITE_*` anahtar/URL ve `VITE_SITE_PASSWORD` değişkenleri kaldırılmalı.
+Vercel ortam değişkenleri (sunucu): `SESSION_SECRET` (≥32 karakter), `GOOGLE_CLIENT_ID`, `FEE_URL`, `FEE_KEY`, `ODEME_URL`, `ODEME_KEY`, `SATIS_URL`, `SATIS_KEY`, `EVERHOUR_API_KEY` (Süre Analiz kaynağı); Vercel Blob deposu bağlı olmalı (`BLOB_READ_WRITE_TOKEN`). İstemci: `VITE_GOOGLE_CLIENT_ID`. Eski `VITE_*` anahtar/URL ve `VITE_SITE_PASSWORD` değişkenleri kaldırılmalı.

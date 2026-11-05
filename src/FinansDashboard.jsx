@@ -309,6 +309,13 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
 
   const pageTitle = pages.find((p) => p.id === page)?.label ?? 'Finans Özeti';
 
+  // Everhour müşteri eşleştirme ekranı için dashboard marka adları (Satış Tablosu + gelir tabloları)
+  const markaListesi = useMemo(() => {
+    const set = new Set((data.satis?.rows || []).map((r) => r.marka).filter(Boolean));
+    Object.values(revenueRaw || {}).forEach((m) => ['diger', 'fatura'].forEach((c) => (m?.[c] || []).forEach(([n]) => n && set.add(n))));
+    return [...set].sort((a, b) => a.localeCompare(b, 'tr'));
+  }, [data.satis, revenueRaw]);
+
   const lastSync = lastUpdatedFee ? new Date(lastUpdatedFee).toLocaleString('tr-TR') : null;
 
   return (
@@ -1168,10 +1175,10 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
             <SatisTablosu satis={data.satis} satisError={data.satisError} months={months} kurUSD={data.kurUSD} ozet={{ ciro, gider, ciroUSD, giderUSD, ayDurumu }} />
           )}
 
-          {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} />}
+          {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} sureError={data.sureError} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
-          {page === 'yonetim' && user?.role === 'admin' && <Yonetim me={user} tumSayfalar={tumSayfalar} />}
+          {page === 'yonetim' && user?.role === 'admin' && <Yonetim me={user} tumSayfalar={tumSayfalar} markalar={markaListesi} />}
           {page === 'feeTakip' && <FeeTakip feeTakip={data.feeTakip} feeTakipError={data.feeTakipError} pasifMarkalar={pasifMarkalar} satisRows={data.satis?.rows} kurUSD={data.kurUSD} />}
           {page === 'yorumlar' && (
             <div className="flex flex-col gap-5">
