@@ -3,7 +3,7 @@
 // Fatura durumu: Satış Tablosu. Satış Tablosu'nda olup süre girilmemiş markalar 0 süreyle listelenir.
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { buildSure, buildPersonel, FEE_BAZI } from './lib/sure.js';
+import { buildSure, buildPersonel, buildKisiDetay, FEE_BAZI } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -18,15 +18,15 @@ const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-
 export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData, sureError }) {
   const [selected, setSelected] = useState('Toplam');
   const [gorunum, setGorunum] = useState('musteri'); // 'musteri' | 'personel'
-  const [acikKisi, setAcikKisi] = useState(null);
+  const [seciliKisi, setSeciliKisi] = useState(null);
   const [seciliMarka, setSeciliMarka] = useState(null);
 
   useEffect(() => {
-    if (!seciliMarka) return undefined;
-    const onKey = (e) => e.key === 'Escape' && setSeciliMarka(null);
+    if (!seciliMarka && !seciliKisi) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') { setSeciliMarka(null); setSeciliKisi(null); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [seciliMarka]);
+  }, [seciliMarka, seciliKisi]);
 
   const pasifKeys = useMemo(() => new Set((pasifMarkalar || []).map((n) => normalizeNameKey(n))), [pasifMarkalar]);
 
@@ -187,7 +187,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           </div>
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca hangi müşteriye ne kadar süre harcadığı açılır.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır.</p>
             <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
               <span className="w-5 sm:w-6 shrink-0" />
               <span className="flex-1 min-w-0">Personel</span>
@@ -195,26 +195,14 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
             </div>
             <div className="flex flex-col">
               {personel.map((u, k) => (
-                <div key={u.name} className="border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
-                  <button type="button" onClick={() => setAcikKisi(acikKisi === u.name ? null : u.name)} className="w-full flex items-start gap-2 sm:gap-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
-                    <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300">{u.name}</span>
-                    <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
-                      {fmtN(u.hours)} sa
-                      <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>
-                    </span>
-                  </button>
-                  {acikKisi === u.name && (
-                    <div className="pb-3 pl-7 sm:pl-9 pr-1 flex flex-col gap-1">
-                      {u.clients.map((c) => (
-                        <div key={c.name} className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
-                          <span className="flex-1 min-w-0 break-words">{c.name}</span>
-                          <span className="tabular-nums whitespace-nowrap">{fmtN(c.hours)} sa · {pct1(u.hours ? c.hours / u.hours : 0)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
+                  <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400">{u.name}</span>
+                  <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
+                    {fmtN(u.hours)} sa
+                    <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>
+                  </span>
+                </button>
               ))}
               {personel.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için personel verisi yok{sureData?.personel ? '' : ' (kişi bazlı veri yalnızca Everhour kaynağından gelir)'}.</div>}
             </div>
@@ -300,6 +288,82 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
 
         </>
       )}
+
+      {seciliKisi && (() => {
+        const idx = months.map((_, i) => i);
+        const aktifIdx = idx.filter((i) => ayDurumu?.[i] === 'güncel');
+        const d = buildKisiDetay({ rows: sureData?.personel || [], user: seciliKisi });
+        const toplamKisi = aktifIdx.reduce((s, i) => s + d.monthly[i], 0);
+        const toplamEkip = aktifIdx.reduce((s, i) => s + d.team[i], 0);
+        const ortalama = aktifIdx.length ? toplamKisi / aktifIdx.length : 0;
+        const cl = d.clients.map((c) => ({ ...c, toplam: aktifIdx.reduce((s, i) => s + c.hours[i], 0) })).filter((c) => c.toplam > 0).sort((a, b) => b.toplam - a.toplam);
+        const gridA = 'grid grid-cols-4';
+        const cellA = 'px-2 sm:px-3 py-1.5 sm:py-2 text-center tabular-nums whitespace-nowrap';
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" onClick={() => setSeciliKisi(null)} role="dialog" aria-modal="true" aria-label={`${seciliKisi} süre ayrıntısı`}>
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
+              <button type="button" onClick={() => setSeciliKisi(null)} aria-label="Kapat" className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <X size={18} />
+              </button>
+              <h2 className="font-serif text-xl text-slate-900 dark:text-slate-50 pr-8">{seciliKisi}</h2>
+              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mb-4">Aylık süreler, ekip içindeki payı ve müşteri kırılımı (güncel aylar)</p>
+
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {[['Toplam Süre', fmtN(toplamKisi) + ' sa'], ['Aylık Ortalama', fmtN(ortalama) + ' sa'], ['Müşteri', cl.length + ' adet']].map(([l, v]) => (
+                  <div key={l} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+                    <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">{l}</span>
+                    <div className="text-sm sm:text-lg font-semibold text-slate-900 dark:text-slate-50 tabular-nums whitespace-nowrap">{v}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm">
+                <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
+                  <span className={`${cellA} text-left`}>Ay</span>
+                  <span className={cellA}>Süre</span>
+                  <span className={cellA}>Ekip Süresi</span>
+                  <span className={cellA}>Ekip Payı</span>
+                </div>
+                {idx.map((i) => {
+                  const on = ayDurumu?.[i] === 'güncel';
+                  return (
+                    <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 ${on ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
+                      <span className={`${cellA} text-left`}>{months[i]}</span>
+                      <span className={cellA}>{on ? fmtSaat(d.monthly[i]) : '–'}</span>
+                      <span className={cellA}>{on ? fmtN(d.team[i]) : '–'}</span>
+                      <span className={cellA}>{on && d.team[i] ? pct1(d.monthly[i] / d.team[i]) : '–'}</span>
+                    </div>
+                  );
+                })}
+                <div className={`${gridA} border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-900 dark:text-slate-50`}>
+                  <span className={`${cellA} text-left`}>Toplam</span>
+                  <span className={cellA}>{fmtSaat(toplamKisi)}</span>
+                  <span className={cellA}>{fmtN(toplamEkip)}</span>
+                  <span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span>
+                </div>
+              </div>
+
+              <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mt-5 mb-2">Müşteri Kırılımı</h3>
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-[11px] sm:text-sm">
+                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 px-3 py-2">
+                  <span className="flex-1 min-w-0">Müşteri</span>
+                  <span className="w-20 text-right">Süre</span>
+                  <span className="w-14 text-right">Pay</span>
+                </div>
+                {cl.map((c) => (
+                  <div key={c.name} className="flex items-center gap-2 px-3 py-2 border-t border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                    <span className="flex-1 min-w-0 break-words">{c.name}</span>
+                    <span className="w-20 text-right tabular-nums">{fmtSaat(c.toplam)} sa</span>
+                    <span className="w-14 text-right tabular-nums text-slate-400">{pct1(toplamKisi ? c.toplam / toplamKisi : 0)}</span>
+                  </div>
+                ))}
+                {cl.length === 0 && <div className="px-3 py-3 text-xs text-slate-400">Güncel aylarda kayıt yok.</div>}
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-3">Süreler saat cinsindendir. Ekip Payı = kişinin o ayki süresi / ekibin o ayki toplam süresi. Müşteri adları Everhour'dan gelir; eşleşmeyenler Yönetim sayfasından eşleştirilir.</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {lightboxBrand && (() => {
         const idx = months.map((_, i) => i);

@@ -87,6 +87,24 @@ export function buildPersonel({ rows, idxs }) {
     .sort((a, b) => b.hours - a.hours);
 }
 
+// Tek kişinin ayrıntısı: aylık süre, o ayda ekibin toplam süresi, müşteri kırılımı (müşteri x ay). rows: [kişi, 'YYYY-MM', müşteri, saat]
+export function buildKisiDetay({ rows, user }) {
+  const monthly = new Array(12).fill(0);
+  const team = new Array(12).fill(0);
+  const clients = new Map();
+  (rows || []).forEach(([u, ym, client, hours]) => {
+    const i = Number(String(ym).slice(5, 7)) - 1;
+    if (i < 0 || i > 11 || SIFIRLANAN_AYLAR.includes(i)) return;
+    team[i] += hours;
+    if (u !== user) return;
+    monthly[i] += hours;
+    const c = !client ? ATANMAMIS_ADI : normalizeNameKey(client) === IC_KEY ? IC_ADI : (MAP_BY_KEY[normalizeNameKey(client)] || client);
+    if (!clients.has(c)) clients.set(c, new Array(12).fill(0));
+    clients.get(c)[i] += hours;
+  });
+  return { monthly, team, clients: [...clients].map(([name, hours]) => ({ name, hours })) };
+}
+
 export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   const monthIdx = (ym) => Number(String(ym).slice(5, 7)) - 1;
   const map = new Map();
