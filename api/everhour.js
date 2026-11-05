@@ -1,6 +1,6 @@
 // Everhour müşteri adı eşleştirme: yalnızca admin. GET liste + mevcut eşleşmeler, PUT eşleştir/kaldır.
 import { json, sameOriginJson, readBody, currentUser } from './_lib/http.js';
-import { getEverhour, clearEverhourCache } from './_lib/everhour.js';
+import { getEverhour, clearEverhourCache, teshis } from './_lib/everhour.js';
 import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif } from './_lib/everhourMap.js';
 
 export default async function handler(req, res) {
@@ -8,6 +8,12 @@ export default async function handler(req, res) {
     const me = await currentUser(req);
     if (!me) return json(res, 401, { error: 'Giriş gerekli' });
     if (me.role !== 'admin') return json(res, 403, { error: 'Bu işlem için admin yetkisi gerekir' });
+    if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('teshis')) {
+      const q = new URL(req.url, 'http://x').searchParams;
+      const ym = q.get('ym') || '';
+      if (!/^\d{4}-\d{2}$/.test(ym)) return json(res, 400, { error: 'ym=YYYY-AA gerekli' });
+      return json(res, 200, await teshis({ key: process.env.EVERHOUR_API_KEY, user: q.get('user') || '', ym, task: q.get('task') || '' }));
+    }
     if (req.method === 'GET') {
       const ev = await getEverhour({ key: process.env.EVERHOUR_API_KEY, year: new Date().getFullYear(), upToMonth: new Date().getMonth() + 1 });
       const saat = new Map();

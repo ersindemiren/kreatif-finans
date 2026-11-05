@@ -2,7 +2,7 @@
 // Belge: https://developers.everhour.com  (X-Api-Key başlığı; 100 istek / 10 sn)
 const BASE = 'https://api.everhour.com';
 
-async function call(path, key, fetchImpl = fetch) {
+export async function call(path, key, fetchImpl = fetch) {
   for (let a = 0; a < 4; a += 1) {
     const res = await fetchImpl(`${BASE}${path}`, { headers: { 'X-Api-Key': key, Accept: 'application/json' } });
     if (res.status === 429) {
@@ -11,14 +11,18 @@ async function call(path, key, fetchImpl = fetch) {
       continue;
     }
     if (res.status === 401 || res.status === 403) throw new Error('Everhour anahtarı geçersiz ya da yetkisiz');
-    if (!res.ok) throw new Error(`Everhour isteği başarısız (HTTP ${res.status})`);
+    if (!res.ok) {
+      let detay = '';
+      try { const b = await res.json(); detay = b?.message ? `: ${b.message}` : ''; } catch { /* gövde yok */ }
+      throw new Error(`Everhour isteği başarısız (HTTP ${res.status}${detay})`);
+    }
     return res.json();
   }
   throw new Error('Everhour istek sınırına takıldı, biraz sonra tekrar deneyin');
 }
 
 const pad = (n) => String(n).padStart(2, '0');
-const monthRange = (year, m) => {
+export const monthRange = (year, m) => {
   const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
   return [`${year}-${pad(m)}-01`, `${year}-${pad(m)}-${pad(last)}`];
 };
@@ -27,7 +31,7 @@ const monthRange = (year, m) => {
 // Müşteri (client) bilgisi Everhour'un client filtresinden gelir: her müşteri için kayıtlar `client=<id>` ile ayrıca çekilir,
 // böylece bir kaydın hangi müşteriye ait olduğunu projeye bakmadan Everhour söyler. Hiçbir müşteriye ait olmayan süre
 // (filtresiz toplam − müşteri toplamları) müşteri '' olur (dashboard'da "markaya atanmamış").
-async function pool(items, size, fn) {
+export async function pool(items, size, fn) {
   const out = new Array(items.length);
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
@@ -141,4 +145,32 @@ export async function getEverhour(opts, ttlMs = 5 * 60 * 1000) {
   const data = await fetchEverhour(opts);
   cache = { at: Date.now(), year: opts.year, data };
   return data;
+}
+
+// Geçici tanı: bir kişinin bir aydaki belirli görev kayıtlarının Everhour'dan gelen ham hali (filtresiz / müşteri filtreli / /team/time).
+export async function teshis({ key, user, ym, task, fetchImpl = fetch }) {
+  if (!key) throw new Error('EVERHOUR_API_KEY tanımlı değil');
+  const [from, to] = monthRange(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)));
+  const pick = (recs) => (Array.isArray(recs) ? recs : []).filter((r) => (!user || r.user?.name === user) && (!task || JSON.stringify(r.task || {}).toLowerCase().includes(task.toLowerCase())));
+  const safe = async (path) => { try { return { ok: true, data: await call(path, key, fetchImpl) }; } catch (e) { return { ok: false, hata: e.message }; } };
+  const out = { aralik: [from, to], user, task };
+  const clients = await call('/clients', key, fetchImpl);
+  out.musteriSayisi = (clients || []).length;
+
+  const a = await safe(`/team/time/export?from=${from}&to=${to}&allowTimeWithoutTask=true`);
+  out.export_filtresiz_alansiz = a.ok ? { toplamKayit: a.data.length, eslesen: pick(a.data).slice(0, 30) } : a;
+  const b = await safe(`/team/time/export?from=${from}&to=${to}&fields=date,user,task,project&allowTimeWithoutTask=true`);
+  out.export_filtresiz_alanli = b.ok ? { toplamKayit: b.data.length, eslesen: pick(b.data).slice(0, 30) } : b;
+
+  const per = await pool(clients || [], 4, async (c) => {
+    const r = await safe(`/team/time/export?from=${from}&to=${to}&allowTimeWithoutTask=true&client=${encodeURIComponent(c.id)}`);
+    return { client: c.name, id: c.id, ok: r.ok, hata: r.hata, toplamKayit: r.ok ? r.data.length : undefined, eslesen: r.ok ? pick(r.data).slice(0, 10) : [] };
+  });
+  out.musteri_filtreli = per.filter((x) => !x.ok || x.eslesen.length);
+
+  const t1 = await safe(`/team/time?from=${from}&to=${to}&limit=50&page=1`);
+  out.team_time_sayfa1 = t1.ok ? { kayit: t1.data.length, ornek: t1.data.slice(0, 2), eslesen: pick(t1.data).slice(0, 10) } : t1;
+  const t2 = await safe(`/team/time?from=${from}&to=${to}&limit=50&page=2`);
+  out.team_time_sayfa2 = t2.ok ? { kayit: t2.data.length, ornek: t2.data.slice(0, 1) } : t2;
+  return out;
 }
