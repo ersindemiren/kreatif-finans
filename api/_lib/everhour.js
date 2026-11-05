@@ -250,3 +250,31 @@ export async function teshis3({ key, user, ym, fetchImpl = fetch }) {
   }
   return out;
 }
+
+// Geçici tanı 4: bir kişinin bir gününde hiçbir müşteri sorgusunda çıkmayan kayıtlar, görevlerin proje listeleri ve proje sahibi müşteriler.
+export async function teshis4({ key, user, date, fetchImpl = fetch }) {
+  if (!key) throw new Error('EVERHOUR_API_KEY tanımlı değil');
+  const safe = async (path) => { try { return { ok: true, data: (await call(path, key, fetchImpl)) || [] }; } catch (e) { return { ok: false, hata: e.message }; } };
+  const clients = (await call('/clients', key, fetchImpl)) || [];
+  const gun = await safe(`/team/time/export?from=${date}&to=${date}&fields=date,user&allowTimeWithoutTask=true`);
+  const uid = (gun.data || []).find((r) => r.user?.name === user)?.user?.id;
+  if (uid == null) return { hata: 'kişi bulunamadı', user, date };
+  const fp = (r) => `${r.task?.id || ''}|${r.time}`;
+  const hepsi = (await safe(`/team/time/export?from=${date}&to=${date}&allowTimeWithoutTask=true&user=${uid}`)).data || [];
+  const per = await pool(clients, 4, async (c) => ({ c, r: (await safe(`/team/time/export?from=${date}&to=${date}&allowTimeWithoutTask=true&user=${uid}&client=${encodeURIComponent(c.id)}`)).data || [] }));
+  const gorulen = new Map();
+  per.forEach(({ c, r }) => r.forEach((x) => gorulen.set(fp(x), [...(gorulen.get(fp(x)) || []), c.name])));
+  // /team/time: kayıtların görev -> proje listesi
+  const tt = [];
+  for (let p = 1; p <= 6; p += 1) {
+    const sayfa = (await safe(`/team/time?from=${date}&to=${date}&limit=50&page=${p}`)).data || [];
+    sayfa.filter((x) => x.user === uid).forEach((x) => tt.push(x));
+    if (sayfa.length < 50) break;
+  }
+  const projeBy = new Map(tt.map((x) => [`${x.task?.id || ''}|${x.time}`, x.task?.projects || []]));
+  const kayitlar = hepsi.map((r) => ({ task: r.task?.name, taskId: r.task?.id, sn: r.time, musteriSorgulari: gorulen.get(fp(r)) || [], projeler: projeBy.get(fp(r)) || null }));
+  const kayip = kayitlar.filter((k) => !k.musteriSorgulari.length);
+  const projeIds = new Set(kayitlar.flatMap((k) => k.projeler || []));
+  const sahip = clients.filter((c) => (c.projects || []).some((id) => projeIds.has(id))).map((c) => ({ client: c.name, id: c.id, projeler: (c.projects || []).filter((id) => projeIds.has(id)) }));
+  return { user, uid, date, toplamKayit: kayitlar.length, toplamSn: kayitlar.reduce((t, k) => t + k.sn, 0), musteriyeCikmayanSn: kayip.reduce((t, k) => t + k.sn, 0), musteriyeCikmayan: kayip, birdenFazlaMusteride: kayitlar.filter((k) => k.musteriSorgulari.length > 1), projeSahipleri: sahip, tumKayitlar: kayitlar };
+}

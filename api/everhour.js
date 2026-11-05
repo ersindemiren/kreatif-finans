@@ -1,6 +1,6 @@
 // Everhour müşteri adı eşleştirme: yalnızca admin. GET liste + mevcut eşleşmeler, PUT eşleştir/kaldır.
 import { json, sameOriginJson, readBody, currentUser } from './_lib/http.js';
-import { getEverhour, clearEverhourCache, teshis, teshis2, teshis3 } from './_lib/everhour.js';
+import { getEverhour, clearEverhourCache, teshis, teshis2, teshis3, teshis4 } from './_lib/everhour.js';
 import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif } from './_lib/everhourMap.js';
 
 export default async function handler(req, res) {
@@ -10,6 +10,7 @@ export default async function handler(req, res) {
     if (me.role !== 'admin') return json(res, 403, { error: 'Bu işlem için admin yetkisi gerekir' });
     if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('teshis')) {
       const q = new URL(req.url, 'http://x').searchParams;
+      if (q.get('teshis') === '4') return json(res, 200, await teshis4({ key: process.env.EVERHOUR_API_KEY, user: q.get('user') || '', date: q.get('gun') || '' }));
       const ym = q.get('ym') || '';
       if (!/^\d{4}-\d{2}$/.test(ym)) return json(res, 400, { error: 'ym=YYYY-AA gerekli' });
       if (q.get('teshis') === '3') return json(res, 200, await teshis3({ key: process.env.EVERHOUR_API_KEY, user: q.get('user') || '', ym }));
