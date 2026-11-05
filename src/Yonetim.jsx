@@ -45,7 +45,7 @@ function DepartmanEslestirme() {
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
             {[...st.kisiler].sort((a, b) => (!!st.pasif[a.name] - !!st.pasif[b.name]) || (!!st.map[a.name] - !!st.map[b.name])).map((k) => (
               <div key={k.name} className={`py-2.5 flex flex-col sm:flex-row sm:items-center gap-2 ${st.pasif[k.name] ? 'opacity-60' : ''}`}>
-                <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200 uppercase">{k.name}<span className="ml-2 text-[11px] text-slate-400 tabular-nums normal-case">{k.hours} sa</span></div>
+                <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200 uppercase">{k.name}{st.pasif[k.name] && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}<span className="ml-2 text-[11px] text-slate-400 tabular-nums normal-case">{k.hours} sa</span></div>
                 <select value={st.pasif[k.name] ? 'pasif' : 'aktif'} disabled={busy === k.name} onChange={(e) => durumSec(k.name, e.target.value === 'pasif')} aria-label={`${k.name} durumu`} className="sm:w-24 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-slate-400">
                   <option value="aktif">Aktif</option>
                   <option value="pasif">Pasif</option>
@@ -189,6 +189,15 @@ export default function Yonetim({ me, tumSayfalar, markalar }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <div className="flex justify-end">
+        <select value={bolum} onChange={(e) => setBolum(e.target.value)} aria-label="Görünüm" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400">
+          <option value="">Kullanıcılar ve Yetkiler</option>
+          <option value="everhour">Everhour Müşteri Eşleştirme</option>
+          <option value="departman">Personel Departman Eşleştirme</option>
+        </select>
+      </div>
+      {bolum === '' && (
+      <>
       <div className={`${CARD} p-4 sm:p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Kullanıcılar ve Yetkiler</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Her üyenin görebileceği sayfaları işaretleyin. Yetkisi olmayan sayfanın verisi o kişiye hiç gönderilmez. Admin her sayfayı ve bu Yönetim sayfasını görür.</p>
@@ -255,14 +264,8 @@ export default function Yonetim({ me, tumSayfalar, markalar }) {
         </div>
       </form>
 
-      <div className="flex items-center justify-end gap-2">
-        <label htmlFor="yonetim-bolum" className="text-xs text-slate-500 dark:text-slate-400">Ek bölüm</label>
-        <select id="yonetim-bolum" value={bolum} onChange={(e) => setBolum(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400">
-          <option value="">Seçin...</option>
-          <option value="everhour">Everhour Müşteri Eşleştirme</option>
-          <option value="departman">Personel Departman Eşleştirme</option>
-        </select>
-      </div>
+      </>
+      )}
       {bolum === 'everhour' && <EverhourEslestirme markalar={markalar} />}
       {bolum === 'departman' && <DepartmanEslestirme />}
     </div>

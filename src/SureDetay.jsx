@@ -86,7 +86,7 @@ function Bars({ months, on, series, unit = 'sa' }) {
 }
 
 // Satır x ay ısı matrisi. rows: [{ name, values[12], onClick? }]
-function Matris({ months, on, rows, firstLabel, onPick }) {
+function Matris({ months, on, rows, firstLabel, onPick, pasifSet }) {
   const max = Math.max(1, ...rows.flatMap((r) => r.values.filter((_, i) => on[i])));
   const ayToplam = months.map((_, i) => rows.reduce((t, r) => t + (r.values[i] || 0), 0));
   const shade = (v) => {
@@ -108,6 +108,7 @@ function Matris({ months, on, rows, firstLabel, onPick }) {
           {rows.map((r) => (
             <tr key={r.name}>
               <td className="py-0.5 pr-2 sticky left-0 bg-white dark:bg-slate-900 max-w-[9rem] sm:max-w-[14rem]">
+                {pasifSet?.has(r.name) && <span className="float-right ml-1 text-[9px] border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1">Pasif</span>}
                 {onPick ? <button type="button" onClick={() => onPick(r.name)} className="text-left truncate block max-w-full uppercase text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2">{r.name}</button> : <span className="truncate block uppercase text-slate-700 dark:text-slate-300">{r.name}</span>}
               </td>
               {r.values.map((v, i) => (
@@ -134,7 +135,7 @@ function Matris({ months, on, rows, firstLabel, onPick }) {
 const useTop = () => useEffect(() => { window.scrollTo(0, 0); }, []);
 
 /* =============================== MARKA DETAYI =============================== */
-export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasif, onBack, backLabel, onKisi }) {
+export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler, pasif, onBack, backLabel, onKisi }) {
   useTop();
   const idx = months.map((_, i) => i);
   const aktif = idx.filter((i) => ayDurumu?.[i] === 'güncel');
@@ -258,7 +259,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasif, onBac
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel × Ay</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Bu markada kim, hangi ay kaç saat çalışmış (saat). Kişi adına tıklayınca personel sayfası açılır.</p>
         {kisiler.length ? (
-          <Matris months={months} on={on} rows={kisiler.map((k) => ({ name: k.name, values: k.hours }))} firstLabel="Personel" onPick={onKisi} />
+          <Matris months={months} on={on} rows={kisiler.map((k) => ({ name: k.name, values: k.hours }))} firstLabel="Personel" onPick={onKisi} pasifSet={pasifKisiler} />
         ) : (
           <div className="text-xs text-slate-400 py-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Bu marka için personel kaydı yok (kişi bazlı veri Everhour kaynağından gelir).</div>
         )}
