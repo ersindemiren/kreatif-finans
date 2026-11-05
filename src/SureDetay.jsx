@@ -87,6 +87,7 @@ function Bars({ months, on, series, unit = 'sa' }) {
 // Satır x ay ısı matrisi. rows: [{ name, values[12], onClick? }]
 function Matris({ months, on, rows, firstLabel, onPick }) {
   const max = Math.max(1, ...rows.flatMap((r) => r.values.filter((_, i) => on[i])));
+  const ayToplam = months.map((_, i) => rows.reduce((t, r) => t + (r.values[i] || 0), 0));
   const shade = (v) => {
     if (!v) return '';
     const r = v / max;
@@ -116,6 +117,13 @@ function Matris({ months, on, rows, firstLabel, onPick }) {
               <td className="py-0.5 pl-2 text-right font-semibold text-slate-900 dark:text-slate-50">{fmtN(sum(r.values, on.map((x, i) => (x ? i : -1)).filter((i) => i >= 0)))}</td>
             </tr>
           ))}
+          <tr className="font-semibold text-slate-900 dark:text-slate-50">
+            <td className="pt-2 pr-2 sticky left-0 bg-white dark:bg-slate-900 border-t-2 border-slate-200 dark:border-slate-700">Toplam</td>
+            {months.map((m, i) => (
+              <td key={m} className={`pt-2 px-0.5 text-center border-t-2 border-slate-200 dark:border-slate-700 ${on[i] ? '' : 'opacity-30'}`}>{on[i] && ayToplam[i] ? fmtN(ayToplam[i]) : ''}</td>
+            ))}
+            <td className="pt-2 pl-2 text-right border-t-2 border-slate-200 dark:border-slate-700">{fmtN(ayToplam.reduce((t, v, i) => t + (on[i] ? v : 0), 0))}</td>
+          </tr>
         </tbody>
       </table>
     </div>
