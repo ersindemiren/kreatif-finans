@@ -121,6 +121,15 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
 
   const tumMarkalar = [...brands, ...disi];
   const brandOf = (ad) => tumMarkalar.find((b) => normalizeNameKey(b.name) === normalizeNameKey(ad)) || null;
+  // Kayıt oranı: kişinin süresinin, dönemde faturası kesilmiş markalara giden payı
+  const kayitOrani = (u) => {
+    if (!u.hours) return 0;
+    const f = u.clients.reduce((t, c) => {
+      const b = brandOf(c.name);
+      return t + (b && b.tip === 'marka' && periodIdx.some((i) => b.faturali[i]) ? c.hours : 0);
+    }, 0);
+    return f / u.hours;
+  };
   const sayfa = yigin[yigin.length - 1];
   const etiket = yigin.length > 1 ? 'Geri' : null;
   if (sayfa?.t === 'm') {
@@ -204,6 +213,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
             <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
               <span className="w-5 sm:w-6 shrink-0" />
               <span className="flex-1 min-w-0">Personel</span>
+              <span className="w-16 sm:w-24 text-right shrink-0">Kayıt Oranı</span>
               <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
             </div>
             <div className="flex flex-col">
@@ -211,6 +221,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
                 <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
                   <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
                   <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400">{u.name}</span>
+                  <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{pct1(kayitOrani(u))}</span>
                   <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
                     {fmtN(u.hours)} sa
                     <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>
