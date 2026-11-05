@@ -97,7 +97,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const Row = ({ r, i, kirmizi, soluk }) => {
     const sureYok = r.tip === 'marka' && r.hours === 0;
     return (
-      <div className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
+      <div className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
         <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{i}</span>
         <span className="flex-1 min-w-0 break-words text-left">
           <button
@@ -224,7 +224,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
               const acik = acikDep === d.name;
               return (
                 <div key={d.name} className="border-b border-slate-50 dark:border-slate-800">
-                  <button type="button" onClick={() => setAcikDep(acik ? null : d.name)} className="w-full flex items-start gap-2 sm:gap-3 py-2.5 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <button type="button" onClick={() => setAcikDep(acik ? null : d.name)} className="w-full flex items-start gap-2 sm:gap-3 py-2.5 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
                     <span className={`flex-1 min-w-0 break-words uppercase ${d.name === DEPARTMAN_YOK ? 'text-amber-600' : 'text-slate-700 dark:text-slate-300'}`}>{d.name}</span>
                     <span className="w-10 sm:w-14 text-right shrink-0 tabular-nums text-slate-500">{d.kisiler.filter((k) => !pasifSet.has(k.name)).length}</span>
                     <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{pct1(kayitOrani(d))}</span>
@@ -276,7 +276,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
             </div>
             <div className="flex flex-col">
               {personel.map((u, k) => (
-                <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
                   <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
                   <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
                   <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{pct1(kayitOrani(u))}</span>
@@ -350,7 +350,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           ['Kayıp Süre', gFaturasiz, 'text-rose-600 dark:text-rose-400'],
           ['Atanmamış Süre', gAtil, 'text-slate-700 dark:text-slate-300'],
         ].map(([label, g, c]) => (
-          <div key={label} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5">
+          <div key={label} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
             <span className="w-5 sm:w-6 shrink-0" />
             <span className={`flex-1 min-w-0 ${c}`}>{label}</span>
             <span className={`tabular-nums ${COL_SURE} text-right shrink-0 whitespace-nowrap ${c}`}>{fmtN(g.hours)} sa</span>

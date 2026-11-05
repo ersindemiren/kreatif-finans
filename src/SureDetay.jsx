@@ -107,13 +107,13 @@ function Matris({ months, on, rows, firstLabel, onPick, pasifSet, onCell }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.name}>
-              <td className="py-0.5 pr-2 sticky left-0 bg-white dark:bg-slate-900 max-w-[9rem] sm:max-w-[14rem]">
+            <tr key={r.name} className="group">
+              <td className="py-0.5 pr-2 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors max-w-[9rem] sm:max-w-[14rem]">
                 {pasifSet?.has(r.name) && <span className="float-right ml-1 text-[9px] border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1">Pasif</span>}
                 {onPick ? <button type="button" onClick={() => onPick(r.name)} className="text-left truncate block max-w-full uppercase text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2">{r.name}</button> : <span className="truncate block uppercase text-slate-700 dark:text-slate-300">{r.name}</span>}
               </td>
               {r.values.map((v, i) => (
-                <td key={i} className={`py-0.5 px-0.5 text-center ${on[i] ? '' : 'opacity-30'}`}>
+                <td key={i} className={`py-0.5 px-0.5 text-center group-hover:bg-slate-100 dark:group-hover:bg-slate-800/60 transition-colors ${on[i] ? '' : 'opacity-30'}`}>
                   {onCell && on[i] && v ? (
                     <button type="button" onClick={() => onCell(r.name, i)} title="Görevleri göster" className={`w-full rounded px-0.5 py-1 hover:ring-2 hover:ring-slate-400 ${shade(v)}`}>{fmtN(v)}</button>
                   ) : (
@@ -121,7 +121,7 @@ function Matris({ months, on, rows, firstLabel, onPick, pasifSet, onCell }) {
                   )}
                 </td>
               ))}
-              <td className="py-0.5 pl-2 text-right font-semibold text-slate-900 dark:text-slate-50">{fmtN(sum(r.values, on.map((x, i) => (x ? i : -1)).filter((i) => i >= 0)))}</td>
+              <td className="py-0.5 pl-2 text-right font-semibold group-hover:bg-slate-100 dark:group-hover:bg-slate-800/60 text-slate-900 dark:text-slate-50">{fmtN(sum(r.values, on.map((x, i) => (x ? i : -1)).filter((i) => i >= 0)))}</td>
             </tr>
           ))}
           <tr className="font-semibold text-slate-900 dark:text-slate-50">
@@ -173,7 +173,7 @@ function GorevKutusu({ user, client, ym, ayAdi, onClose }) {
               <span className="w-20 text-right shrink-0">Süre</span>
             </div>
             {st.list.map((g, i) => (
-              <div key={i} className="flex items-start gap-2 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm">
+              <div key={i} className="flex items-start gap-2 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
                 <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300">
                   {g.task}
                   {g.detay && <span className="block text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">{g.detay}</span>}
@@ -305,7 +305,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
             const fee = brand.fee[i] + brand.proje[i];
             const farkVar = on[i] && (h > 0 || fee > 0);
             return (
-              <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
+              <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
                 <span className={`${cellA} text-left`}>{months[i]}</span>
                 <span className={cellA}>{on[i] ? fmtSaat(h) : '–'}</span>
                 <span className={cellA}>{fmtN(FEE_BAZI[i])}</span>
@@ -427,7 +427,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif
         {cl.map((c) => {
           const k = sinif(c);
           return (
-            <div key={c.name} className="flex items-center gap-2 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm">
+            <div key={c.name} className="flex items-center gap-2 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
               <span className="flex-1 min-w-0 break-words">
                 <button type="button" onClick={() => onMarka(c.name)} className="text-left text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2">{c.name}</button>
                 {k === 'kayip' && <span className="ml-1.5"><Badge tone="rose">faturasız</Badge></span>}
@@ -449,7 +449,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif
             <span className={`${cellA} text-left`}>Ay</span><span className={cellA}>Süre</span><span className={cellA}>Ekip Süresi</span><span className={cellA}>Ekip Payı</span>
           </div>
           {idx.map((i) => (
-            <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
+            <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
               <span className={`${cellA} text-left`}>{months[i]}</span>
               <span className={cellA}>{on[i] ? fmtSaat(d.monthly[i]) : '–'}</span>
               <span className={cellA}>{on[i] ? fmtN(d.team[i]) : '–'}</span>
