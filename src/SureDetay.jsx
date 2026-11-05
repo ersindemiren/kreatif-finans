@@ -1,6 +1,7 @@
 // Süre Analizi alt sayfaları (Fee Takip'teki marka iç sayfası gibi): marka detayı ve personel detayı.
-import React, { useEffect, useMemo } from 'react';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { api } from './lib/auth.js';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
 
@@ -86,7 +87,7 @@ function Bars({ months, on, series, unit = 'sa' }) {
 }
 
 // Satır x ay ısı matrisi. rows: [{ name, values[12], onClick? }]
-function Matris({ months, on, rows, firstLabel, onPick, pasifSet }) {
+function Matris({ months, on, rows, firstLabel, onPick, pasifSet, onCell }) {
   const max = Math.max(1, ...rows.flatMap((r) => r.values.filter((_, i) => on[i])));
   const ayToplam = months.map((_, i) => rows.reduce((t, r) => t + (r.values[i] || 0), 0));
   const shade = (v) => {
@@ -113,7 +114,11 @@ function Matris({ months, on, rows, firstLabel, onPick, pasifSet }) {
               </td>
               {r.values.map((v, i) => (
                 <td key={i} className={`py-0.5 px-0.5 text-center ${on[i] ? '' : 'opacity-30'}`}>
-                  <div className={`rounded px-0.5 py-1 ${on[i] ? shade(v) : ''}`}>{on[i] && v ? fmtN(v) : ''}</div>
+                  {onCell && on[i] && v ? (
+                    <button type="button" onClick={() => onCell(r.name, i)} title="Görevleri göster" className={`w-full rounded px-0.5 py-1 hover:ring-2 hover:ring-slate-400 ${shade(v)}`}>{fmtN(v)}</button>
+                  ) : (
+                    <div className={`rounded px-0.5 py-1 ${on[i] ? shade(v) : ''}`}>{on[i] && v ? fmtN(v) : ''}</div>
+                  )}
                 </td>
               ))}
               <td className="py-0.5 pl-2 text-right font-semibold text-slate-900 dark:text-slate-50">{fmtN(sum(r.values, on.map((x, i) => (x ? i : -1)).filter((i) => i >= 0)))}</td>
@@ -132,11 +137,73 @@ function Matris({ months, on, rows, firstLabel, onPick, pasifSet }) {
   );
 }
 
+
+// Bir kişinin bir müşteride bir aydaki görevleri (Everhour). Matris hücresine tıklayınca açılır.
+function GorevKutusu({ user, client, ym, ayAdi, onClose }) {
+  const [st, setSt] = useState({ loading: true, list: [], error: '' });
+  useEffect(() => {
+    let iptal = false;
+    (async () => {
+      const r = await api(`/api/gorevler?user=${encodeURIComponent(user)}&ym=${ym}`);
+      if (iptal) return;
+      if (!r.ok) { setSt({ loading: false, list: [], error: r.data?.error || 'Görevler alınamadı' }); return; }
+      const key = normalizeNameKey(client);
+      setSt({ loading: false, list: (r.data.gorevler || []).filter((g) => normalizeNameKey(kanonikMusteri(g.client)) === key), error: '' });
+    })();
+    return () => { iptal = true; };
+  }, [user, client, ym]);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const toplam = st.list.reduce((t, g) => t + g.hours, 0);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50" onClick={onClose} role="dialog" aria-modal="true" aria-label="Görev ayrıntısı">
+      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5" onClick={(e) => e.stopPropagation()}>
+        <button type="button" onClick={onClose} aria-label="Kapat" className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={16} /></button>
+        <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 pr-8 uppercase">{user}</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4"><span className="uppercase">{client}</span> · {ayAdi} {ym.slice(0, 4)} · görevler</p>
+        {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500 py-4"><Loader2 size={15} className="animate-spin" /> Everhour'dan görevler okunuyor...</div>}
+        {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{st.error}</div>}
+        {!st.loading && !st.error && (
+          <>
+            <div className="flex items-center gap-2 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              <span className="flex-1 min-w-0">Görev</span>
+              <span className="w-20 text-right shrink-0">Süre</span>
+            </div>
+            {st.list.map((g, i) => (
+              <div key={i} className="flex items-start gap-2 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm">
+                <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300">
+                  {g.task}
+                  {g.project && <span className="block text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">{g.project}</span>}
+                </span>
+                <span className="w-20 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{fmtSaat(g.hours)} sa</span>
+              </div>
+            ))}
+            {st.list.length === 0 && <div className="py-3 text-xs text-slate-400">Bu ay için görev kaydı bulunamadı.</div>}
+            {st.list.length > 0 && (
+              <div className="flex items-center gap-2 pt-3 text-sm font-bold text-slate-900 dark:text-slate-50">
+                <span className="flex-1">Toplam ({st.list.length} görev)</span>
+                <span className="w-20 text-right tabular-nums">{fmtSaat(toplam)} sa</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const yilOf = (rows) => String(rows?.[0]?.[1] || new Date().getFullYear()).slice(0, 4);
+const ayKey = (yil, i) => `${yil}-${String(i + 1).padStart(2, '0')}`;
+
 const useTop = () => useEffect(() => { window.scrollTo(0, 0); }, []);
 
 /* =============================== MARKA DETAYI =============================== */
 export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler, pasif, onBack, backLabel, onKisi }) {
   useTop();
+  const [gorev, setGorev] = useState(null);
   const idx = months.map((_, i) => i);
   const aktif = idx.filter((i) => ayDurumu?.[i] === 'güncel');
   const on = idx.map((i) => ayDurumu?.[i] === 'güncel');
@@ -259,11 +326,12 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel × Ay</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Bu markada kim, hangi ay kaç saat çalışmış (saat). Kişi adına tıklayınca personel sayfası açılır.</p>
         {kisiler.length ? (
-          <Matris months={months} on={on} rows={kisiler.map((k) => ({ name: k.name, values: k.hours }))} firstLabel="Personel" onPick={onKisi} pasifSet={pasifKisiler} />
+          <Matris months={months} on={on} rows={kisiler.map((k) => ({ name: k.name, values: k.hours }))} firstLabel="Personel" onPick={onKisi} pasifSet={pasifKisiler} onCell={(kisi, i) => setGorev({ user: kisi, client: brand.name, i })} />
         ) : (
           <div className="text-xs text-slate-400 py-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Bu marka için personel kaydı yok (kişi bazlı veri Everhour kaynağından gelir).</div>
         )}
       </div>
+      {gorev && <GorevKutusu user={gorev.user} client={gorev.client} ym={ayKey(yilOf(personelRows), gorev.i)} ayAdi={months[gorev.i]} onClose={() => setGorev(null)} />}
     </div>
   );
 }
@@ -271,6 +339,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 /* =============================== PERSONEL DETAYI =============================== */
 export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif, onBack, backLabel, onMarka }) {
   useTop();
+  const [gorev, setGorev] = useState(null);
   const idx = months.map((_, i) => i);
   const aktif = idx.filter((i) => ayDurumu?.[i] === 'güncel');
   const on = idx.map((i) => ayDurumu?.[i] === 'güncel');
@@ -345,7 +414,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Müşteri × Ay Matrisi</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Hangi müşteriye hangi ay kaç saat (saat). Marka adına tıklayınca marka sayfası açılır.</p>
-        <Matris months={months} on={on} rows={cl.map((c) => ({ name: c.name, values: c.hours }))} firstLabel="Müşteri" onPick={(n) => onMarka(n)} />
+        <Matris months={months} on={on} rows={cl.map((c) => ({ name: c.name, values: c.hours }))} firstLabel="Müşteri" onPick={(n) => onMarka(n)} onCell={(musteri, i) => setGorev({ user: name, client: musteri, i })} />
       </div>
 
       <div className={`${CARD} p-5`}>
@@ -392,6 +461,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif
           </div>
         </div>
       </div>
+      {gorev && <GorevKutusu user={gorev.user} client={gorev.client} ym={ayKey(yilOf(personelRows), gorev.i)} ayAdi={months[gorev.i]} onClose={() => setGorev(null)} />}
     </div>
   );
 }

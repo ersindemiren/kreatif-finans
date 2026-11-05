@@ -83,6 +83,46 @@ export async function fetchEverhour({ key, year, upToMonth, fetchImpl = fetch })
   return { rows, personel, musteriler };
 }
 
+// Bir kişinin bir aydaki görevleri (satır tıklayınca açılan ayrıntı). Müşteri ataması da client filtresinden gelir.
+// Dönüş: [{ client, task, project, hours }] (client '' = hiçbir müşteriye ait olmayan süre)
+const gorevCache = new Map();
+export async function fetchGorevler({ key, user, ym, fetchImpl = fetch }) {
+  if (!key) throw new Error('EVERHOUR_API_KEY tanımlı değil');
+  if (!/^\d{4}-\d{2}$/.test(ym || '') || !user) throw new Error('Geçersiz istek');
+  const ck = `${user}|${ym}`;
+  const hit = gorevCache.get(ck);
+  if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.data;
+  const [from, to] = monthRange(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)));
+  const q = `from=${from}&to=${to}&fields=date,user,task,project&allowTimeWithoutTask=true`;
+  const collect = (recs) => {
+    const m = new Map();
+    (Array.isArray(recs) ? recs : []).forEach((r) => {
+      const sec = Number(r.time) || 0;
+      if (!sec || r.user?.name !== user) return;
+      const k = `${r.task?.id || ''}|${r.project?.id || ''}`;
+      const e = m.get(k) || { task: r.task?.name || '(görev yok)', project: r.project?.name || '', sec: 0 };
+      e.sec += sec;
+      m.set(k, e);
+    });
+    return m;
+  };
+  const clients = await call('/clients', key, fetchImpl);
+  const list = Array.isArray(clients) ? clients : [];
+  const total = collect(await call(`/team/time/export?${q}`, key, fetchImpl));
+  const per = await pool(list, 4, async (c) => collect(await call(`/team/time/export?${q}&client=${encodeURIComponent(c.id)}`, key, fetchImpl)));
+  const used = new Map();
+  const out = [];
+  list.forEach((c, i) => per[i].forEach((e, k) => {
+    out.push({ client: c.name, task: e.task, project: e.project, sec: e.sec });
+    used.set(k, (used.get(k) || 0) + e.sec);
+  }));
+  used.forEach((sec, k) => { if (sec > (total.get(k)?.sec || 0) + 60) throw new Error('Everhour client filtresi beklenen sonucu vermedi'); });
+  total.forEach((e, k) => { const rest = e.sec - (used.get(k) || 0); if (rest > 1) out.push({ client: '', task: e.task, project: e.project, sec: rest }); });
+  const data = out.map((e) => ({ client: e.client, task: e.task, project: e.project, hours: Math.round((e.sec / 3600) * 100) / 100 })).sort((a, b) => b.hours - a.hours);
+  gorevCache.set(ck, { at: Date.now(), data });
+  return data;
+}
+
 // Elle eşleştirme: Everhour müşteri adı -> dashboard marka adı (rapor satırlarına uygulanır)
 export function applyMap(result, map = {}) {
   const f = (c) => (c && map[c]) || c;
