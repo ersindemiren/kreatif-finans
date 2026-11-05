@@ -11,6 +11,7 @@ const TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', warn: 'bg-amber-500',
 export const MAKS_SURE = 22 * 8.5;
 const up = (x) => String(x).toLocaleUpperCase('tr-TR');
 const fmtN = (n) => Math.round(n).toLocaleString('tr-TR');
+const fmtO = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 1 });
 const fmtSaat = (n) => n.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmtTL = (n) => '₺' + fmtN(Math.abs(n));
 const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
@@ -115,21 +116,21 @@ function Matris({ months, on, rows, firstLabel, onPick, pasifSet, onCell }) {
               {r.values.map((v, i) => (
                 <td key={i} className={`py-0.5 px-0.5 text-center group-hover:bg-slate-100 dark:group-hover:bg-slate-800/60 transition-colors ${on[i] ? '' : 'opacity-30'}`}>
                   {onCell && on[i] && v ? (
-                    <button type="button" onClick={() => onCell(r.name, i)} title="Görevleri göster" className={`w-full rounded px-0.5 py-1 hover:ring-2 hover:ring-slate-400 ${shade(v)}`}>{fmtN(v)}</button>
+                    <button type="button" onClick={() => onCell(r.name, i)} title="Görevleri göster" className={`w-full rounded px-0.5 py-1 hover:ring-2 hover:ring-slate-400 ${shade(v)}`}>{fmtO(v)}</button>
                   ) : (
-                    <div className={`rounded px-0.5 py-1 ${on[i] ? shade(v) : ''}`}>{on[i] && v ? fmtN(v) : ''}</div>
+                    <div className={`rounded px-0.5 py-1 ${on[i] ? shade(v) : ''}`}>{on[i] && v ? fmtO(v) : ''}</div>
                   )}
                 </td>
               ))}
-              <td className="py-0.5 pl-2 text-right font-semibold group-hover:bg-slate-100 dark:group-hover:bg-slate-800/60 text-slate-900 dark:text-slate-50">{fmtN(sum(r.values, on.map((x, i) => (x ? i : -1)).filter((i) => i >= 0)))}</td>
+              <td className="py-0.5 pl-2 text-right font-semibold group-hover:bg-slate-100 dark:group-hover:bg-slate-800/60 text-slate-900 dark:text-slate-50">{fmtO(sum(r.values, on.map((x, i) => (x ? i : -1)).filter((i) => i >= 0)))}</td>
             </tr>
           ))}
           <tr className="font-semibold text-slate-900 dark:text-slate-50">
             <td className="pt-2 pr-2 sticky left-0 bg-white dark:bg-slate-900 border-t-2 border-slate-200 dark:border-slate-700">Toplam</td>
             {months.map((m, i) => (
-              <td key={m} className={`pt-2 px-0.5 text-center border-t-2 border-slate-200 dark:border-slate-700 ${on[i] ? '' : 'opacity-30'}`}>{on[i] && ayToplam[i] ? fmtN(ayToplam[i]) : ''}</td>
+              <td key={m} className={`pt-2 px-0.5 text-center border-t-2 border-slate-200 dark:border-slate-700 ${on[i] ? '' : 'opacity-30'}`}>{on[i] && ayToplam[i] ? fmtO(ayToplam[i]) : ''}</td>
             ))}
-            <td className="pt-2 pl-2 text-right border-t-2 border-slate-200 dark:border-slate-700">{fmtN(ayToplam.reduce((t, v, i) => t + (on[i] ? v : 0), 0))}</td>
+            <td className="pt-2 pl-2 text-right border-t-2 border-slate-200 dark:border-slate-700">{fmtO(ayToplam.reduce((t, v, i) => t + (on[i] ? v : 0), 0))}</td>
           </tr>
         </tbody>
       </table>
