@@ -1,13 +1,57 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Trash2, UserPlus, ShieldCheck, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
-import { autoBrand } from './lib/sure.js';
+import { autoBrand, DEPARTMANLAR } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 
 // Admin: üye ekleme/çıkarma ve sayfa yetkileri. Değişiklikler anında kaydedilir; çıkarılan kişinin oturumu bir sonraki istekte düşer.
 // Everhour müşteri adlarını dashboard markalarıyla eşleştirir. Otomatik eşleşenler "otomatik" görünür, eşleşmeyenler seçilmeyi bekler.
+function DepartmanEslestirme() {
+  const [st, setSt] = useState({ loading: true, kisiler: [], map: {}, error: '' });
+  const [busy, setBusy] = useState('');
+  useEffect(() => {
+    (async () => {
+      const r = await api('/api/everhour');
+      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], map: r.data.departman || {}, error: '' });
+      else setSt((s) => ({ ...s, loading: false, error: r.data.error || 'Everhour verisi alınamadı' }));
+    })();
+  }, []);
+  const sec = async (kisi, departman) => {
+    setBusy(kisi);
+    const r = await api('/api/everhour', { method: 'PUT', body: { kisi, departman } });
+    if (r.ok) setSt((s) => ({ ...s, map: r.data.departman, error: '' }));
+    else setSt((s) => ({ ...s, error: r.data.error || 'Kaydedilemedi' }));
+    setBusy('');
+  };
+  const atanmamis = st.kisiler.filter((k) => !st.map[k.name]).length;
+  return (
+    <div className={`${CARD} p-4 sm:p-5`}>
+      <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Personel Departman Eşleştirme</h3>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Süre Analiz'deki Departman Bazlı Süre Dağılımı, Everhour'daki kişileri buradan seçilen departmana göre toplar. Seçim bir sonraki yenilemede uygulanır.</p>
+      {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Everhour kişileri okunuyor...</div>}
+      {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
+      {!st.loading && !st.error && (
+        <>
+          <div className="text-xs text-slate-500 mb-3">{st.kisiler.length} kişi · <span className={atanmamis ? 'text-amber-600 font-medium' : ''}>{atanmamis} departman atanmamış</span></div>
+          <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+            {[...st.kisiler].sort((a, b) => !!st.map[a.name] - !!st.map[b.name]).map((k) => (
+              <div key={k.name} className="py-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200">{k.name}<span className="ml-2 text-[11px] text-slate-400 tabular-nums">{k.hours} sa</span></div>
+                <select value={st.map[k.name] || ''} disabled={busy === k.name} onChange={(e) => sec(k.name, e.target.value)} className="sm:w-60 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-slate-400">
+                  <option value="">Departman seçin...</option>
+                  {DEPARTMANLAR.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function EverhourEslestirme({ markalar }) {
   const [state, setState] = useState({ loading: true, musteriler: [], map: {}, error: '' });
   const [busy, setBusy] = useState('');
@@ -200,6 +244,7 @@ export default function Yonetim({ me, tumSayfalar, markalar }) {
       </form>
 
       <EverhourEslestirme markalar={markalar} />
+      <DepartmanEslestirme />
     </div>
   );
 }

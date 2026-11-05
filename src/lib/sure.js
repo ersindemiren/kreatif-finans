@@ -173,3 +173,22 @@ export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   const all = [...map.values()];
   return { brands: all.filter((b) => b.tip === 'marka'), disi: all.filter((b) => b.tip !== 'marka') };
 }
+
+export const DEPARTMANLAR = ['Dijital Pazarlama ve Strateji', 'Tasarım Prodüksiyon', 'Performans Pazarlama', 'Diğer / İdari'];
+export const DEPARTMAN_YOK = 'Departman atanmamış';
+
+// Departman bazlı süre: personel listesi (buildPersonel çıktısı) + kişi->departman eşleşmesi
+export function buildDepartman({ personel, map }) {
+  const deps = new Map();
+  (personel || []).forEach((u) => {
+    const d = (map && map[u.name]) || DEPARTMAN_YOK;
+    if (!deps.has(d)) deps.set(d, { name: d, hours: 0, kisiler: [], clients: new Map() });
+    const x = deps.get(d);
+    x.hours += u.hours;
+    x.kisiler.push({ name: u.name, hours: u.hours });
+    u.clients.forEach((c) => x.clients.set(c.name, (x.clients.get(c.name) || 0) + c.hours));
+  });
+  return [...deps.values()]
+    .map((x) => ({ name: x.name, hours: x.hours, kisiler: x.kisiler.sort((a, b) => b.hours - a.hours), clients: [...x.clients].map(([name, hours]) => ({ name, hours })) }))
+    .sort((a, b) => (a.name === DEPARTMAN_YOK) - (b.name === DEPARTMAN_YOK) || b.hours - a.hours);
+}

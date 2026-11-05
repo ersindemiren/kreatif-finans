@@ -2,7 +2,7 @@
 // Süre: zaman takip raporu (sunucuda api/_data/sureler.js; yalnızca yetkili kullanıcıya gelir). Fee + Proje: SATIŞ TABLOSU 2026 faturaları (KDV hariç).
 // Fatura durumu: Satış Tablosu. Satış Tablosu'nda olup süre girilmemiş markalar 0 süreyle listelenir.
 import React, { useEffect, useMemo, useState } from 'react';
-import { buildSure, buildPersonel, FEE_BAZI } from './lib/sure.js';
+import { buildSure, buildPersonel, buildDepartman, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
 import { MarkaDetay, KisiDetay } from './SureDetay.jsx';
 import { normalizeNameKey } from './lib/parseData.js';
 
@@ -18,6 +18,7 @@ const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-
 export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData, sureError }) {
   const [selected, setSelected] = useState('Toplam');
   const [gorunum, setGorunum] = useState('musteri'); // 'musteri' | 'personel'
+  const [acikDep, setAcikDep] = useState(null);
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
   const setSeciliMarka = (n) => setYigin([{ t: 'm', n }]);
   const setSeciliKisi = (n) => setYigin([{ t: 'k', n }]);
@@ -50,6 +51,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   };
 
   const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx }), [sureData, selected, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
+  const departmanlar = useMemo(() => buildDepartman({ personel, map: sureData?.departman }), [personel, sureData]);
   const personelToplam = personel.reduce((s, u) => s + u.hours, 0);
 
   const rows = brands.map((b) => ({ ...b, ...calc(b, periodIdx) })).filter((r) => r.hours > 0 || r.faturali);
@@ -250,6 +252,45 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
             <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({selected === 'Toplam' ? rangeLabel : selected})</span>
           </div>
         ))}
+      </div>
+
+      <div className={`${CARD} p-5`}>
+        <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Departman Bazlı Süre Dağılımı</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Personelin Everhour'a girdiği süreler, Yönetim'deki departman eşleştirmesine göre toplanır. Departmana tıklayınca kişi dağılımı açılır. Kayıt Oranı: sürenin faturası kesilmiş markalara giden payı.</p>
+        <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+          <span className="flex-1 min-w-0">Departman</span>
+          <span className="w-10 sm:w-14 text-right shrink-0">Kişi</span>
+          <span className="w-16 sm:w-24 text-right shrink-0">Kayıt Oranı</span>
+          <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
+        </div>
+        {departmanlar.map((d) => {
+          const acik = acikDep === d.name;
+          return (
+            <div key={d.name} className="border-b border-slate-50 dark:border-slate-800">
+              <button type="button" onClick={() => setAcikDep(acik ? null : d.name)} className="w-full flex items-start gap-2 sm:gap-3 py-2.5 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <span className={`flex-1 min-w-0 break-words ${d.name === DEPARTMAN_YOK ? 'text-amber-600' : 'text-slate-700 dark:text-slate-300'}`}>{d.name}</span>
+                <span className="w-10 sm:w-14 text-right shrink-0 tabular-nums text-slate-500">{d.kisiler.length}</span>
+                <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{pct1(kayitOrani(d))}</span>
+                <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
+                  {fmtN(d.hours)} sa
+                  <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? d.hours / personelToplam : 0)}</span>
+                </span>
+              </button>
+              {acik && (
+                <div className="pb-2 pl-3 sm:pl-5">
+                  {d.kisiler.map((k) => (
+                    <button key={k.name} type="button" onClick={() => setSeciliKisi(k.name)} className="w-full flex items-center gap-2 py-1.5 text-[11px] sm:text-xs text-left text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
+                      <span className="flex-1 min-w-0 truncate">{k.name}</span>
+                      <span className="tabular-nums shrink-0">{fmtN(k.hours)} sa · {pct1(d.hours ? k.hours / d.hours : 0)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {departmanlar.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için personel verisi yok.</div>}
+        {departmanlar.some((d) => d.name === DEPARTMAN_YOK) && <p className="text-[11px] text-amber-600 mt-3">Bazı kişilerin departmanı atanmamış; Yönetim sayfasındaki "Personel Departman Eşleştirme" bölümünden atayabilirsiniz.</p>}
       </div>
 
       <div className={`${CARD} p-5`}>
