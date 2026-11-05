@@ -66,8 +66,8 @@ export const ATANMAMIS_ADI = 'MARKAYA ATANMAMIŞ';
 //  hours[i] ay süresi (saat), fee[i] / proje[i] o ay Satış Tablosu'ndaki Fee ve Proje faturaları (KDV hariç),
 //  faturali[i] = o ay Satış Tablosu'nda bu markaya fatura satırı var mı.
 //  Satış Tablosu'nda olup zaman raporunda olmayan markalar da süresi 0 olarak eklenir (zaman girilmemiş demektir).
-// Bu aylar tamamlanana kadar süre ve fatura değerleri sıfır alınır (Ekim = 9)
-const SIFIRLANAN_AYLAR = [9];
+// Henüz tamamlanmamış / verisi gelmemiş aylar için süre ve fatura değerleri sıfır alınır. Ekim verisi Everhour'dan geldiği için artık boş.
+const SIFIRLANAN_AYLAR = [];
 
 // Personel görünümü: kişi bazında süre (saat) ve müşteri kırılımı. rows: [kişi, 'YYYY-MM', müşteri, saat]
 export function buildPersonel({ rows, idxs }) {
