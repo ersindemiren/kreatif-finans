@@ -181,3 +181,25 @@ export async function teshis({ key, user, ym, task, fetchImpl = fetch }) {
   out.team_time_sayfa2 = t2.ok ? { kayit: t2.data.length, ornek: t2.data.slice(0, 1) } : t2;
   return out;
 }
+
+// Geçici tanı 2: "Hidden task ID must not be exposed" hatasını izole eder (hangi sorgu biçimi / hangi gün).
+export async function teshis2({ key, ym, fetchImpl = fetch }) {
+  if (!key) throw new Error('EVERHOUR_API_KEY tanımlı değil');
+  const y = Number(ym.slice(0, 4)); const m = Number(ym.slice(5, 7));
+  const [from, to] = monthRange(y, m);
+  const safe = async (path) => { try { const d = await call(path, key, fetchImpl); return { ok: true, kayit: Array.isArray(d) ? d.length : -1, saniye: Array.isArray(d) ? d.reduce((t, r) => t + (Number(r.time) || 0), 0) : 0, anahtarlar: Array.isArray(d) && d[0] ? Object.keys(d[0]) : [] }; } catch (e) { return { ok: false, hata: e.message }; } };
+  const out = { aralik: [from, to] };
+  const v = { A_alansiz: '', B_date_user: '&fields=date,user', C_date_user_project: '&fields=date,user,project', D_date_user_task: '&fields=date,user,task' };
+  for (const [ad, ek] of Object.entries(v)) out[ad] = await safe(`/team/time/export?from=${from}&to=${to}&allowTimeWithoutTask=true${ek}`);
+  out.E_allowTimeWithoutTask_yok = await safe(`/team/time/export?from=${from}&to=${to}`);
+  out.F_team_time_p1 = await safe(`/team/time?from=${from}&to=${to}&limit=50&page=1`);
+  // Günlük tarama (alansız sorgu): hangi günler hata veriyor
+  const gunSayisi = Number(to.slice(8, 10));
+  const gunler = await pool(Array.from({ length: gunSayisi }, (_, i) => i + 1), 4, async (g) => {
+    const d = `${ym}-${String(g).padStart(2, '0')}`;
+    const r = await safe(`/team/time/export?from=${d}&to=${d}&allowTimeWithoutTask=true`);
+    return [d, r.ok ? `ok:${r.kayit}` : r.hata];
+  });
+  out.gunluk_alansiz = Object.fromEntries(gunler);
+  return out;
+}
