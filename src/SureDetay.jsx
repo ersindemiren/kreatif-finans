@@ -337,7 +337,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 }
 
 /* =============================== PERSONEL DETAYI =============================== */
-export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif, onBack, backLabel, onMarka }) {
+export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
   useTop();
   const [gorev, setGorev] = useState(null);
   const idx = months.map((_, i) => i);
@@ -414,7 +414,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Müşteri × Ay Matrisi</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Hangi müşteriye hangi ay kaç saat (saat). Marka adına tıklayınca marka sayfası açılır.</p>
-        <Matris months={months} on={on} rows={cl.map((c) => ({ name: c.name, values: c.hours }))} firstLabel="Müşteri" onPick={(n) => onMarka(n)} onCell={(musteri, i) => setGorev({ user: name, client: musteri, i })} />
+        <Matris months={months} on={on} rows={cl.map((c) => ({ name: c.name, values: c.hours }))} firstLabel="Müşteri" onPick={(n) => onMarka(n)} pasifSet={{ has: (n) => !!pasifMarkaKeys?.has(normalizeNameKey(n)) }} onCell={(musteri, i) => setGorev({ user: name, client: musteri, i })} />
       </div>
 
       <div className={`${CARD} p-5`}>
