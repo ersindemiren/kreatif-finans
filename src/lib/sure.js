@@ -69,6 +69,28 @@ export const ATANMAMIS_ADI = 'MARKAYA ATANMAMIŞ';
 // Henüz tamamlanmamış / verisi gelmemiş aylar için süre ve fatura değerleri sıfır alınır. Ekim verisi Everhour'dan geldiği için artık boş.
 const SIFIRLANAN_AYLAR = [];
 
+// Everhour / rapor müşteri adı -> dashboard marka adı (otomatik eşleşme + birleştirme kuralları)
+export function kanonikMusteri(client) {
+  if (!client) return ATANMAMIS_ADI;
+  if (normalizeNameKey(client) === IC_KEY) return IC_ADI;
+  const mapped = MAP_BY_KEY[normalizeNameKey(client)];
+  return mapped ? canonName(mapped) : canonName(String(client).toUpperCase());
+}
+
+// Bir markada çalışan kişiler: [{ name, hours[12] }]  rows: [kişi, 'YYYY-MM', müşteri, saat]
+export function buildMarkaPersonel({ rows, brandName }) {
+  const key = normalizeNameKey(brandName);
+  const map = new Map();
+  (rows || []).forEach(([u, ym, client, hours]) => {
+    const i = Number(String(ym).slice(5, 7)) - 1;
+    if (i < 0 || i > 11 || SIFIRLANAN_AYLAR.includes(i)) return;
+    if (normalizeNameKey(kanonikMusteri(client)) !== key) return;
+    if (!map.has(u)) map.set(u, new Array(12).fill(0));
+    map.get(u)[i] += hours;
+  });
+  return [...map].map(([name, hours]) => ({ name, hours }));
+}
+
 // Personel görünümü: kişi bazında süre (saat) ve müşteri kırılımı. rows: [kişi, 'YYYY-MM', müşteri, saat]
 export function buildPersonel({ rows, idxs }) {
   const map = new Map();
@@ -78,7 +100,7 @@ export function buildPersonel({ rows, idxs }) {
     if (!map.has(user)) map.set(user, { name: user, hours: 0, clients: new Map() });
     const u = map.get(user);
     u.hours += hours;
-    const c = !client ? ATANMAMIS_ADI : normalizeNameKey(client) === IC_KEY ? IC_ADI : (MAP_BY_KEY[normalizeNameKey(client)] || client);
+    const c = kanonikMusteri(client);
     u.clients.set(c, (u.clients.get(c) || 0) + hours);
   });
   return [...map.values()]
@@ -92,17 +114,19 @@ export function buildKisiDetay({ rows, user }) {
   const monthly = new Array(12).fill(0);
   const team = new Array(12).fill(0);
   const clients = new Map();
+  const aktifKisi = Array.from({ length: 12 }, () => new Set());
   (rows || []).forEach(([u, ym, client, hours]) => {
     const i = Number(String(ym).slice(5, 7)) - 1;
     if (i < 0 || i > 11 || SIFIRLANAN_AYLAR.includes(i)) return;
     team[i] += hours;
+    if (hours > 0) aktifKisi[i].add(u);
     if (u !== user) return;
     monthly[i] += hours;
-    const c = !client ? ATANMAMIS_ADI : normalizeNameKey(client) === IC_KEY ? IC_ADI : (MAP_BY_KEY[normalizeNameKey(client)] || client);
+    const c = kanonikMusteri(client);
     if (!clients.has(c)) clients.set(c, new Array(12).fill(0));
     clients.get(c)[i] += hours;
   });
-  return { monthly, team, clients: [...clients].map(([name, hours]) => ({ name, hours })) };
+  return { monthly, team, kisiSayisi: aktifKisi.map((x) => x.size), clients: [...clients].map(([name, hours]) => ({ name, hours })) };
 }
 
 export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
