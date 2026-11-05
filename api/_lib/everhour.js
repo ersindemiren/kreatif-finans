@@ -40,17 +40,37 @@ export async function pool(items, size, fn) {
   return out;
 }
 
-// Everhour `fields` parametresi GRUPLAMA sütunudur: fields=date,user -> gün x kişi toplamı (her süre bir kez);
-// fields=...,project -> çok projeli görevlerde aynı süre her proje için ayrı satır (süre katlanır);
-// fields=...,task -> gizli (hidden) görev varsa tüm istek 400 verir ("Hidden task ID must not be exposed").
-// Bu yüzden süreler fields=date,user ile alınır. Müşteri `client=<id>` filtresinden gelir.
+// Everhour dışa aktarımı hakkında (tanı çıktılarından doğrulandı):
+//  - fields=date,user (müşteri filtresiz): gün x kişi toplamı; her süre bir kez, gizli görevden etkilenmez -> TOPLAM için güvenilir.
+//  - fields=...,project: çok projeli görevde aynı süre her proje için ayrı satır olur (katlanır) -> kullanılmaz.
+//  - fields=date,user + client=<id>: birden fazla projesi olan müşteride süreyi eksik döndürüyor (Kozoliv'de yarısı) -> kullanılmaz.
+//  - Alansız (kayıt düzeyi) + client=<id>: her kayıt tam olarak bir müşteri sorgusunda, tek kez gelir -> MÜŞTERİ ataması bundan.
+//  - Gizli (hidden) görev içeren aralıkta kayıt düzeyi sorgu 400 verir ("Hidden task ID must not be exposed"): aralık ikiye bölünerek
+//    gizli günü bulunur, o günün süresi (görev adı olmadan) gün x kişi toplamından alınır.
 const GIZLI = /Hidden task/i;
+const gunStr = (d) => d.toISOString().slice(0, 10);
+const ekle = (iso, n) => gunStr(new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000));
+const ortaGun = (a, b) => gunStr(new Date((Date.parse(`${a}T00:00:00Z`) + Date.parse(`${b}T00:00:00Z`)) / 2));
 
-// Kayıt atama: toplam (müşterisiz) kayıtlar kişi+gün(+görev) anahtarıyla saniye olarak tutulur; her müşteri sorgusu bu toplamdan
-// en fazla kalan kadar alır (bir süre iki müşteriye yazılmaz, toplam aşılmaz); kalan süre müşteri '' olur.
-const keyOf = (r) => `${r.user?.id ?? r.user?.name ?? ''}|${r.date}|${r.task?.id || ''}`;
+async function kayitlar(extra, from, to, key, fetchImpl) {
+  try {
+    return (await call(`/team/time/export?from=${from}&to=${to}&allowTimeWithoutTask=true${extra}`, key, fetchImpl)) || [];
+  } catch (e) {
+    if (!GIZLI.test(e.message)) throw e;
+    if (from >= to) {
+      const g = (await call(`/team/time/export?from=${from}&to=${to}&fields=date,user&allowTimeWithoutTask=true${extra}`, key, fetchImpl)) || [];
+      return g.map((r) => ({ ...r, task: { id: 'gizli', name: '(Gizli görev)' } }));
+    }
+    const mid = ortaGun(from, to);
+    return [...(await kayitlar(extra, from, mid, key, fetchImpl)), ...(await kayitlar(extra, ekle(mid, 1), to, key, fetchImpl))];
+  }
+}
+
+// Atama: toplam kayıtlar kişi+gün(+görev) anahtarıyla saniye olarak tutulur; her müşteri sorgusu bu toplamdan en fazla kalan
+// kadar alır (bir süre iki müşteriye yazılmaz, toplam aşılmaz); kalan süre müşteri '' olur.
 const valid = (r) => r && r.date && Number(r.time) > 0;
-function atamaYap(totalRecs, clientRecs) {
+function atamaYap(totalRecs, clientRecs, gorev = false) {
+  const keyOf = (r) => `${r.user?.id ?? r.user?.name ?? ''}|${r.date}${gorev ? `|${r.task?.id || ''}` : ''}`;
   const kalan = new Map();
   const ornek = new Map();
   totalRecs.filter(valid).forEach((r) => { const k = keyOf(r); kalan.set(k, (kalan.get(k) || 0) + Number(r.time)); if (!ornek.has(k)) ornek.set(k, r); });
@@ -58,7 +78,7 @@ function atamaYap(totalRecs, clientRecs) {
   clientRecs.forEach(({ name, recs }) => (Array.isArray(recs) ? recs : []).filter(valid).forEach((r) => {
     const k = keyOf(r);
     const al = Math.min(Number(r.time), kalan.get(k) || 0);
-    if (al > 0) { kalan.set(k, kalan.get(k) - al); out.push({ client: name, rec: { ...ornek.get(k), time: al } }); }
+    if (al > 0) { kalan.set(k, kalan.get(k) - al); out.push({ client: name, rec: { ...(gorev ? r : ornek.get(k)), time: al } }); }
   }));
   kalan.forEach((sec, k) => { if (sec > 0) out.push({ client: '', rec: { ...ornek.get(k), time: sec } }); });
   return out;
@@ -71,10 +91,9 @@ export async function fetchEverhour({ key, year, upToMonth, fetchImpl = fetch })
   const lastMonth = Math.min(12, upToMonth || 12);
   const [from] = monthRange(year, 1);
   const [, to] = monthRange(year, lastMonth);
-  const q = `from=${from}&to=${to}&fields=date,user&allowTimeWithoutTask=true`;
 
-  const totalRecs = (await call(`/team/time/export?${q}`, key, fetchImpl)) || [];
-  const perClient = await pool(list, 4, async (c) => ({ name: c.name, recs: await call(`/team/time/export?${q}&client=${encodeURIComponent(c.id)}`, key, fetchImpl) }));
+  const totalRecs = (await call(`/team/time/export?from=${from}&to=${to}&fields=date,user&allowTimeWithoutTask=true`, key, fetchImpl)) || [];
+  const perClient = await pool(list, 4, async (c) => ({ name: c.name, recs: await kayitlar(`&client=${encodeURIComponent(c.id)}`, from, to, key, fetchImpl) }));
   const atanan = atamaYap(Array.isArray(totalRecs) ? totalRecs : [], perClient);
 
   const byClient = new Map(); // `${client}|${ym}` -> saniye
@@ -96,28 +115,6 @@ export async function fetchEverhour({ key, year, upToMonth, fetchImpl = fetch })
   return { rows, personel, musteriler };
 }
 
-// Görev düzeyinde kayıtlar (gün x kişi x görev). Gizli görev içeren aralıkta gün gün dener; gizli günün süresi
-// (görev adı olmadan) "(Gizli görev)" olarak, fields=date,user toplamından yazılır.
-async function gorevKayitlari(q, extra, key, from, to, fetchImpl) {
-  try {
-    return (await call(`/team/time/export?from=${from}&to=${to}&fields=date,user,task&allowTimeWithoutTask=true${extra}`, key, fetchImpl)) || [];
-  } catch (e) {
-    if (!GIZLI.test(e.message)) throw e;
-  }
-  const gunSayisi = Number(to.slice(8, 10));
-  const ay = from.slice(0, 8);
-  const parts = await pool(Array.from({ length: gunSayisi }, (_, i) => `${ay}${String(i + 1).padStart(2, '0')}`), 4, async (d) => {
-    try {
-      return (await call(`/team/time/export?from=${d}&to=${d}&fields=date,user,task&allowTimeWithoutTask=true${extra}`, key, fetchImpl)) || [];
-    } catch (e) {
-      if (!GIZLI.test(e.message)) throw e;
-      const g = (await call(`/team/time/export?from=${d}&to=${d}&fields=date,user&allowTimeWithoutTask=true${extra}`, key, fetchImpl)) || [];
-      return g.map((r) => ({ ...r, task: { id: 'gizli', name: '(Gizli görev)' } }));
-    }
-  });
-  return parts.flat();
-}
-
 // Bir kişinin bir aydaki görevleri (matris hücresine tıklayınca). Müşteri ataması aynı yöntemle (client filtresi) yapılır.
 // Dönüş: [{ client, task, detay, hours }] (client '' = hiçbir müşteriye ait olmayan süre)
 const gorevCache = new Map();
@@ -130,14 +127,13 @@ export async function fetchGorevler({ key, user, ym, fetchImpl = fetch }) {
   const [from, to] = monthRange(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)));
   const clients = await call('/clients', key, fetchImpl);
   const list = Array.isArray(clients) ? clients : [];
-  // kişi kimliği: gün x kişi toplamından
   const kisiler = (await call(`/team/time/export?from=${from}&to=${to}&fields=date,user&allowTimeWithoutTask=true`, key, fetchImpl)) || [];
   const uid = (Array.isArray(kisiler) ? kisiler : []).find((r) => r.user?.name === user)?.user?.id;
   if (uid == null) { gorevCache.set(ck, { at: Date.now(), data: [] }); return []; }
   const ue = `&user=${encodeURIComponent(uid)}`;
-  const mine = (await gorevKayitlari('', ue, key, from, to, fetchImpl)).filter(valid);
-  const per = await pool(list, 4, async (c) => ({ name: c.name, recs: (await gorevKayitlari('', `${ue}&client=${encodeURIComponent(c.id)}`, key, from, to, fetchImpl)).filter(valid) }));
-  const atanan = atamaYap(mine, per);
+  const mine = (await kayitlar(ue, from, to, key, fetchImpl)).filter(valid);
+  const per = await pool(list, 4, async (c) => ({ name: c.name, recs: (await kayitlar(`${ue}&client=${encodeURIComponent(c.id)}`, from, to, key, fetchImpl)).filter(valid) }));
+  const atanan = atamaYap(mine, per, true);
   const agg = new Map();
   atanan.forEach(({ client, rec }) => {
     const k = `${client}|${rec.task?.id || ''}`;
