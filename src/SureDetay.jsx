@@ -419,30 +419,6 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif
       </div>
 
       <div className={`${CARD} p-5`}>
-        <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">Müşteri Kırılımı</h3>
-        <div className="flex items-center gap-2 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-          <span className="flex-1 min-w-0">Müşteri</span>
-          <span className="w-20 text-right">Süre</span>
-          <span className="w-14 text-right">Pay</span>
-        </div>
-        {cl.map((c) => {
-          const k = sinif(c);
-          return (
-            <div key={c.name} className="flex items-center gap-2 py-2 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
-              <span className="flex-1 min-w-0 break-words">
-                <button type="button" onClick={() => onMarka(c.name)} className="text-left text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2">{c.name}</button>
-                {k === 'kayip' && <span className="ml-1.5"><Badge tone="rose">faturasız</Badge></span>}
-                {k === 'atil' && <span className="ml-1.5"><Badge>iç / atanmamış</Badge></span>}
-              </span>
-              <span className="w-20 text-right tabular-nums text-slate-700 dark:text-slate-300">{fmtSaat(c.toplam)} sa</span>
-              <span className="w-14 text-right tabular-nums text-slate-400">{pct1(toplamKisi ? c.toplam / toplamKisi : 0)}</span>
-            </div>
-          );
-        })}
-        {cl.length === 0 && <div className="py-3 text-xs text-slate-400">Güncel aylarda kayıt yok.</div>}
-      </div>
-
-      <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ekip Payı = kişinin o ayki süresi / ekibin o ayki toplam süresi.</p>
         <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm">
