@@ -146,6 +146,9 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
       .sort((a, b) => b.amount - a.amount);
   }, [periodRows, gorunum, brand]);
   const deptTableTotal = deptTable.reduce((s, r) => s + r.amount, 0);
+  // Şirketin tanımlı 4 departmanı dışında bir değer (ör. KOMİSYON, BELİRSİZ) varsa uyar
+  const TANIMLI_DEPT = ['STRATEJİ PAZARLAMA İLETİŞİMİ', 'PRODÜKSİYON', 'TASARIM', 'PERFORMANS PAZARLAMA'];
+  const yabanciDept = deptTable.filter((r) => !TANIMLI_DEPT.includes(r.name));
 
   // Seçili markanın aylık dağılımı
   const brandMonthly = useMemo(() => {
@@ -304,6 +307,11 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
 
         <div className={`${CARD} p-5`}>
           <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">Departman Bazlı Satış Dağılımı</h2>
+          {yabanciDept.length > 0 && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-xs sm:text-sm px-4 py-3 mb-3">
+              Tanımlı departmanlar dışında değer var: {yabanciDept.map((r) => r.name).join(', ')}. Satış Tablosu'ndaki RAPOR DEPARTMAN sütununu kontrol edin.
+            </div>
+          )}
           <div className="flex items-center gap-1.5 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
             <span className="w-4 sm:w-5 shrink-0" />
             <span className="flex-1">Departman</span>
