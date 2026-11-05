@@ -220,3 +220,33 @@ export async function teshis2({ key, ym, fetchImpl = fetch }) {
   out.gunluk_alansiz = Object.fromEntries(gunler);
   return out;
 }
+
+// Geçici tanı 3: bir kişinin ayında "müşterisiz kalan" süreyi gün gün çıkarır ve o günlerin ham kayıtlarını verir.
+export async function teshis3({ key, user, ym, fetchImpl = fetch }) {
+  if (!key) throw new Error('EVERHOUR_API_KEY tanımlı değil');
+  const [from, to] = monthRange(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)));
+  const safe = async (path) => { try { return { ok: true, data: (await call(path, key, fetchImpl)) || [] }; } catch (e) { return { ok: false, hata: e.message }; } };
+  const clients = (await call('/clients', key, fetchImpl)) || [];
+  const hepsi = await call(`/team/time/export?from=${from}&to=${to}&fields=date,user&allowTimeWithoutTask=true`, key, fetchImpl);
+  const uid = (hepsi || []).find((r) => r.user?.name === user)?.user?.id;
+  if (uid == null) return { hata: 'kişi bulunamadı', user };
+  const ue = `&user=${uid}`;
+  const toplam = (await safe(`/team/time/export?from=${from}&to=${to}&fields=date,user&allowTimeWithoutTask=true${ue}`)).data || [];
+  const topG = new Map(toplam.map((r) => [r.date, Number(r.time) || 0]));
+  const per = await pool(clients, 4, async (c) => ({ c: c.name, r: (await safe(`/team/time/export?from=${from}&to=${to}&fields=date,user&allowTimeWithoutTask=true${ue}&client=${encodeURIComponent(c.id)}`)).data || [] }));
+  const atanan = new Map(); const kimde = new Map();
+  per.forEach(({ c, r }) => r.forEach((x) => { atanan.set(x.date, (atanan.get(x.date) || 0) + (Number(x.time) || 0)); kimde.set(x.date, [...(kimde.get(x.date) || []), `${c}:${Number(x.time) || 0}`]); }));
+  const gunler = [...topG].map(([d, t]) => ({ gun: d, toplamSn: t, musteriSn: atanan.get(d) || 0, kalanSn: t - (atanan.get(d) || 0), musteriler: kimde.get(d) || [] })).filter((g) => g.kalanSn !== 0).sort((a, b) => a.gun.localeCompare(b.gun));
+  const out = { user, uid, ym, toplamSaat: Math.round([...topG.values()].reduce((a, b) => a + b, 0) / 36) / 100, kalanGunler: gunler };
+  out.ham = {};
+  for (const g of gunler.slice(0, 5)) {
+    const d = g.gun;
+    out.ham[d] = {
+      alansiz: await safe(`/team/time/export?from=${d}&to=${d}&allowTimeWithoutTask=true${ue}`),
+      project_alani: await safe(`/team/time/export?from=${d}&to=${d}&fields=date,user,project&allowTimeWithoutTask=true${ue}`),
+      gorevsiz_dahil_degil: await safe(`/team/time/export?from=${d}&to=${d}&fields=date,user${ue}`),
+    };
+    ['alansiz', 'project_alani', 'gorevsiz_dahil_degil'].forEach((k) => { const v = out.ham[d][k]; if (v.ok) out.ham[d][k] = { kayit: v.data.length, saniye: v.data.reduce((t, r) => t + (Number(r.time) || 0), 0), ornek: v.data.slice(0, 6) }; });
+  }
+  return out;
+}
