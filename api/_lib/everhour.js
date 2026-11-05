@@ -24,30 +24,56 @@ const monthRange = (year, m) => {
 };
 
 // Dönüş: { rows: [[müşteri, 'YYYY-MM', saat]], personel: [[kişi, 'YYYY-MM', müşteri, saat]], musteriler: [{ name, hours }] }
-// Müşterisi olmayan projeler müşteri '' olur (dashboard'da "markaya atanmamış").
+// Müşteri (client) bilgisi Everhour'un client filtresinden gelir: her müşteri için kayıtlar `client=<id>` ile ayrıca çekilir,
+// böylece bir kaydın hangi müşteriye ait olduğunu projeye bakmadan Everhour söyler. Hiçbir müşteriye ait olmayan süre
+// (filtresiz toplam − müşteri toplamları) müşteri '' olur (dashboard'da "markaya atanmamış").
+async function pool(items, size, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
+    while (next < items.length) { const i = next; next += 1; out[i] = await fn(items[i], i); }
+  }));
+  return out;
+}
+
 export async function fetchEverhour({ key, year, upToMonth, fetchImpl = fetch }) {
   if (!key) throw new Error('EVERHOUR_API_KEY tanımlı değil');
-  const clients = await call('/clients', key, fetchImpl);
-  const projectClient = new Map();
-  (Array.isArray(clients) ? clients : []).forEach((c) => (c.projects || []).forEach((pid) => projectClient.set(pid, c.name)));
+  const clients = (await call('/clients', key, fetchImpl)) || [];
+  const lastMonth = Math.min(12, upToMonth || 12);
+  const [from] = monthRange(year, 1);
+  const [, to] = monthRange(year, lastMonth);
+  const q = `from=${from}&to=${to}&fields=date,user,project&allowTimeWithoutTask=true`;
+
+  const addTo = (map, recs) => (Array.isArray(recs) ? recs : []).forEach((r) => {
+    const sec = Number(r.time) || 0;
+    if (!sec || !r.date) return;
+    const k = `${r.user?.name || 'Bilinmeyen'}|${String(r.date).slice(0, 7)}`;
+    map.set(k, (map.get(k) || 0) + sec);
+  });
+
+  const total = new Map(); // `${user}|${ym}` -> saniye (filtresiz)
+  addTo(total, await call(`/team/time/export?${q}`, key, fetchImpl));
+
+  const list = Array.isArray(clients) ? clients : [];
+  const perClient = await pool(list, 4, async (c) => {
+    const m = new Map();
+    addTo(m, await call(`/team/time/export?${q}&client=${encodeURIComponent(c.id)}`, key, fetchImpl));
+    return m;
+  });
 
   const byClient = new Map(); // `${client}|${ym}` -> saniye
   const byUser = new Map(); // `${user}|${ym}|${client}` -> saniye
-  const lastMonth = Math.min(12, upToMonth || 12);
-  for (let m = 1; m <= lastMonth; m += 1) {
-    const [from, to] = monthRange(year, m);
-    const recs = await call(`/team/time/export?from=${from}&to=${to}&fields=date,user,project&allowTimeWithoutTask=true`, key, fetchImpl);
-    const ym = `${year}-${pad(m)}`;
-    (Array.isArray(recs) ? recs : []).forEach((r) => {
-      const sec = Number(r.time) || 0;
-      if (!sec) return;
-      const pid = r.project?.id;
-      const client = (pid && projectClient.get(pid)) || '';
-      const user = r.user?.name || 'Bilinmeyen';
-      byClient.set(`${client}|${ym}`, (byClient.get(`${client}|${ym}`) || 0) + sec);
-      byUser.set(`${user}|${ym}|${client}`, (byUser.get(`${user}|${ym}|${client}`) || 0) + sec);
-    });
-  }
+  const add = (client, userYm, sec) => {
+    const [user, ym] = userYm.split('|');
+    byClient.set(`${client}|${ym}`, (byClient.get(`${client}|${ym}`) || 0) + sec);
+    byUser.set(`${user}|${ym}|${client}`, (byUser.get(`${user}|${ym}|${client}`) || 0) + sec);
+  };
+  const assigned = new Map();
+  list.forEach((c, i) => perClient[i].forEach((sec, k) => { add(c.name, k, sec); assigned.set(k, (assigned.get(k) || 0) + sec); }));
+  // Güvenlik: müşteri filtresi uygulanmamışsa (her müşteri tüm kayıtları döndürürse) toplam aşılır; yanlış sayı göstermek yerine hata ver.
+  assigned.forEach((sec, k) => { if (sec > (total.get(k) || 0) + 60) throw new Error('Everhour client filtresi beklenen sonucu vermedi (müşteri toplamları genel toplamı aşıyor)'); });
+  total.forEach((sec, k) => { const rest = sec - (assigned.get(k) || 0); if (rest > 1) add('', k, rest); });
+
   const h = (s) => Math.round((s / 3600) * 100) / 100;
   const rows = [...byClient].map(([k, s]) => { const [c, ym] = k.split('|'); return [c, ym, h(s)]; });
   const personel = [...byUser].map(([k, s]) => { const [u, ym, c] = k.split('|'); return [u, ym, c, h(s)]; });
