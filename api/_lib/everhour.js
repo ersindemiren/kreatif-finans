@@ -40,43 +40,56 @@ export async function pool(items, size, fn) {
   return out;
 }
 
+// Kayıt parmak izi: aynı süre kaydını farklı sorgularda tanımak için (kayıt id'si dönmüyor).
+const fpOf = (r) => `${r.user?.id ?? r.user?.name ?? ''}|${r.date}|${r.task?.id || ''}|${Number(r.time) || 0}`;
+
+// Önemli: `fields=project` kullanılmaz. Çok projeli görevlerde (ör. hem "Performance Marketing Dept." hem müşteri projesi)
+// Everhour aynı süre kaydını her proje için ayrı satır döndürüp süreyi katlıyordu. Alansız sorguda her kayıt bir kez gelir.
+// Müşteri, `client=<id>` filtreli sorgudan gelir. Bir kayıt hangi müşteri sorgusunda çıkarsa ona yazılır (kayıt başına tek müşteri,
+// toplam asla aşılmaz); hiçbir müşteri sorgusunda çıkmayan süre müşteri '' olur.
+function atamaYap(totalRecs, clientRecs) {
+  // totalRecs: [rec]; clientRecs: [{ name, recs }] -> [{ client, rec }]
+  const kalan = new Map(); // fp -> kaç kayıt henüz atanmadı
+  totalRecs.forEach((r) => { const k = fpOf(r); kalan.set(k, (kalan.get(k) || 0) + 1); });
+  const out = [];
+  clientRecs.forEach(({ name, recs }) => (Array.isArray(recs) ? recs : []).forEach((r) => {
+    const k = fpOf(r);
+    if ((kalan.get(k) || 0) > 0) { kalan.set(k, kalan.get(k) - 1); out.push({ client: name, rec: r }); }
+  }));
+  const used = new Map();
+  out.forEach(({ rec }) => used.set(fpOf(rec), (used.get(fpOf(rec)) || 0) + 1));
+  const sayac = new Map();
+  totalRecs.forEach((r) => {
+    const k = fpOf(r);
+    const n = (sayac.get(k) || 0) + 1;
+    sayac.set(k, n);
+    if (n > (used.get(k) || 0)) out.push({ client: '', rec: r });
+  });
+  return out;
+}
+
 export async function fetchEverhour({ key, year, upToMonth, fetchImpl = fetch }) {
   if (!key) throw new Error('EVERHOUR_API_KEY tanımlı değil');
   const clients = (await call('/clients', key, fetchImpl)) || [];
+  const list = Array.isArray(clients) ? clients : [];
   const lastMonth = Math.min(12, upToMonth || 12);
   const [from] = monthRange(year, 1);
   const [, to] = monthRange(year, lastMonth);
-  const q = `from=${from}&to=${to}&fields=date,user,project&allowTimeWithoutTask=true`;
+  const q = `from=${from}&to=${to}&allowTimeWithoutTask=true`;
 
-  const addTo = (map, recs) => (Array.isArray(recs) ? recs : []).forEach((r) => {
-    const sec = Number(r.time) || 0;
-    if (!sec || !r.date) return;
-    const k = `${r.user?.name || 'Bilinmeyen'}|${String(r.date).slice(0, 7)}`;
-    map.set(k, (map.get(k) || 0) + sec);
-  });
-
-  const total = new Map(); // `${user}|${ym}` -> saniye (filtresiz)
-  addTo(total, await call(`/team/time/export?${q}`, key, fetchImpl));
-
-  const list = Array.isArray(clients) ? clients : [];
-  const perClient = await pool(list, 4, async (c) => {
-    const m = new Map();
-    addTo(m, await call(`/team/time/export?${q}&client=${encodeURIComponent(c.id)}`, key, fetchImpl));
-    return m;
-  });
+  const totalRecs = (await call(`/team/time/export?${q}`, key, fetchImpl)) || [];
+  const perClient = await pool(list, 4, async (c) => ({ name: c.name, recs: await call(`/team/time/export?${q}&client=${encodeURIComponent(c.id)}`, key, fetchImpl) }));
+  const atanan = atamaYap((Array.isArray(totalRecs) ? totalRecs : []).filter((r) => r.date && Number(r.time) > 0), perClient.map((x) => ({ name: x.name, recs: (Array.isArray(x.recs) ? x.recs : []).filter((r) => r.date && Number(r.time) > 0) })));
 
   const byClient = new Map(); // `${client}|${ym}` -> saniye
   const byUser = new Map(); // `${user}|${ym}|${client}` -> saniye
-  const add = (client, userYm, sec) => {
-    const [user, ym] = userYm.split('|');
+  atanan.forEach(({ client, rec }) => {
+    const ym = String(rec.date).slice(0, 7);
+    const user = rec.user?.name || 'Bilinmeyen';
+    const sec = Number(rec.time) || 0;
     byClient.set(`${client}|${ym}`, (byClient.get(`${client}|${ym}`) || 0) + sec);
     byUser.set(`${user}|${ym}|${client}`, (byUser.get(`${user}|${ym}|${client}`) || 0) + sec);
-  };
-  const assigned = new Map();
-  list.forEach((c, i) => perClient[i].forEach((sec, k) => { add(c.name, k, sec); assigned.set(k, (assigned.get(k) || 0) + sec); }));
-  // Güvenlik: müşteri filtresi uygulanmamışsa (her müşteri tüm kayıtları döndürürse) toplam aşılır; yanlış sayı göstermek yerine hata ver.
-  assigned.forEach((sec, k) => { if (sec > (total.get(k) || 0) + 60) throw new Error('Everhour client filtresi beklenen sonucu vermedi (müşteri toplamları genel toplamı aşıyor)'); });
-  total.forEach((sec, k) => { const rest = sec - (assigned.get(k) || 0); if (rest > 1) add('', k, rest); });
+  });
 
   const h = (s) => Math.round((s / 3600) * 100) / 100;
   const rows = [...byClient].map(([k, s]) => { const [c, ym] = k.split('|'); return [c, ym, h(s)]; });
@@ -87,8 +100,8 @@ export async function fetchEverhour({ key, year, upToMonth, fetchImpl = fetch })
   return { rows, personel, musteriler };
 }
 
-// Bir kişinin bir aydaki görevleri (satır tıklayınca açılan ayrıntı). Müşteri ataması da client filtresinden gelir.
-// Dönüş: [{ client, task, project, hours }] (client '' = hiçbir müşteriye ait olmayan süre)
+// Bir kişinin bir aydaki görevleri (satır tıklayınca açılan ayrıntı). Müşteri ataması aynı yöntemle (client filtresi) yapılır.
+// Dönüş: [{ client, task, detay, hours }] (client '' = hiçbir müşteriye ait olmayan süre)
 const gorevCache = new Map();
 export async function fetchGorevler({ key, user, ym, fetchImpl = fetch }) {
   if (!key) throw new Error('EVERHOUR_API_KEY tanımlı değil');
@@ -97,32 +110,26 @@ export async function fetchGorevler({ key, user, ym, fetchImpl = fetch }) {
   const hit = gorevCache.get(ck);
   if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.data;
   const [from, to] = monthRange(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)));
-  const q = `from=${from}&to=${to}&fields=date,user,task,project&allowTimeWithoutTask=true`;
-  const collect = (recs) => {
-    const m = new Map();
-    (Array.isArray(recs) ? recs : []).forEach((r) => {
-      const sec = Number(r.time) || 0;
-      if (!sec || r.user?.name !== user) return;
-      const k = `${r.task?.id || ''}|${r.project?.id || ''}`;
-      const e = m.get(k) || { task: r.task?.name || '(görev yok)', project: r.project?.name || '', sec: 0 };
-      e.sec += sec;
-      m.set(k, e);
-    });
-    return m;
-  };
+  const q = `from=${from}&to=${to}&allowTimeWithoutTask=true`;
   const clients = await call('/clients', key, fetchImpl);
   const list = Array.isArray(clients) ? clients : [];
-  const total = collect(await call(`/team/time/export?${q}`, key, fetchImpl));
-  const per = await pool(list, 4, async (c) => collect(await call(`/team/time/export?${q}&client=${encodeURIComponent(c.id)}`, key, fetchImpl)));
-  const used = new Map();
-  const out = [];
-  list.forEach((c, i) => per[i].forEach((e, k) => {
-    out.push({ client: c.name, task: e.task, project: e.project, sec: e.sec });
-    used.set(k, (used.get(k) || 0) + e.sec);
+  const all = (await call(`/team/time/export?${q}`, key, fetchImpl)) || [];
+  const mine = (Array.isArray(all) ? all : []).filter((r) => r.user?.name === user && Number(r.time) > 0);
+  const uid = mine[0]?.user?.id;
+  const per = uid == null ? list.map((c) => ({ name: c.name, recs: [] })) : await pool(list, 4, async (c) => ({
+    name: c.name,
+    recs: ((await call(`/team/time/export?${q}&user=${encodeURIComponent(uid)}&client=${encodeURIComponent(c.id)}`, key, fetchImpl)) || []).filter((r) => r.user?.name === user && Number(r.time) > 0),
   }));
-  used.forEach((sec, k) => { if (sec > (total.get(k)?.sec || 0) + 60) throw new Error('Everhour client filtresi beklenen sonucu vermedi'); });
-  total.forEach((e, k) => { const rest = e.sec - (used.get(k) || 0); if (rest > 1) out.push({ client: '', task: e.task, project: e.project, sec: rest }); });
-  const data = out.map((e) => ({ client: e.client, task: e.task, project: e.project, hours: Math.round((e.sec / 3600) * 100) / 100 })).sort((a, b) => b.hours - a.hours);
+  const atanan = atamaYap(mine, per);
+  const agg = new Map();
+  atanan.forEach(({ client, rec }) => {
+    const k = `${client}|${rec.task?.id || ''}`;
+    const detay = rec.task?.iteration && rec.task.iteration !== 'Untitled section' ? rec.task.iteration : '';
+    const e = agg.get(k) || { client, task: rec.task?.name || '(görev yok)', detay, sec: 0 };
+    e.sec += Number(rec.time) || 0;
+    agg.set(k, e);
+  });
+  const data = [...agg.values()].map((e) => ({ client: e.client, task: e.task, detay: e.detay, hours: Math.round((e.sec / 3600) * 100) / 100 })).sort((a, b) => b.hours - a.hours);
   gorevCache.set(ck, { at: Date.now(), data });
   return data;
 }
