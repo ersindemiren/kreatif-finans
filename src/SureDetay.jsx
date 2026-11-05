@@ -6,6 +6,8 @@ import { normalizeNameKey } from './lib/parseData.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', warn: 'bg-amber-500', info: 'bg-slate-400' };
+// Aylık azami çalışma süresi: 22 gün x 8,5 saat
+export const MAKS_SURE = 22 * 8.5;
 const fmtN = (n) => Math.round(n).toLocaleString('tr-TR');
 const fmtSaat = (n) => n.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmtTL = (n) => '₺' + fmtN(Math.abs(n));
@@ -303,11 +305,12 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, onBac
       <div className={`${CARD} p-5`}>
         <BackButton onClick={onBack} label={backLabel} />
         <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50">{name}</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mt-4">
           <Kpi label="Toplam Süre" value={`${fmtN(toplamKisi)} saat`} sub={`ekibin ${pct1(toplamEkip ? toplamKisi / toplamEkip : 0)}'i`} />
-          <Kpi label="Aylık Ortalama" value={`${fmtN(ortalama)} saat`} sub={`${sureliAylar.length} ay süre girmiş`} />
+          <Kpi label="Maksimum Süre" value={`${fmtN(MAKS_SURE)} saat`} sub="22 gün × 8,5 saat / ay" />
+          <Kpi label="Aylık Ortalama" value={`${fmtN(ortalama)} saat`} sub={`maks. sürenin ${pct1(ortalama / MAKS_SURE)}'i`} />
           <Kpi label="Müşteri" value={`${cl.length} adet`} sub={cl[0] ? `en çok: ${cl[0].name}` : ''} />
-          <Kpi label="Faturalı Oran" value={pct1(toplamKisi ? grp.faturali / toplamKisi : 0)} sub={`kayıp ${pct1(toplamKisi ? grp.kayip / toplamKisi : 0)} · atanmamış ${pct1(toplamKisi ? grp.atil / toplamKisi : 0)}`} />
+          <Kpi label="Kayıt Oranı" value={pct1(toplamKisi ? grp.faturali / toplamKisi : 0)} sub={`kayıp ${pct1(toplamKisi ? grp.kayip / toplamKisi : 0)} · atanmamış ${pct1(toplamKisi ? grp.atil / toplamKisi : 0)}`} />
         </div>
       </div>
 
