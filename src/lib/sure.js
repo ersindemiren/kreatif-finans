@@ -174,7 +174,7 @@ export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {
   return { brands: all.filter((b) => b.tip === 'marka'), disi: all.filter((b) => b.tip !== 'marka') };
 }
 
-export const DEPARTMANLAR = ['Dijital Pazarlama ve Strateji', 'Tasarım Prodüksiyon', 'Performans Pazarlama', 'Diğer / İdari'];
+export const DEPARTMANLAR = ['STRATEJİ PAZARLAMA İLETİŞİMİ', 'PRODÜKSİYON', 'TASARIM', 'PERFORMANS PAZARLAMA', 'DİĞER / İDARİ'];
 export const DEPARTMAN_YOK = 'Departman atanmamış';
 
 // Departman bazlı süre: personel listesi (buildPersonel çıktısı) + kişi->departman eşleşmesi
