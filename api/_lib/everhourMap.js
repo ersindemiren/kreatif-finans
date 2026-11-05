@@ -55,3 +55,30 @@ export async function setDepartman(kisi, departman) {
   await depStore.write(map);
   return map;
 }
+
+// Everhour kişi adı -> pasif (işten ayrıldı) işareti.
+const PASIF_PATH = 'kf-auth/everhour-pasif.json';
+let pasifStore = {
+  async read() {
+    const r = await get(PASIF_PATH, { access: 'private', useCache: false });
+    if (!r || r.statusCode !== 200) return {};
+    return JSON.parse(await new Response(r.stream).text());
+  },
+  async write(map) {
+    await put(PASIF_PATH, JSON.stringify(map), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  },
+};
+export const setPasifStore = (s) => { pasifStore = s; };
+
+export async function readPasif() {
+  try { const m = await pasifStore.read(); return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; } catch { return {}; }
+}
+
+export async function setPasif(kisi, pasif) {
+  const k = String(kisi || '').trim().slice(0, 120);
+  if (!k) throw new Error('Kişi adı gerekli');
+  const map = await readPasif();
+  if (pasif) map[k] = true; else delete map[k];
+  await pasifStore.write(map);
+  return map;
+}

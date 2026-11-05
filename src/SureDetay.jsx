@@ -8,6 +8,7 @@ const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dar
 const TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', warn: 'bg-amber-500', info: 'bg-slate-400' };
 // Aylık azami çalışma süresi: 22 gün x 8,5 saat
 export const MAKS_SURE = 22 * 8.5;
+const up = (x) => String(x).toLocaleUpperCase('tr-TR');
 const fmtN = (n) => Math.round(n).toLocaleString('tr-TR');
 const fmtSaat = (n) => n.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmtTL = (n) => '₺' + fmtN(Math.abs(n));
@@ -107,7 +108,7 @@ function Matris({ months, on, rows, firstLabel, onPick }) {
           {rows.map((r) => (
             <tr key={r.name}>
               <td className="py-0.5 pr-2 sticky left-0 bg-white dark:bg-slate-900 max-w-[9rem] sm:max-w-[14rem]">
-                {onPick ? <button type="button" onClick={() => onPick(r.name)} className="text-left truncate block max-w-full text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2">{r.name}</button> : <span className="truncate block text-slate-700 dark:text-slate-300">{r.name}</span>}
+                {onPick ? <button type="button" onClick={() => onPick(r.name)} className="text-left truncate block max-w-full uppercase text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2">{r.name}</button> : <span className="truncate block uppercase text-slate-700 dark:text-slate-300">{r.name}</span>}
               </td>
               {r.values.map((v, i) => (
                 <td key={i} className={`py-0.5 px-0.5 text-center ${on[i] ? '' : 'opacity-30'}`}>
@@ -183,7 +184,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasif, onBac
   }
   if (kisiler.length) {
     const top = kisiler[0];
-    yorumlar.push({ tone: 'info', text: `${kisiler.length} kişi çalışmış; en çok süreyi ${top.name} harcadı (${fmtSaat(top.toplam)} saat, ${pct1(t.hours ? top.toplam / t.hours : 0)}).` });
+    yorumlar.push({ tone: 'info', text: `${kisiler.length} kişi çalışmış; en çok süreyi ${up(top.name)} harcadı (${fmtSaat(top.toplam)} saat, ${pct1(t.hours ? top.toplam / t.hours : 0)}).` });
   }
 
   const gridA = 'grid grid-cols-6';
@@ -267,7 +268,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasif, onBac
 }
 
 /* =============================== PERSONEL DETAYI =============================== */
-export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, onBack, backLabel, onMarka }) {
+export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif, onBack, backLabel, onMarka }) {
   useTop();
   const idx = months.map((_, i) => i);
   const aktif = idx.filter((i) => ayDurumu?.[i] === 'güncel');
@@ -312,7 +313,10 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, onBac
     <div className="flex flex-col gap-5">
       <div className={`${CARD} p-5`}>
         <BackButton onClick={onBack} label={backLabel} />
-        <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50">{name}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50 uppercase">{name}</h2>
+          {pasif && <Badge>Pasif</Badge>}
+        </div>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mt-4">
           <Kpi label="Toplam Süre" value={`${fmtN(toplamKisi)} saat`} sub={`ekibin ${pct1(toplamEkip ? toplamKisi / toplamEkip : 0)}'i`} />
           <Kpi label="Maksimum Süre" value={`${fmtN(MAKS_SURE)} saat`} sub="22 gün × 8,5 saat / ay" />
@@ -331,7 +335,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, onBac
           months={months}
           on={on}
           series={[
-            { name: name, color: 'bg-sky-400', values: d.monthly },
+            { name: up(name), color: 'bg-sky-400', values: d.monthly },
             { name: 'Ekip ortalaması (kişi başı)', color: 'bg-slate-300 dark:bg-slate-600', values: d.team.map((v, i) => (d.kisiSayisi?.[i] ? v / d.kisiSayisi[i] : 0)) },
           ]}
         />

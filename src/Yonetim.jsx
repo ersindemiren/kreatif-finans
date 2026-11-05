@@ -9,12 +9,12 @@ const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dar
 // Admin: üye ekleme/çıkarma ve sayfa yetkileri. Değişiklikler anında kaydedilir; çıkarılan kişinin oturumu bir sonraki istekte düşer.
 // Everhour müşteri adlarını dashboard markalarıyla eşleştirir. Otomatik eşleşenler "otomatik" görünür, eşleşmeyenler seçilmeyi bekler.
 function DepartmanEslestirme() {
-  const [st, setSt] = useState({ loading: true, kisiler: [], map: {}, error: '' });
+  const [st, setSt] = useState({ loading: true, kisiler: [], map: {}, pasif: {}, error: '' });
   const [busy, setBusy] = useState('');
   useEffect(() => {
     (async () => {
       const r = await api('/api/everhour');
-      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], map: r.data.departman || {}, error: '' });
+      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], map: r.data.departman || {}, pasif: r.data.pasif || {}, error: '' });
       else setSt((s) => ({ ...s, loading: false, error: r.data.error || 'Everhour verisi alınamadı' }));
     })();
   }, []);
@@ -25,7 +25,14 @@ function DepartmanEslestirme() {
     else setSt((s) => ({ ...s, error: r.data.error || 'Kaydedilemedi' }));
     setBusy('');
   };
-  const atanmamis = st.kisiler.filter((k) => !st.map[k.name]).length;
+  const durumSec = async (kisi, pasif) => {
+    setBusy(kisi);
+    const r = await api('/api/everhour', { method: 'PUT', body: { kisi, pasif } });
+    if (r.ok) setSt((s) => ({ ...s, pasif: r.data.pasif, error: '' }));
+    else setSt((s) => ({ ...s, error: r.data.error || 'Kaydedilemedi' }));
+    setBusy('');
+  };
+  const atanmamis = st.kisiler.filter((k) => !st.pasif[k.name] && !st.map[k.name]).length;
   return (
     <div className={`${CARD} p-4 sm:p-5`}>
       <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Personel Departman Eşleştirme</h3>
@@ -34,11 +41,15 @@ function DepartmanEslestirme() {
       {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
       {!st.loading && !st.error && (
         <>
-          <div className="text-xs text-slate-500 mb-3">{st.kisiler.length} kişi · <span className={atanmamis ? 'text-amber-600 font-medium' : ''}>{atanmamis} departman atanmamış</span></div>
+          <div className="text-xs text-slate-500 mb-3">{st.kisiler.length} kişi ({st.kisiler.filter((k) => st.pasif[k.name]).length} pasif) · <span className={atanmamis ? 'text-amber-600 font-medium' : ''}>{atanmamis} departman atanmamış</span></div>
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-            {[...st.kisiler].sort((a, b) => !!st.map[a.name] - !!st.map[b.name]).map((k) => (
-              <div key={k.name} className="py-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
-                <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200">{k.name}<span className="ml-2 text-[11px] text-slate-400 tabular-nums">{k.hours} sa</span></div>
+            {[...st.kisiler].sort((a, b) => (!!st.pasif[a.name] - !!st.pasif[b.name]) || (!!st.map[a.name] - !!st.map[b.name])).map((k) => (
+              <div key={k.name} className={`py-2.5 flex flex-col sm:flex-row sm:items-center gap-2 ${st.pasif[k.name] ? 'opacity-60' : ''}`}>
+                <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200 uppercase">{k.name}<span className="ml-2 text-[11px] text-slate-400 tabular-nums normal-case">{k.hours} sa</span></div>
+                <select value={st.pasif[k.name] ? 'pasif' : 'aktif'} disabled={busy === k.name} onChange={(e) => durumSec(k.name, e.target.value === 'pasif')} aria-label={`${k.name} durumu`} className="sm:w-24 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-slate-400">
+                  <option value="aktif">Aktif</option>
+                  <option value="pasif">Pasif</option>
+                </select>
                 <select value={st.map[k.name] || ''} disabled={busy === k.name} onChange={(e) => sec(k.name, e.target.value)} className="sm:w-60 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-slate-400">
                   <option value="">Departman seçin...</option>
                   {DEPARTMANLAR.map((d) => <option key={d} value={d}>{d}</option>)}
@@ -127,6 +138,7 @@ export default function Yonetim({ me, tumSayfalar, markalar }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [yeni, setYeni] = useState({ email: '', name: '', title: '' });
+  const [bolum, setBolum] = useState(''); // '' | 'everhour' | 'departman'
 
   const load = useCallback(async () => {
     const r = await api('/api/users');
@@ -243,8 +255,16 @@ export default function Yonetim({ me, tumSayfalar, markalar }) {
         </div>
       </form>
 
-      <EverhourEslestirme markalar={markalar} />
-      <DepartmanEslestirme />
+      <div className="flex items-center justify-end gap-2">
+        <label htmlFor="yonetim-bolum" className="text-xs text-slate-500 dark:text-slate-400">Ek bölüm</label>
+        <select id="yonetim-bolum" value={bolum} onChange={(e) => setBolum(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400">
+          <option value="">Seçin...</option>
+          <option value="everhour">Everhour Müşteri Eşleştirme</option>
+          <option value="departman">Personel Departman Eşleştirme</option>
+        </select>
+      </div>
+      {bolum === 'everhour' && <EverhourEslestirme markalar={markalar} />}
+      {bolum === 'departman' && <DepartmanEslestirme />}
     </div>
   );
 }

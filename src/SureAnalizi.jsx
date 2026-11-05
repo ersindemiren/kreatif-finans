@@ -51,6 +51,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   };
 
   const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx }), [sureData, selected, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pasifSet = useMemo(() => new Set(Object.keys(sureData?.pasif || {})), [sureData]);
   const departmanlar = useMemo(() => buildDepartman({ personel, map: sureData?.departman }), [personel, sureData]);
   const personelToplam = personel.reduce((s, u) => s + u.hours, 0);
 
@@ -145,7 +146,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   }
   if (sayfa?.t === 'k') {
     return (
-      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf}
+      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} pasif={pasifSet.has(sayfa.n)}
         onBack={geri} backLabel={etiket || 'Tüm personel'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
     );
   }
@@ -222,7 +223,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
               {personel.map((u, k) => (
                 <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
                   <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
-                  <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400">{u.name}</span>
+                  <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
                   <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{pct1(kayitOrani(u))}</span>
                   <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
                     {fmtN(u.hours)} sa
@@ -259,7 +260,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Personelin Everhour'a girdiği süreler, Yönetim'deki departman eşleştirmesine göre toplanır. Departmana tıklayınca kişi dağılımı açılır. Kayıt Oranı: sürenin faturası kesilmiş markalara giden payı.</p>
         <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
           <span className="flex-1 min-w-0">Departman</span>
-          <span className="w-10 sm:w-14 text-right shrink-0">Kişi</span>
+          <span className="w-10 sm:w-14 text-right shrink-0">Aktif Kişi</span>
           <span className="w-16 sm:w-24 text-right shrink-0">Kayıt Oranı</span>
           <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
         </div>
@@ -268,8 +269,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           return (
             <div key={d.name} className="border-b border-slate-50 dark:border-slate-800">
               <button type="button" onClick={() => setAcikDep(acik ? null : d.name)} className="w-full flex items-start gap-2 sm:gap-3 py-2.5 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <span className={`flex-1 min-w-0 break-words ${d.name === DEPARTMAN_YOK ? 'text-amber-600' : 'text-slate-700 dark:text-slate-300'}`}>{d.name}</span>
-                <span className="w-10 sm:w-14 text-right shrink-0 tabular-nums text-slate-500">{d.kisiler.length}</span>
+                <span className={`flex-1 min-w-0 break-words uppercase ${d.name === DEPARTMAN_YOK ? 'text-amber-600' : 'text-slate-700 dark:text-slate-300'}`}>{d.name}</span>
+                <span className="w-10 sm:w-14 text-right shrink-0 tabular-nums text-slate-500">{d.kisiler.filter((k) => !pasifSet.has(k.name)).length}</span>
                 <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{pct1(kayitOrani(d))}</span>
                 <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
                   {fmtN(d.hours)} sa
@@ -280,7 +281,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
                 <div className="pb-2 pl-3 sm:pl-5">
                   {d.kisiler.map((k) => (
                     <button key={k.name} type="button" onClick={() => setSeciliKisi(k.name)} className="w-full flex items-center gap-2 py-1.5 text-[11px] sm:text-xs text-left text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
-                      <span className="flex-1 min-w-0 truncate">{k.name}</span>
+                      <span className="flex-1 min-w-0 truncate uppercase">{k.name}{pasifSet.has(k.name) && <span className="ml-2 normal-case text-[10px] border border-slate-300 dark:border-slate-600 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
                       <span className="tabular-nums shrink-0">{fmtN(k.hours)} sa · {pct1(d.hours ? k.hours / d.hours : 0)}</span>
                     </button>
                   ))}
