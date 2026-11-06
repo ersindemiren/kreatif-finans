@@ -365,7 +365,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 }
 
 /* =============================== PERSONEL DETAYI =============================== */
-export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, maliyetAy, maliyetAcik, maksSaat, pasif, pasifMarkaKeys, onBack, backLabel, onMarka, karsilastirKisiler, onKarsilastir }) {
+export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, maliyetAy, maliyetTop, maliyetAcik, maksSaat, pasif, pasifMarkaKeys, onBack, backLabel, onMarka, karsilastirKisiler, onKarsilastir }) {
   useTop();
   const [gorev, setGorev] = useState(null);
   const [secili, setSecili] = useState('Toplam');
@@ -418,11 +418,13 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const saatAy = (i) => maliyetAy?.[ayAnahtar(i)] || 0;
   const sureliP = maksAylar;
   const maksDeger = sureliP.reduce((t, i) => t + maksSaat(i) * saatAy(i), 0);
-  const topDeger = sureliP.reduce((t, i) => t + d.monthly[i] * saatAy(i), 0);
+  const hizDeger = sureliP.reduce((t, i) => t + d.monthly[i] * saatAy(i), 0);
+  const topAy = (i) => maliyetTop?.[ayAnahtar(i)] || 0;
+  const topDeger = sureliP.reduce((t, i) => t + topAy(i), 0); // Gerçekleşen Maliyet: aylık personel maliyetlerinin toplamı
   const eksikAy = sureliP.filter((i) => !saatAy(i)).length;
   const maliyetVar = maksDeger > 0;
   const maliyetNot = !sureliP.length ? 'süre girilmemiş' : eksikAy === sureliP.length ? 'maliyet girilmemiş (Yönetim)' : null;
-  const ortSaat = toplamP && topDeger ? topDeger / sum(d.monthly, sureliP.filter((i) => saatAy(i))) : 0;
+  const ortSaat = toplamP && hizDeger ? hizDeger / sum(d.monthly, sureliP.filter((i) => saatAy(i))) : 0;
   // Verimlilik Skoru: seçilen ay kümesi için (Karşılaştırma ve Personel listesiyle aynı formül)
   const skorHesap = (idxs) => {
     const tpl = sum(d.monthly, idxs);
@@ -442,7 +444,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const kartlar2 = [
     ...(maliyetAcik ? [
       ['Ort. Saat Maliyeti', ortSaat > 0 ? `₺${Math.ceil(ortSaat).toLocaleString('tr-TR')}/sa` : '–', maliyetNot || (eksikAy ? `${eksikAy} ayın maliyeti girilmemiş` : 'gerçekleşen maliyet / gerçekleşen süre')],
-      ['Gerçekleşen Maliyet', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || `gerçekleşen süre × saat maliyeti`],
+      ['Gerçekleşen Maliyet', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || 'aylık personel maliyetlerinin toplamı'],
     ] : []),
     ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
     ['Verimlilik Skoru', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Süre ${Math.round(skorP.sure)}/40 · Kayıt ${Math.round(skorP.kayit)}/40 · Kayıp ${Math.round(skorP.kayip)}/20` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : ''],
@@ -482,7 +484,8 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   };
   const TL0 = (v) => '₺' + Math.ceil(v).toLocaleString('tr-TR'); // Ort. Saat Maliyeti: yukarı yuvarla
   const saatAyDeger = (i) => (maliyetAcik ? saatAy(i) : 0);
-  const topMaliyetA = aktif.reduce((t, i) => t + d.monthly[i] * saatAyDeger(i), 0);
+  const hizA = aktif.reduce((t, i) => t + d.monthly[i] * saatAyDeger(i), 0);
+  const gmA = maliyetAcik ? aktif.reduce((t, i) => t + topAy(i), 0) : 0;
   const maliyetliSaatA = aktif.filter((i) => saatAyDeger(i) > 0).reduce((t, i) => t + d.monthly[i], 0);
   const toplamMaks = aktif.reduce((t, i) => t + maksAy(i), 0);
   const toplamDep = sum(d.dep, aktif);
@@ -559,7 +562,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
 
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ort. Saat Maliyeti = o ayın saat maliyeti (yukarı yuvarlanır); Gerçekleşen Maliyet = süre × saat maliyeti. Maks. Kapasite = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite (%85 altı kırmızı). Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor = Verimlilik Skoru (0–100): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ort. Saat Maliyeti = o ayın saat maliyeti (yukarı yuvarlanır); Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki o ayın personel maliyeti (maaş + dağıtım payı). Maks. Kapasite = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite (%85 altı kırmızı). Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor = Verimlilik Skoru (0–100): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20.</p>
         <div className="rounded-xl overflow-x-auto border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm"><div className="min-w-[980px]">
           <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
             <span className={`${cellA} text-left`}>Ay</span>{['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Maks. Kapasite', 'Kapasite Oranı', 'Gerçekleşen Süre', 'Süre Oranı', 'Ekip Süresi', 'Ekip Payı', 'Dep. Payı', 'Skor'].map((h) => <span key={h} className={cellA}>{h}</span>)}
@@ -572,7 +575,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
               <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
                 <span className={`${cellA} text-left`}>{months[i]}</span>
                 <span className={cellA}>{on[i] && sm > 0 ? TL0(sm) : '–'}</span>
-                <span className={cellA}>{on[i] && sm > 0 && d.monthly[i] > 0 ? fmtT(d.monthly[i] * sm) : '–'}</span>
+                <span className={cellA}>{on[i] && maliyetAcik && topAy(i) > 0 ? fmtT(topAy(i)) : '–'}</span>
                 <span className={cellA}>{on[i] && maksAy(i) ? fmtSaat(maksAy(i)) : '–'}</span>
                 <span className={`${cellA} ${on[i] && maksAy(i) ? oranCls(d.monthly[i] / maksAy(i)) : ''}`}>{on[i] && maksAy(i) ? pct1(d.monthly[i] / maksAy(i)) : '–'}</span>
                 <span className={cellA}>{on[i] ? fmtSaat(d.monthly[i]) : '–'}</span>
@@ -586,8 +589,8 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
           })}
           <div className={`${gridA} border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-900 dark:text-slate-50`}>
             <span className={`${cellA} text-left`}>Toplam</span>
-            <span className={cellA}>{maliyetliSaatA ? TL0(topMaliyetA / maliyetliSaatA) : '–'}</span>
-            <span className={cellA}>{topMaliyetA > 0 ? fmtT(topMaliyetA) : '–'}</span>
+            <span className={cellA}>{maliyetliSaatA ? TL0(hizA / maliyetliSaatA) : '–'}</span>
+            <span className={cellA}>{gmA > 0 ? fmtT(gmA) : '–'}</span>
             <span className={cellA}>{toplamMaks ? fmtSaat(toplamMaks) : '–'}</span>
             <span className={`${cellA} ${toplamMaks ? oranCls(toplamKisi / toplamMaks) : ''}`}>{toplamMaks ? pct1(toplamKisi / toplamMaks) : '–'}</span>
             <span className={cellA}>{fmtSaat(toplamKisi)}</span>

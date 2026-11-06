@@ -14,7 +14,7 @@ const VAR = '–';
 
 const EN_COK = 6;
 
-export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per, donem, maksSaat, brandOf, maliyetAy, maliyetAcik, months, baslangic }) {
+export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per, donem, maksSaat, brandOf, maliyetAy, maliyetTop, maliyetAcik, months, baslangic }) {
   const [secimler, setSecimler] = useState(baslangic || ['', '']);
   const [sonuc, setSonuc] = useState(baslangic || null); // Karşılaştır düğmesine basılınca seçilen kişiler
   const dolu = secimler.filter(Boolean);
@@ -23,8 +23,8 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
 
   const olcu = useMemo(() => {
     if (!sonuc) return null;
-    return sonuc.map((u) => kisiOlcu({ rows, user: u, departman, pasif: pasifSet.has(u), per, maksSaat, brandOf, maliyetAy: maliyetAy(u), aylar: months }));
-  }, [sonuc, rows, departman, pasifSet, per, maliyetAy]); // eslint-disable-line react-hooks/exhaustive-deps
+    return sonuc.map((u) => kisiOlcu({ rows, user: u, departman, pasif: pasifSet.has(u), per, maksSaat, brandOf, maliyetAy: maliyetAy(u), maliyetTop: maliyetTop?.(u), aylar: months }));
+  }, [sonuc, rows, departman, pasifSet, per, maliyetAy, maliyetTop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // yon: 'yuksek' = büyük olan iyi, 'dusuk' = küçük olan iyi; verilmezse vurgu yapılmaz. num: karşılaştırılacak sayı
   const gruplar = olcu && [
@@ -44,7 +44,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
       { l: 'Ortalama Aylık Süre', f: (o) => (o.ortAylik == null ? VAR : `${fmtS(o.ortAylik)} Saat`), alt: (o) => (o.sureliAy ? `${o.sureliAy} ay` : ''), not: 'süre girilen aylar üzerinden' },
       ...(maliyetAcik ? [
         { l: 'Ort. Saat Maliyeti', f: (o) => (o.saatMaliyeti ? TL(Math.ceil(o.saatMaliyeti)) : VAR) },
-        { l: 'Gerçekleşen Maliyet', f: (o) => (o.topDeger > 0 ? TL(o.topDeger) : VAR), not: 'harcanan süre × saat maliyeti' },
+        { l: 'Gerçekleşen Maliyet', f: (o) => (o.topDeger > 0 ? TL(o.topDeger) : VAR), not: 'Personel Maliyet Hesaplama\'daki aylık maliyetlerin toplamı' },
       ] : []),
     ],
     [

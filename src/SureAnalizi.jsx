@@ -186,7 +186,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const maliyetOzet = (ad, ayH) => {
     let deger = 0; let saat = 0;
     Object.entries(ayH || {}).forEach(([i, h]) => { const sm = maliyetHesap[ayAnahtar(Number(i))]?.rows[ad]?.saat || 0; if (sm > 0 && h > 0) { deger += h * sm; saat += h; } });
-    return { ort: saat ? deger / saat : null, gm: saat ? deger : null };
+    const gm = periodIdx.reduce((t, i) => t + (maliyetHesap[ayAnahtar(i)]?.rows[ad]?.toplam || 0), 0); // aylık personel maliyetlerinin toplamı
+    return { ort: saat ? deger / saat : null, gm: gm > 0 ? gm : null };
   };
   const depSaat = new Map(departmanlar.map((d) => [d.name, d.hours]));
   const personelOlcu = useMemo(() => {
@@ -275,7 +276,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   }
   if (sayfa?.t === 'k') {
     return (
-      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} maliyetAy={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.saat || 0]))} maliyetAcik={!!sureData?.maliyet} maksSaat={maksSaat} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
+      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} maliyetAy={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.saat || 0]))} maliyetTop={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.toplam || 0]))} maliyetAcik={!!sureData?.maliyet} maksSaat={maksSaat} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
         karsilastirKisiler={izinliGorunum.includes('karsilastirma') ? personel.map((u) => u.name).sort((x, y) => x.localeCompare(y, 'tr')) : null}
         onKarsilastir={(a, b) => { setKars({ a, b, k: Date.now() }); setGorunum('karsilastirma'); setYigin([]); }}
         onBack={geri} backLabel={etiket || 'Tüm personel'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
@@ -334,6 +335,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           kisiler={[...personel.map((u) => u.name)].sort((x, y) => x.localeCompare(y, 'tr'))} rows={sureData?.personel || []} departman={sureData?.departman} pasifSet={pasifSet}
           per={periodIdx} donem={donem} maksSaat={maksSaat} brandOf={brandOf} months={months} maliyetAcik={!!sureData?.maliyet}
           maliyetAy={(u) => Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[u]?.saat || 0]))}
+          maliyetTop={(u) => Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[u]?.toplam || 0]))}
         />
       ) : gor === 'departman' ? (
         <>
@@ -366,7 +368,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = süre × saat maliyeti. Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kapasite Oranı ve Süre Oranı %85'in altındaysa kırmızı. Skor = Verimlilik Skoru (0–100, %80 altı kırmızı): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20. Alttaki satır listedeki kişilerin ortalamasıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki aylık personel maliyetlerinin toplamı (maaş + dağıtım payı). Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kapasite Oranı ve Süre Oranı %85'in altındaysa kırmızı. Skor = Verimlilik Skoru (0–100, %80 altı kırmızı): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20. Alttaki satır listedeki kişilerin ortalamasıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
             <div className="overflow-x-auto"><div className="min-w-[1040px]">
             {olcuBaslik('Personel')}
             <div className="flex flex-col">
