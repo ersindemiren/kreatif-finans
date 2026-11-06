@@ -263,6 +263,20 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
       </div>
     );
   };
+  // Toplam satırı: Gerçekleşen Maliyet, Maks. Kapasite, Gerçekleşen Süre ve paylar toplanır; diğer sütunlar boş kalır
+  const toplamSatiri = (liste, depToplami = false) => {
+    const ol = liste.map((u) => personelOlcu.get(u.name)).filter(Boolean);
+    const top = (k) => { const v = ol.map((x) => x[k]).filter((x) => x != null); return v.length ? v.reduce((t, x) => t + x, 0) : null; };
+    const o = { gm: top('gm'), maks: top('maks'), sure: top('sure'), ekipS: personelToplam, ekipPay: top('ekipPay'), depPay: depToplami ? top('depPay') : null };
+    o.kapOran = o.maks ? o.sure / o.maks : null;
+    return (
+      <div className="flex items-start gap-2 sm:gap-3 pt-2 pb-1 text-[11px] sm:text-sm leading-5 font-bold text-slate-900 dark:text-slate-50">
+        <span className="w-5 sm:w-6 shrink-0" />
+        <span className="w-40 sm:w-56 shrink-0">Toplam</span>
+        {olcuHucreleri(o)}
+      </div>
+    );
+  };
   const sayfa = yigin[yigin.length - 1];
   const etiket = yigin.length > 1 ? 'Geri' : null;
   if (sayfa?.t === 'm') {
@@ -353,6 +367,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
                     <div className="flex flex-col">
                       {sirali.map((u, k) => personelSatiri(u, k + 1))}
                       {ortalamaSatiri(sirali)}
+                      {toplamSatiri(sirali, true)}
                     </div>
                   </div></div>
                 </div>
@@ -368,12 +383,13 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki aylık personel maliyetlerinin toplamı (maaş + dağıtım payı). Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kapasite Oranı ve Süre Oranı %85'in altındaysa kırmızı. Skor = Verimlilik Skoru (0–100, %80 altı kırmızı): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20. Alttaki satır listedeki kişilerin ortalamasıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki aylık personel maliyetlerinin toplamı (maaş + dağıtım payı). Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kapasite Oranı ve Süre Oranı %85'in altındaysa kırmızı. Skor = Verimlilik Skoru (0–100, %80 altı kırmızı): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20. Alttaki satırlar listedeki kişilerin ortalaması ve toplamıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
             <div className="overflow-x-auto"><div className="min-w-[1040px]">
             {olcuBaslik('Personel')}
             <div className="flex flex-col">
               {siraliPersonel.map((u, k) => personelSatiri(u, k + 1))}
               {personel.length > 0 && ortalamaSatiri(siraliPersonel, 'Ortalama')}
+              {personel.length > 0 && toplamSatiri(siraliPersonel)}
               {personel.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için personel verisi yok{sureData?.personel ? '' : ' (kişi bazlı veri yalnızca Everhour kaynağından gelir)'}.</div>}
             </div>
             </div></div>
