@@ -1,6 +1,6 @@
 // SATIŞ TABLOSU 2026 sayfası — Gelirler sayfasıyla aynı şablon.
 // Veri: parseData.js > parseSatisTablosu (ay sekmelerindeki fatura satırları)
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 const fmtTL = (n) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n || 0);
@@ -27,10 +27,15 @@ const pct = (n) => (Number.isFinite(n) ? (n * 100).toFixed(1).replace('.', ',') 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 
 export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }) {
-  const [period, setPeriod] = useState('Toplam'); // 'Toplam' | 'Oca'..'Ara'
-  const [brand, setBrand] = useState(''); // '' = tüm markalar
-  const [gorunum, setGorunum] = useState('toplam'); // toplam | fee | proje
-  const [currency, setCurrency] = useState('TL'); // TL | USD
+  // Düğmeler anında tepki verir (…S); ağır tablolar/listeler hemen ardından ertelenmiş değerlerle çizilir (INP)
+  const [periodS, setPeriod] = useState('Toplam'); // 'Toplam' | 'Oca'..'Ara'
+  const [brandS, setBrand] = useState(''); // '' = tüm markalar
+  const [gorunumS, setGorunum] = useState('toplam'); // toplam | fee | proje
+  const [currencyS, setCurrency] = useState('TL'); // TL | USD
+  const period = useDeferredValue(periodS);
+  const brand = useDeferredValue(brandS);
+  const gorunum = useDeferredValue(gorunumS);
+  const currency = useDeferredValue(currencyS);
   const sym = currency === 'USD' ? '$' : '₺';
 
   // Kur kaybı referansı: DASH 26'daki son GÜNCEL ayın kuru. Ay kapanıp güncel olunca referans otomatik kayar.
@@ -69,7 +74,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
   const periodRows = useMemo(() => rows.filter(inPeriod), [rows, period]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Marka sayfası açılınca (Süre Analiz'deki gibi) sayfanın başına git
-  useEffect(() => { if (brand) window.scrollTo(0, 0); }, [brand]);
+  useEffect(() => { if (brandS) window.scrollTo(0, 0); }, [brandS]);
 
   const scopedRows = brand ? periodRows.filter((r) => r.marka === brand) : periodRows;
 
@@ -193,12 +198,12 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
 
   return (
     <div className="flex flex-col gap-5">
-      {brand && (
+      {brandS && (
         <div className={`${CARD} p-5`}>
           <button type="button" onClick={() => setBrand('')} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-700 transition-colors mb-4">
             <ArrowLeft size={14} /> Tüm markalar
           </button>
-          <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50">{brand}</h2>
+          <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50">{brandS}</h2>
         </div>
       )}
 
@@ -207,7 +212,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
           <button
             onClick={() => setPeriod('Toplam')}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              period === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
+              periodS === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
             }`}
           >
             Toplam
@@ -218,7 +223,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
                 key={key}
                 onClick={() => setCurrency(key)}
                 className={`w-9 py-1 rounded-md text-sm font-medium transition-colors ${
-                  currency === key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                  currencyS === key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
                 }`}
               >
                 {label}
@@ -231,7 +236,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
             <button
               key={m}
               onClick={() => setPeriod(m)}
-              className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${pillClass(m, period === m)}`}
+              className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${pillClass(m, periodS === m)}`}
             >
               {m}
             </button>
@@ -278,7 +283,7 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
               key={opt.key}
               onClick={() => setGorunum(opt.key)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                gorunum === opt.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+                gorunumS === opt.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
               }`}
             >
               {opt.label}
