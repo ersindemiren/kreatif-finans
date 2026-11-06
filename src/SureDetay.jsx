@@ -214,16 +214,29 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
   const aktif = idx.filter((i) => ayDurumu?.[i] === 'güncel');
   const on = idx.map((i) => ayDurumu?.[i] === 'güncel');
   const degerYok = brand.tip === 'ic';
+  const [secili, setSecili] = useState('Toplam');
+  // Üst kartlar seçilen döneme göre (Toplam = güncel aylar, ya da tek ay); yorumlar ve Aylık Ayrıntı toplamı güncel aylara göredir
+  const per = secili === 'Toplam' ? aktif : [months.indexOf(secili)].filter((i) => i >= 0);
+  const pillClass = (m, active) => {
+    const durum = ayDurumu?.[months.indexOf(m)];
+    if (durum === 'güncel') return active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+    return active ? 'bg-rose-300 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100';
+  };
 
-  const t = useMemo(() => {
+  const hesapT = (list) => {
     let hours = 0; let saatBaz = 0; let fee = 0;
-    aktif.forEach((i) => {
+    list.forEach((i) => {
       hours += brand.hours[i];
       saatBaz += degerYok ? 0 : brand.hours[i] * FEE_BAZI[i];
       fee += brand.fee[i] + brand.proje[i];
     });
     return { hours, saatBaz, fee, fark: saatBaz - fee };
-  }, [brand, aktif.join(','), degerYok]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
+  const t = useMemo(() => hesapT(aktif), [brand, aktif.join(','), degerYok]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tP = hesapT(per);
+  const sureliP = per.filter((i) => brand.hours[i] > 0);
+  const faturaliP = per.filter((i) => brand.faturali[i]);
+  const bazP = per.length ? per.reduce((x, i) => x + FEE_BAZI[i], 0) / per.length : 0;
 
   const kisiler = useMemo(
     () => buildMarkaPersonel({ rows: personelRows, brandName: brand.name }).map((k) => ({ ...k, toplam: sum(k.hours, aktif) })).filter((k) => k.toplam > 0).sort((a, b) => b.toplam - a.toplam),
@@ -274,29 +287,35 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
           {brand.tip === 'marka' && !brand.eslesti && <Badge tone="amber">eşleşmedi</Badge>}
           {hic && <Badge tone="rose">faturasız</Badge>}
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-4">
-          <Kpi label="Harcanan Süre" value={`${fmtN(t.hours)} saat`} sub={sureliAylar.length ? `aylık ort. ${fmtSaat(t.hours / sureliAylar.length)} sa` : 'süre girilmemiş'} />
-          <Kpi label="Saat × Baz" value={degerYok ? '–' : fmtTL(t.saatBaz)} sub={degerYok ? 'iç süre' : `ort. baz ${fmtN(bazOrt)} ₺/sa`} />
-          <Kpi label="Fee + Proje (KDV hariç)" value={t.fee ? fmtTL(t.fee) : '–'} sub={brand.faturali.some(Boolean) ? `${brand.faturali.filter(Boolean).length} ay faturalı` : 'fatura yok'} />
-          <Kpi label="Fark" value={degerYok ? '–' : <span className={farkText(t.fark)}>{fmtTL(t.fark)}</span>} sub={degerYok ? '' : Math.round(t.fark) > 0 ? 'bütçe aşıldı' : Math.round(t.fark) < 0 ? 'bütçe içinde' : 'başa baş'} subClass={farkText(t.fark)} />
+      </div>
+
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center w-full">
+          <button onClick={() => setSecili('Toplam')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${secili === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'}`}>Toplam</button>
+        </div>
+        <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
+          {months.map((m) => (
+            <button key={m} onClick={() => setSecili(m)} className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${pillClass(m, secili === m)}`}>{m}</button>
+          ))}
         </div>
       </div>
 
-      <Yorumlar list={yorumlar} />
-
-      <div className={`${CARD} p-5`}>
-        <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Bütçe Tüketimi</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Her ay için harcanan sürenin değeri (Saat × Baz) ile faturalanan tutar (Fee + Proje). Mavi sütun yeşili aşarsa o ay fee'den fazla zaman harcanmıştır.</p>
-        <Bars
-          months={months}
-          on={on}
-          unit="₺"
-          series={[
-            { name: 'Saat × Baz', color: 'bg-sky-400', values: idx.map((i) => (degerYok ? 0 : brand.hours[i] * FEE_BAZI[i])) },
-            { name: 'Fee + Proje', color: 'bg-emerald-400', values: idx.map((i) => brand.fee[i] + brand.proje[i]) },
-          ]}
-        />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        {[
+          ['Harcanan Süre', `${fmtN(tP.hours)} Saat`, sureliP.length ? `aylık ort. ${fmtSaat(tP.hours / sureliP.length)} sa` : 'süre girilmemiş', ''],
+          ['Saat × Baz', degerYok ? '–' : fmtTL(tP.saatBaz), degerYok ? 'iç süre' : `ort. baz ${fmtN(bazP)} ₺/sa`, ''],
+          ['Fee + Proje (KDV hariç)', tP.fee ? fmtTL(tP.fee) : '–', faturaliP.length ? `${faturaliP.length} ay faturalı` : 'fatura yok', ''],
+          ['Fark', degerYok ? '–' : fmtTL(tP.fark), degerYok ? '' : Math.round(tP.fark) > 0 ? 'bütçe aşıldı' : Math.round(tP.fark) < 0 ? 'bütçe içinde' : 'başa baş', degerYok ? '' : farkText(tP.fark)],
+        ].map(([label, v, sub, cls]) => (
+          <div key={label} className={`${CARD} p-4`}>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+            <div className={`text-base sm:text-lg lg:text-xl font-semibold tabular-nums mt-1 whitespace-nowrap ${cls || 'text-slate-900 dark:text-slate-50'}`}>{v}</div>
+            <span className={`text-[11px] mt-1 block leading-snug ${cls || 'text-slate-400 dark:text-slate-500'}`}>{sub}</span>
+          </div>
+        ))}
       </div>
+
+      <Yorumlar list={yorumlar} />
 
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>

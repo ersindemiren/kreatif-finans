@@ -1,6 +1,6 @@
 // Veri kaynağı: Google Sheets "FEE 2026 YENİ" + "MÜŞTERİDEN GELECEK ÖDEMELER"
 // Apps Script web app uç noktaları üzerinden otomatik çekilir (bkz. src/lib/parseData.js)
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import {
   LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
@@ -99,7 +99,9 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
   // Süre Analiz üç ayrı yetkidir (müşteri / personel / departman); menüde tek sayfa olarak görünür
   const sureGorunumler = [['sureAnalizi', 'musteri'], ['sureAnalizPersonel', 'personel'], ['sureAnalizDepartman', 'departman'], ['sureAnalizKarsilastirma', 'karsilastirma']].filter(([k]) => izinli.includes(k)).map(([, g]) => g);
   const menuIzinli = [...izinli.filter((p) => !p.startsWith('sureAnaliz')), ...(sureGorunumler.length ? ['sureAnalizi'] : [])];
-  const [page, setPage] = useState(baslangicSayfa || menuIzinli[0] || (user?.role === 'admin' ? 'yonetim' : 'dashboard'));
+  // Menü tıklaması anında (navPage) boyanır; sayfanın ağır içeriği hemen ardından, kesintiye uğrayabilir şekilde (page) çizilir
+  const [navPage, setPage] = useState(baslangicSayfa || menuIzinli[0] || (user?.role === 'admin' ? 'yonetim' : 'dashboard'));
+  const page = useDeferredValue(navPage);
   const { genelDegerlendirme = [], giderYorumlari = [], gelirYorumlari = [], aksiyonlar = [] } = data.yorumlar || {};
   const [selectedMonth, setSelectedMonth] = useState('Toplam');
   const [gelirGorunum, setGelirGorunum] = useState('güncel');
@@ -335,7 +337,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
           <span className="text-white font-semibold text-[15px]">Finans Özeti</span>
         </div>
         {pages.map((p) => (
-          <NavItem key={p.id} icon={p.icon} label={p.label} active={page === p.id} onClick={() => setPage(p.id)} />
+          <NavItem key={p.id} icon={p.icon} label={p.label} active={navPage === p.id} onClick={() => setPage(p.id)} />
         ))}
         <div className="mt-auto pt-4 border-t border-slate-800 flex flex-col gap-2">
           {lastSync && <span className="text-[11px] text-slate-500 dark:text-slate-400 px-2">Son senkron: {lastSync}</span>}
@@ -382,7 +384,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
               key={p.id}
               icon={p.icon}
               label={p.label}
-              active={page === p.id}
+              active={navPage === p.id}
               onClick={() => {
                 setPage(p.id);
                 setMobileMenuOpen(false);
