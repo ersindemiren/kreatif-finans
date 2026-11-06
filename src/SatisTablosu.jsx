@@ -1,6 +1,7 @@
 // SATIŞ TABLOSU 2026 sayfası — Gelirler sayfasıyla aynı şablon.
 // Veri: parseData.js > parseSatisTablosu (ay sekmelerindeki fatura satırları)
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
 
 const fmtTL = (n) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n || 0);
 const fmtM = (n) => ((n || 0) / 1000000).toFixed(2).replace('.', ',') + ' M';
@@ -67,11 +68,8 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
   // Seçili dönemdeki satırlar (marka filtresi hariç) — marka listesi bunlardan çıkar
   const periodRows = useMemo(() => rows.filter(inPeriod), [rows, period]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const brandOptions = useMemo(() => {
-    const names = new Set(periodRows.map((r) => r.marka));
-    if (brand) names.add(brand);
-    return [...names].sort((a, b) => a.localeCompare(b, 'tr-TR'));
-  }, [periodRows, brand]);
+  // Marka sayfası açılınca (Süre Analiz'deki gibi) sayfanın başına git
+  useEffect(() => { if (brand) window.scrollTo(0, 0); }, [brand]);
 
   const scopedRows = brand ? periodRows.filter((r) => r.marka === brand) : periodRows;
 
@@ -175,12 +173,6 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
     );
   }
 
-  const selectCls = `px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border cursor-pointer max-w-xs ${
-    brand
-      ? 'bg-slate-900 text-white border-slate-900'
-      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400'
-  }`;
-
   const Box = ({ label, value }) => (
     <div className={`${CARD} p-4`}>
       <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
@@ -201,8 +193,25 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
 
   return (
     <div className="flex flex-col gap-5">
+      {brand && (
+        <div className={`${CARD} p-5`}>
+          <button type="button" onClick={() => setBrand('')} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-700 transition-colors mb-4">
+            <ArrowLeft size={14} /> Tüm markalar
+          </button>
+          <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50">{brand}</h2>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2 w-full">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between w-full gap-2">
+          <button
+            onClick={() => setPeriod('Toplam')}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              period === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
+            }`}
+          >
+            Toplam
+          </button>
           <div className="flex gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1">
             {[['TL', '₺'], ['USD', '$']].map(([key, label]) => (
               <button
@@ -217,25 +226,6 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
             ))}
           </div>
         </div>
-        <div className="flex items-center justify-between w-full gap-2">
-          <button
-            onClick={() => {
-              setPeriod('Toplam');
-              setBrand('');
-            }}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              period === 'Toplam' && !brand ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'
-            }`}
-          >
-            Toplam
-          </button>
-          <select value={brand} onChange={(e) => setBrand(e.target.value)} className={selectCls}>
-            <option value="">Marka Seç</option>
-            {brandOptions.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-        </div>
         <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
           {months.map((m) => (
             <button
@@ -248,15 +238,6 @@ export default function SatisTablosu({ satis, satisError, months, kurUSD, ozet }
           ))}
         </div>
       </div>
-
-      {brand && (
-        <div className="flex items-center gap-2">
-          <h2 className="font-serif text-xl text-slate-900 dark:text-slate-50">{brand}</h2>
-          <button onClick={() => setBrand('')} className="text-xs text-slate-500 border border-slate-300 dark:border-slate-600 rounded-full px-2.5 py-0.5 hover:bg-slate-100">
-            Tüm markalar
-          </button>
-        </div>
-      )}
 
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Box label={period === 'Toplam' ? 'Toplam Satış' : `${period} Satış`} value={totalAll} />
