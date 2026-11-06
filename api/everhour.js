@@ -1,7 +1,7 @@
 // Everhour müşteri adı eşleştirme: yalnızca admin. GET liste + mevcut eşleşmeler, PUT eşleştir/kaldır.
 import { json, sameOriginJson, readBody, currentUser } from './_lib/http.js';
 import { getEverhour, clearEverhourCache, teshis, teshis2, teshis3, teshis4 } from './_lib/everhour.js';
-import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, readTatil, setTatiller, kisiOzet, kaydetKisiOzet, readKisiOzet } from './_lib/everhourMap.js';
+import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, maliyetIceAktar, readTatil, setTatiller, kisiOzet, kaydetKisiOzet, readKisiOzet } from './_lib/everhourMap.js';
 
 export default async function handler(req, res) {
   try {
@@ -33,6 +33,14 @@ export default async function handler(req, res) {
     if (req.method === 'PUT') {
       if (!sameOriginJson(req)) return json(res, 403, { error: 'İstek reddedildi' });
       const body = await readBody(req);
+      if (body.iceAktar) {
+        // Bir seferlik: veri, sunucu ortam değişkeninden (MALIYET_ICE_AKTAR, JSON) okunur; depoda tutulmaz.
+        let veri = null;
+        try { veri = JSON.parse(process.env.MALIYET_ICE_AKTAR || ''); } catch { /* aşağıda hata */ }
+        if (!veri) return json(res, 400, { error: 'Aktarılacak veri tanımlı değil' });
+        const oz = await readKisiOzet();
+        return json(res, 200, await maliyetIceAktar(veri, (oz?.kisiler || []).map((k) => k.name)));
+      }
       if (body.maliyetKisi !== undefined) return json(res, 200, { maliyet: await setMaliyetKisi(body.ay, body.maliyetKisi, body.tutar) });
       if (body.dagitim !== undefined) return json(res, 200, { maliyet: await setDagitim(body.ay, body.dagitim) });
       if (body.tatiller !== undefined) return json(res, 200, { tatiller: await setTatiller(body.tatiller) });

@@ -147,6 +147,34 @@ export async function kopyalaAy(kaynak, hedef) {
   return m;
 }
 
+// Ad eşleştirme anahtarı: büyük harf (tr), Türkçe karakterler sadeleştirilir, sözcükler sıralanır ("Cem Eyrenci" = "EYRENCİ CEM").
+const adAnahtar = (s) => String(s || '').toLocaleUpperCase('tr-TR').replace(/[ÇĞİIŞÖÜÂÎÛ]/g, (c) => ({ Ç: 'C', Ğ: 'G', İ: 'I', I: 'I', Ş: 'S', Ö: 'O', Ü: 'U', Â: 'A', Î: 'I', Û: 'U' }[c])).replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
+
+// Toplu içe aktarma: veri = { aylar: { 'YYYY-AA': { dagitim, kisi: { AD: tutar } } } }. Adlar Everhour'daki kişilerle eşleştirilir;
+// eşleşmeyen (süre girmeyen) kişiler olduğu gibi eklenir. Verilen kişi/ay değerleri üzerine yazılır, diğerlerine dokunulmaz.
+export async function maliyetIceAktar(veri, everhourAdlari = []) {
+  if (!veri || typeof veri.aylar !== 'object') throw new Error('Aktarılacak veri yok');
+  const harita = new Map();
+  everhourAdlari.forEach((a) => { const k = adAnahtar(a); if (k && !harita.has(k)) harita.set(k, a); });
+  const m = await readMaliyet();
+  const yeni = new Set();
+  let eslesen = 0;
+  let kayit = 0;
+  Object.entries(veri.aylar).forEach(([ay, v]) => {
+    ayKontrol(ay);
+    const a = ayAl(m, ay);
+    if (v.dagitim !== undefined) a.dagitim = tutar(v.dagitim);
+    Object.entries(v.kisi || {}).forEach(([ad, t]) => {
+      const e = harita.get(adAnahtar(ad));
+      if (e) eslesen += 1; else yeni.add(String(ad).trim().slice(0, 120));
+      const n = tutar(t);
+      if (n > 0) { a.kisi[e || String(ad).trim().slice(0, 120)] = n; kayit += 1; }
+    });
+  });
+  await malStore.write(m);
+  return { maliyet: m, rapor: { aylar: Object.keys(veri.aylar).length, kayit, eslesen, eslesmeyen: [...yeni] } };
+}
+
 // Resmi tatiller (Yönetim'den düzenlenir): [{ tarih: 'YYYY-AA-GG', ad, yarim? }]. Kayıt yoksa 2026 varsayılan listesi.
 export const VARSAYILAN_TATILLER = [
   ['2026-01-01', 'Yılbaşı'], ['2026-03-19', 'Ramazan Bayramı Arifesi', 1], ['2026-03-20', 'Ramazan Bayramı 1. Gün'], ['2026-03-21', 'Ramazan Bayramı 2. Gün'], ['2026-03-22', 'Ramazan Bayramı 3. Gün'],

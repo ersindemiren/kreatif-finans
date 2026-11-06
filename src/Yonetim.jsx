@@ -80,6 +80,7 @@ function MaliyetHesaplama() {
   const [busy, setBusy] = useState('');
   const [kisiYukleniyor, setKisiYukleniyor] = useState(false);
   const [ozetZamani, setOzetZamani] = useState(null);
+  const [rapor, setRapor] = useState(null);
   // Canlı Everhour okuması (yavaş): kişi listesi yoksa ya da "Yenile" ile
   const canliYukle = useCallback(async () => {
     setKisiYukleniyor(true);
@@ -130,8 +131,18 @@ function MaliyetHesaplama() {
   const hs = hesaplaAy(canli, aySaat);
   const gosterim = (v) => (v ? Number(v).toLocaleString('tr-TR') : '');
   const saatAy = (k) => st.aylikSaat[k.name]?.[ym] || 0;
-  const sirali = [...st.kisiler].sort((a, b) => (!!hs.rows[b.name] - !!hs.rows[a.name]) || (saatAy(b) - saatAy(a)));
-  const eksik = st.kisiler.filter((k) => saatAy(k) > 0 && !hs.rows[k.name]);
+  // Everhour listesinde olmayan (süre girmemiş) ama maliyeti kayıtlı kişiler de listelenir
+  const bilinen = new Set(st.kisiler.map((k) => k.name));
+  const ekstra = [...new Set(Object.values(st.maliyet.aylar).flatMap((a) => Object.keys(a.kisi || {})))].filter((n) => !bilinen.has(n)).map((name) => ({ name }));
+  const tumKisiler = [...st.kisiler, ...ekstra];
+  const iceAktar = async () => {
+    setBusy('__ice');
+    const r = await api('/api/everhour', { method: 'PUT', body: { iceAktar: true } });
+    if (r.ok) { setSt((x) => ({ ...x, maliyet: r.data.maliyet, error: '' })); setRapor(r.data.rapor); } else setSt((x) => ({ ...x, error: r.data.error || 'Aktarılamadı' }));
+    setBusy('');
+  };
+  const sirali = [...tumKisiler].sort((a, b) => (!!hs.rows[b.name] - !!hs.rows[a.name]) || (saatAy(b) - saatAy(a)));
+  const eksik = tumKisiler.filter((k) => saatAy(k) > 0 && !hs.rows[k.name]);
   const input = 'w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm text-right tabular-nums outline-none focus:border-slate-400';
   return (
     <div className={`${CARD} p-4 sm:p-5`}>
@@ -154,7 +165,9 @@ function MaliyetHesaplama() {
               <input inputMode="decimal" value={dagitimGirdi ?? gosterim(veri.dagitim)} disabled={busy === '__dagitim'} placeholder="0" onChange={(e) => setDagitimGirdi(e.target.value)} onBlur={dagitimKaydet} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label="Genel işletme dağıtım gideri" className={input} />
             </div>
           </div>
-          <div className="flex items-center gap-2 mb-3 text-[11px] text-slate-400">
+          <div className="flex items-center gap-2 mb-3 text-[11px] text-slate-400 flex-wrap">
+            <button type="button" onClick={iceAktar} disabled={busy === '__ice'} className="border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">{busy === '__ice' ? 'Aktarılıyor...' : 'Sheet verisini içe aktar'}</button>
+            {rapor && <span className="text-emerald-600">{rapor.aylar} ay, {rapor.kayit} kayıt aktarıldı; {rapor.eslesmeyen.length} yeni kişi eklendi ({rapor.eslesmeyen.join(', ')}).</span>}
             {kisiYukleniyor ? <><Loader2 size={12} className="animate-spin" /> Everhour kişi listesi güncelleniyor...</> : <>Kişi listesi {ozetZamani ? `${new Date(ozetZamani).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} itibarıyla` : ''}</>}
             <button type="button" onClick={canliYukle} disabled={kisiYukleniyor} className="underline decoration-dotted hover:text-slate-600 disabled:opacity-50">Yenile</button>
           </div>
