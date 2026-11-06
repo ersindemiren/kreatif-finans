@@ -165,8 +165,13 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     );
   };
 
-  const tumMarkalar = [...brands, ...disi];
-  const brandOf = (ad) => tumMarkalar.find((b) => normalizeNameKey(b.name) === normalizeNameKey(ad)) || null;
+  // Marka araması: ad -> marka tablosu bir kez kurulur (her çağrıda tüm listeyi taramaz)
+  const brandMap = useMemo(() => {
+    const m = new Map();
+    [...brands, ...disi].forEach((b) => { const k = normalizeNameKey(b.name); if (!m.has(k)) m.set(k, b); });
+    return m;
+  }, [brands, disi]);
+  const brandOf = (ad) => brandMap.get(normalizeNameKey(ad)) || null;
   // Kayıt oranı: kişinin süresinin, dönemde faturası kesilmiş markalara giden payı
   const kayitOrani = (u) => {
     if (!u.hours) return 0;
@@ -176,29 +181,35 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     }, 0);
     return f / u.hours;
   };
-  // Verimlilik Skoru (Karşılaştırma sayfasıyla aynı formül)
-  const skorOf = (u) => {
-    const maks = u.aySet.reduce((t, i) => t + maksSaat(i), 0);
-    const kayip = u.clients.reduce((t, c) => {
-      const b = brandOf(c.name);
-      return t + (b && b.tip === 'marka' && !periodIdx.some((i) => b.faturali[i]) ? c.hours : 0);
-    }, 0);
-    return verimlilikSkoru({ oran: maks ? u.hours / maks : null, kayitOrani: u.hours ? kayitOrani(u) : null, kayip, toplam: u.hours, sureliAy: u.hours > 0 ? 1 : 0 });
-  };
-  // Personel listesi sıralaması: boş (–) değerler yönden bağımsız hep sonda
-  const maksOf = (u) => u.aySet.reduce((t, i) => t + maksSaat(i), 0);
+  // Personel listesi göstergeleri (kayıt oranı, maks. süre, oran, Verimlilik Skoru): dönem/veri değişince bir kez hesaplanır;
+  // sıralama tıklamaları yeniden hesap yapmaz. Skor Karşılaştırma sayfasıyla aynı formülü kullanır.
+  const personelOlcu = useMemo(() => {
+    const m = new Map();
+    personel.forEach((u) => {
+      const maks = u.aySet.reduce((t, i) => t + maksSaat(i), 0);
+      const kayip = u.clients.reduce((t, c) => {
+        const bm = brandOf(c.name);
+        return t + (bm && bm.tip === 'marka' && !periodIdx.some((i) => bm.faturali[i]) ? c.hours : 0);
+      }, 0);
+      const kayit = kayitOrani(u);
+      m.set(u.name, { maks, kayit, oran: u.aylar && maks ? u.hours / maks : null, skor: verimlilikSkoru({ oran: maks ? u.hours / maks : null, kayitOrani: u.hours ? kayit : null, kayip, toplam: u.hours, sureliAy: u.hours > 0 ? 1 : 0 }) });
+    });
+    return m;
+  }, [personel, brandMap, sel]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Sıralama: boş (–) değerler yönden bağımsız hep sonda. Başlık oku anında, liste ertelenmiş değerle güncellenir.
+  const siraDef = useDeferredValue(siralama);
   const siralaDeger = {
-    kayit: (u) => (u.hours ? kayitOrani(u) : null),
-    maks: (u) => maksOf(u) || null,
-    oran: (u) => (u.aylar && maksOf(u) ? u.hours / maksOf(u) : null),
-    skor: (u) => skorOf(u)?.toplam ?? null,
+    kayit: (u) => (u.hours ? personelOlcu.get(u.name)?.kayit : null),
+    maks: (u) => personelOlcu.get(u.name)?.maks || null,
+    oran: (u) => personelOlcu.get(u.name)?.oran ?? null,
+    skor: (u) => personelOlcu.get(u.name)?.skor?.toplam ?? null,
     sure: (u) => u.hours,
   };
-  const siraliPersonel = (() => {
-    const f = siralaDeger[siralama.k];
-    const m = siralama.yon === 'asc' ? 1 : -1;
-    return personel.map((u) => ({ u, v: f(u) })).sort((a, b) => (a.v == null) - (b.v == null) || (a.v == null ? 0 : (a.v - b.v) * m)).map((x) => x.u);
-  })();
+  const siraliPersonel = useMemo(() => {
+    const f = siralaDeger[siraDef.k];
+    const m = siraDef.yon === 'asc' ? 1 : -1;
+    return personel.map((u) => ({ u, v: f(u) })).sort((x, y) => (x.v == null) - (y.v == null) || (x.v == null ? 0 : (x.v - y.v) * m)).map((x) => x.u);
+  }, [personel, personelOlcu, siraDef]); // eslint-disable-line react-hooks/exhaustive-deps
   const sirala = (k) => setSiralama((s) => (s.k === k ? { k, yon: s.yon === 'desc' ? 'asc' : 'desc' } : { k, yon: 'desc' }));
   const SiraBasligi = ({ k, label, cls }) => (
     <button type="button" onClick={() => sirala(k)} className={`${cls} text-right shrink-0 leading-tight uppercase tracking-wide hover:text-slate-700 dark:hover:text-slate-200 ${siralama.k === k ? 'text-slate-700 dark:text-slate-200 font-semibold' : ''}`}>
@@ -341,10 +352,10 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
                 <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
                   <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
                   <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
-                  <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${kayitOrani(u) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{pct1(kayitOrani(u))}</span>
+                  <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${personelOlcu.get(u.name)?.kayit < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{pct1(personelOlcu.get(u.name)?.kayit || 0)}</span>
                   <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{fmtN(u.aySet.reduce((t, i) => t + maksSaat(i), 0))} sa</span>
                   <span className={`w-14 sm:w-24 text-right shrink-0 tabular-nums ${u.aylar && u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{u.aylar ? pct1(u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0)) : '–'}</span>
-                  {(() => { const sk = skorOf(u); return <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${skorKirmizi(sk) ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{sk ? Math.round(sk.toplam) : '–'}</span>; })()}
+                  {(() => { const sk = personelOlcu.get(u.name)?.skor; return <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${skorKirmizi(sk) ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{sk ? Math.round(sk.toplam) : '–'}</span>; })()}
                   <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
                     {fmtN(u.hours)} sa
                     <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>
