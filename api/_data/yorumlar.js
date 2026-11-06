@@ -1,42 +1,42 @@
 // Editöryal yorumlar (veri değil, elle yazılmış değerlendirme). Sunucuda tutulur; yalnızca yetkili kullanıcıya gönderilir.
+// Son güncelleme: Ekim 2026 GÜNCEL (Ocak-Ekim kesinleşmiş, Kasım-Aralık tahmin). Yeni ay GÜNCEL olunca yeniden gözden geçirilmeli.
 export const genelDegerlendirme = [
-  "Ciro 2025'e göre %55,1 büyüdü (₺161,31 M / ₺104,00 M), gider %38,7 arttı (₺91,40 M / ₺65,90 M) — ciro büyümesi giderin açık ara önünde.",
-  'Net kâr %83,5 arttı (₺69,91 M / ₺38,10 M); kâr marjı %36,6\'dan %43,3\'e yükseldi (+6,7 puan).',
-  'Ocak-Eylül (9 ay) artık kesinleşmiş veriye dayanıyor (ciro ₺117,80 M, gider ₺69,64 M, kâr ₺48,16 M); sadece Ekim-Aralık tahmine dayalı. Kesinleşen 9 ayın kâr marjı %40,9, yıl geneli beklenti %43,3 — tahmin, gerçekleşenin biraz üzerinde kurgulanmış, son çeyrekte aylık ₺14,50 M ciro hedefi yakalanmalı.',
-  'Kalan 3 ay için aylık ₺14,50 M ciro / ₺7,25 M gider (₺7,25 M kâr) varsayılıyor. Ocak-Eylül aylık ortalama ciro ₺13,09 M olduğundan bu hedef ortalamanın üzerinde; Ağustos (₺18,57 M) gibi güçlü proje aylarına ihtiyaç var.',
-  'Eylül ayı ₺11,46 M ciro ile Ağustos\'un (₺18,57 M) belirgin altında kaldı; aylık kâr ₺4,00 M ve marj %34,9 ile Ağustos\'taki %59,5\'in çok altında. Eylül\'ün önceki ₺10,56 M tahmininin ₺0,90 M üzerinde kapandı.',
-  'Banka bakiyesi ₺37,67 M (kasa ve çek dahil ₺37,90 M) — aylık giderin (~₺7,5 M) yaklaşık 5 katı, güçlü bir nakit pozisyonu; önceki güncellemeye göre banka bakiyesi ₺2,58 M azaldı.',
-  'Satış Tablosu (fatura bazlı) ile Gelirler (ciro) Ocak-Eylül arasında birebir tutuyor (Ocak-Eylül toplamı ₺117,80 M; Eylül ₺11,46 M) — iki kaynak birbirini doğruluyor.',
+  "Yıl geneli beklentide ciro 2025'e göre %52,8 büyüyor (₺158,89 M / ₺104,00 M), gider %55,1 artıyor (₺102,22 M / ₺65,90 M) — gider büyümesi ciro büyümesinin biraz üzerinde; kâr marjı buna paralel geriliyor.",
+  "Net kâr %48,7 artışla ₺56,67 M (2025: ₺38,10 M); kâr marjı %36,6'dan %35,7'ye (-1,0 puan) geriledi. Gider tarafında Diğer Giderler (%18,3, 2025: %11,8), Vergiler ve Krediler oranı yükselirken Maaş oranı 6,5 puan düştü (%19,1, 2025: %25,6).",
+  'Ocak-Ekim (10 ay) kesinleşmiş veriye dayanıyor (ciro ₺130,18 M, gider ₺85,35 M, kâr ₺44,83 M); sadece Kasım-Aralık tahmine dayalı. Kesinleşen 10 ayın kâr marjı %34,4, yıl geneli beklenti %35,7 — tahmin, kalan 2 ayda %41,2 marj varsayıyor; bu da gerçekleşenin belirgin üzerinde.',
+  'Kalan 2 ay için aylık ortalama ₺14,35 M ciro / ₺8,43 M gider (₺5,92 M kâr) varsayılıyor. Ocak-Ekim aylık ortalama ciro ₺13,02 M, Ekim ₺12,00 M olduğundan hedef ortalamanın da son iki ayın da üzerinde; Ağustos (₺18,57 M) gibi güçlü proje aylarına ihtiyaç var.',
+  "Ekim ayı ₺12,00 M ciro ile Eylül'ün (₺11,85 M) %1,2 üzerinde kapandı; ancak gider %6,5 artarak ₺8,73 M'ye çıktığı için kâr %10,6 azaldı (₺3,26 M) ve marj %30,8'den %27,2'ye geriledi. Ağustos'taki %55,8 marjın çok altında.",
+  'Banka bakiyesi ₺41,34 M (kasa dahil ₺41,68 M) — Ocak-Ekim aylık gider ortalamasının (~₺8,54 M) yaklaşık 4,9 katı, güçlü bir nakit pozisyonu; önceki güncellemeye göre banka bakiyesi ₺3,67 M arttı.',
+  'Satış Tablosu (fatura bazlı) ile Gelirler (ciro) Ekim ayında birebir tutuyor (₺11.995.340) — iki kaynak birbirini doğruluyor.',
 ];
 
 export const giderYorumlari = [
-  'Personel gideri (Maaş + SGK + Yemek + Kıdem/İhbar + Muhtasar) toplam giderin %65,3\'ünü oluşturuyor — en büyük ve baskın kalem. Maaş Ocak\'ta ₺2,89 M\'den Eylül\'de ₺2,44 M\'ye gerilerken Muhtasar ₺0,47 M\'den ₺0,93 M\'ye çıktı; maliyet kontrolü öncelikle burada odaklanmalı.',
-  'Aylık gider Ocak-Eylül arasında ₺7,06-8,59 M bandında kalıyor (Mart\'taki ₺1,03 M\'lik kıdem/ihbar ödemesi nedeniyle ₺8,59 M zirve); Eylül gideri ₺7,45 M. Ocak\'tan Eylül\'e ciro %20,4 artarken gider %2,7 azaldı.',
-  'Aylık Lisanslar kalemi Ocak\'taki ₺67 B\'den Eylül\'de ₺151 B\'ye 2,2 katına çıktı (yıl toplamı ₺1,60 M; Yıllık Lisanslar ile birlikte ₺2,57 M) — yazılım/lisans yükü gözden geçirilmeli.',
-  'Geçici Vergi (Kurumlar Vergisi) Temmuz\'dan itibaren aylık ₺780.314\'ten ₺650.000\'e düşmüş durumda.',
-  '"Ek Masraflar" kalemi Haziran\'dan itibaren ortaya çıktı (₺100 B → ₺200 B+/ay) ve yıl sonuna kadar toplam ₺1,33 M\'e ulaşacak; Haziran\'daki SMM/YMM/Avukat (₺362 B) sıçraması da tek seferlik görünüyor. Bu kalemler bütçede ayrıca izlenmeli.',
-  'Ödül-Reklam, Muhasebe Lisans, İş İlanı gibi kalemler düzensiz/dönemsel — yıl sonuna doğru gerekirse bütçede pay ayrılmalı.',
+  'Personel gideri (Maaş + SGK + Yemek + Kıdem/İhbar + Muhtasar) Ocak-Ekim giderinin %58,4\'ünü (₺49,87 M) oluşturuyor, Ekim\'de %55,2 — en büyük kalem. Maaş Ocak\'ta ₺2,89 M\'den Ekim\'de ₺2,34 M\'ye (yılın en düşüğü) gerilerken Muhtasar ₺0,47 M\'den ₺0,92 M\'ye çıktı; maliyet kontrolü öncelikle burada odaklanmalı.',
+  "Aylık gider Ocak-Ekim arasında ₺7,90-9,43 M bandında kalıyor (Mart'taki ₺1,03 M'lik kıdem/ihbar ödemesi nedeniyle ₺9,43 M zirve); Ekim gideri ₺8,73 M, Eylül'ün ₺0,53 M üzerinde. Ocak'tan Ekim'e ciro %26,0 artarken gider %2,7 arttı.",
+  "Ekim giderindeki artış Diğer Giderler'den geldi (₺2,41 M → ₺2,91 M): Ulaşım-Konaklama-Eğitim ₺55 B'den ₺390 B'ye (yılın en yüksek aylığı), Ek Masraflar ₺203 B'den ₺352 B'ye, Aylık Lisanslar ₺151 B'den ₺212 B'ye, Demirbaş ₺103 B ve Kırtasiye ₺38 B oldu.",
+  "Aylık Lisanslar kalemi Ocak'taki ₺67 B'den Ekim'de ₺212 B'ye 3,2 katına çıktı (Ocak-Ekim ₺1,36 M, yıl sonu ₺1,66 M; Yıllık Lisanslar ile birlikte ₺2,54 M) — yazılım/lisans yükü gözden geçirilmeli.",
+  "\"Ek Masraflar\" Haziran'dan beri her ay var (₺100 B → ₺352 B; Ocak-Ekim ₺1,07 M) ve Kasım için ₺500 B tahmin girilmiş, yıl sonu ₺1,77 M. Ulaşım-Konaklama-Eğitim de Ocak-Ekim'de ₺1,59 M'ye ulaştı; bu iki kalem bütçede ayrıca izlenmeli.",
+  "Geçici Vergi (Kurumlar Vergisi) Temmuz'dan itibaren aylık ₺780.314'ten ₺650.000'e düştü; krediler aylık ₺244.056 sabit, Aralık için ₺424.917 tahmin ediliyor. Demirbaş yatırımı Ocak-Ekim ₺1,81 M (Ocak, Mart, Temmuz, Ağustos, Ekim). Ödül-Reklam, Muhasebe Lisans, İş İlanı gibi kalemler düzensiz/dönemsel.",
 ];
 
 export const gelirYorumlari = [
-  'En büyük 3 marka (Zuhal Müzik %8,7, Eğriçayır %8,3, Servet %7,9) Ocak-Eylül faturalamasının sadece %25,0\'ını oluşturuyor; ilk 8 marka yaklaşık %60,5\'ini oluşturuyor — portföy dağılmış, yoğunlaşma riski düşük. Kozoliv (%7,9) ve Myra (%7,5) da ilk 5\'e girdi.',
-  '9 marka (Nehir, Ecocotton, Kuşkonmaz, Arçelik, Artı Cerrahi, Eczi, Wildfruits, Gerçek Kozmetik, Heritage) Pasif işaretli ve Ocak-Eylül faturalamasının %7,7\'sini (₺9,07 M) oluşturuyor — pasif sayısı arttı (Gerçek Kozmetik ve Heritage eklendi), kayıp hâlâ sınırlı ama büyüyor.',
-  'Ocak-Eylül faturalamasının %62,9\'u (₺74,05 M) aylık sabit Fee, %37,1\'i (₺43,75 M) proje geliri — düzenli gelir tabanı güçlü, proje kısmı aylara göre dalgalı (Ağustos ₺18,57 M, Eylül ₺11,46 M).',
-  'Ekim-Aralık için "Tahmini Proje" altında toplu gelir tahmini hâlâ girilmiş durumda; Eylül ayında Fee ₺8,99 M\'de kalırken proje geliri ₺2,47 M\'ye düştü — son çeyrek ciro hedefi (₺14,50 M/ay) için yeni proje netleştirilmeli ve müşteri bazında ayrıştırılmalı.',
-  'Departman dağılımı dengeli: Strateji Pazarlama İletişimi %30,6, Prodüksiyon %28,9, Tasarım %24,5 ve Performans Pazarlama %15,9 — Performans Pazarlama en küçük paya sahip, büyüme alanı olarak değerlendirilebilir.',
-  'Yıl içinde 12 yeni marka fee portföyüne katıldı (Mart 3, Nisan 2, Mayıs 2, Haziran 3, Temmuz 1, Ağustos 1); fee faturası kesilen marka sayısı Ocak\'taki 18\'den Haziran-Ağustos\'ta 26\'ya çıktı, Eylül\'de 23\'e geriledi (pasif markalar). Satış Tablosu\'nda fatura kesilmeyen aylar gri gösteriliyor.',
-  'Sabit TL fee dolar karşılığında eriyor: Ocak-Eylül\'de kur %16,5 yükseldi (42,22 → 49,20), yani aynı TL fee USD\'de yaklaşık %14,2 değer kaybetti (marka sayfalarındaki KKO oranı). Yeni markalarla aylık Fee\'nin USD karşılığı Ocak\'ta $152 K\'dan Ağustos\'ta $196 K\'ya çıktı, Eylül\'de $183 K\'ya geriledi.',
+  "Ekim faturalamasının %69,8'i (₺8,38 M) aylık sabit Fee, %30,2'si (₺3,62 M) proje geliri; proje gelirinin %64,9'u (₺2,35 M) tek müşteriden, Kozoliv'den (web sitesi, konsept çekim, bilinirlik filmleri, Selme işleri). Potamya ₺1,11 M, Yandex ciro primi ₺0,16 M.",
+  "Ekim'de en büyük markalar Kozoliv (%24,1, ₺2,89 M), Potamya (%11,8), Zuhal Müzik (%9,8), Eğriçayır (%9,1) ve Servet (%8,7); ilk 3 marka cironun %45,6'sını oluşturuyor. Fee tabanı dağınık, ancak aydaki yoğunlaşma proje işlerinden geliyor — proje geliri tek müşteriye bağımlı.",
+  "Ekim'de fee faturası kesilen marka sayısı 22 (önceki güncellemede Eylül 23, Haziran-Ağustos 26); toplam 23 markaya fatura kesildi. Pasif işaretli markaların hiçbiri Ekim'de fatura almadı — fee tabanındaki daralma sürüyor, yeni marka kazanımı gerekiyor.",
+  "Kasım-Aralık için \"Tahmini Proje\" altında toplu gelir tahmini hâlâ girilmiş durumda; Ekim'de proje geliri ₺3,62 M ile Eylül sonrası toparlansa da aylık ₺14,35 M ciro hedefi (Ekim ₺12,00 M) için yaklaşık ₺2,35 M ek gelir gerekiyor — yeni projeler netleştirilmeli ve müşteri bazında ayrıştırılmalı.",
+  'Ekim departman dağılımı (Rapor Departman): Strateji Pazarlama İletişimi %30,3 (₺3,63 M), Tasarım %25,8 (₺3,09 M), Prodüksiyon %25,2 (₺3,02 M), Performans Pazarlama %18,8 (₺2,26 M) — Performans Pazarlama yine en küçük pay; büyüme alanı olarak değerlendirilebilir. Prodüksiyon ve Tasarım payı proje işleri nedeniyle yüksek.',
+  "Sabit TL fee dolar karşılığında eriyor: Ocak-Ekim'de kur %18,0 yükseldi (42,22 → 49,80; yıl sonu tahmini 50,70, %20,1), yani aynı TL fee USD'de yaklaşık %15,2 değer kaybetti (marka sayfalarındaki KKO oranı). Aylık ciro USD karşılığı Ocak'ta $225 B'den Ekim'de $241 B'ye (%6,8) çıktı; TL'deki %26,0 artışın ancak dörtte biri USD'ye yansıdı.",
 ];
 
 export const aksiyonlar = [
-  'Personel giderindeki büyük payı (%65,3) göz önünde bulundurarak, ekip büyümesi planlanıyorsa kâr marjı etkisi önceden modellenmeli; Muhtasar\'daki artış (Ocak ₺0,47 M → Eylül ₺0,93 M) ayrıca incelenmeli.',
-  'Alacaklar toplamı ₺21,74 M. Servet (₺3,72 M, %17,1) ve Kozoliv (₺3,69 M, %17,0) tek başlarına alacakların üçte birini oluşturuyor; Myra (₺2,36 M) da öne çıkıyor — tahsilat takibi bu üç müşteride önceliklendirilmeli.',
-  'Alacakların ₺11,11 M\'si (%51) bugüne kadar vadesi gelmiş durumda — ağırlıkla 1 Ekim vadeli (Servet, Myra, Silva, Portakal Bahçem, Zuhal) ve BMS\'in ₺1,43 M\'lik Ağustos vadeli kalemi; tahsilat haftalık izlenmeli. Kalan ₺10,63 M Ekim sonu-Kasım vadeli.',
-  'Pasif markalar (9 marka) cirodaki payı düşük olsa da (%7,7), pasif sayısı arttığı için bu markaların yerine yeni müşteri kazanımı planlanmalı; Eylül\'de fee faturası kesilen marka sayısındaki düşüş (26 → 23) izlenmeli.',
-  'Ekim-Aralık\'ta aylık ₺14,50 M ciro tahmini, Ocak-Eylül ortalamasının (₺13,09 M) üzerinde — Eylül\'deki proje düşüşü (₺2,47 M) tekrarlanırsa hedef kaçar; proje pipeline\'ı çeyrek başında netleştirilmeli.',
-  '2026 için resmi bir bütçe/hedef belirlenip rapora eklenmeli — sadece geçen yılla değil hedefle kıyas da yapılabilsin.',
-  'Kur kaybını azaltmak için sabit fee\'li markalarda fee\'yi kura veya enflasyona endeksleyen dönemsel (ör. 6 aylık) güncelleme maddesi sözleşmelere eklenmeli; kur Ocak\'tan beri %16,5 yükseldi, en çok erimeyi KKO oranı yüksek markalar gösteriyor.',
-  'Yıl ortasında katılan markaların (Mart-Ağustos) fee seviyeleri, kur kaybı oluşmadan baştan kura duyarlı belirlenmeli.',
+  "Gider büyümesi (%55,1) ciro büyümesinin (%52,8) üzerine çıktı ve marj 2025'in altına indi: Diğer Giderler (ulaşım-konaklama, ek masraflar, lisanslar, demirbaş) için aylık limit/bütçe belirlenmeli; Kasım için girilmiş ₺500 B Ek Masraf tahmini gözden geçirilmeli.",
+  'Alacaklar toplamı ₺9,75 M (önceki güncellemede ₺21,74 M — tahsilat iyi ilerlemiş). Ancak ₺7,15 M\'si (%73) vadesi gelmiş durumda; Kozoliv (₺2,16 M, %22,2), Potamya (₺1,49 M, %15,3) ve BMS (₺1,43 M, %14,6) alacakların yarısından fazlasını oluşturuyor — tahsilat takibi bu üç müşteride önceliklendirilmeli.',
+  "BMS'in ₺1,43 M'lik kalemi 24 Ağustos vadeli, yaklaşık 74 gündür gecikmiş; Portakal Bahçem (₺677 B, 1 Ekim) ve Silva (₺1,03 M, 1 Kasım) da vadesi gelmiş. Kalan ₺2,60 M Kasım'ın 7-20'si arasında vadeli (Kozoliv ₺1,37 M, Potamya ₺1,15 M, Yandex ₺82 B).",
+  "Ekim marjı %27,2'ye geriledi (Eylül %30,8); personel dışı giderlerin artışı kâr üzerinde belirleyici — Ekim'in demirbaş, ulaşım ve lisans artışları tekrarlanırsa kalan 2 aydaki %41,2 marj varsayımı tutmaz.",
+  "Kasım-Aralık'ta aylık ₺14,35 M ciro tahmini, Ocak-Ekim ortalamasının (₺13,02 M) ve Ekim'in (₺12,00 M) üzerinde — yaklaşık ₺2,35 M ek gelir gerekiyor; proje pipeline'ı Kasım başında netleştirilmeli ve müşteri bazında girilmeli.",
+  "Proje gelirinin %64,9'u tek müşteriden (Kozoliv) geldi; proje bağımlılığını azaltmak için ikinci ve üçüncü büyük proje müşterileri geliştirilmeli. Pasif markaların yerine yeni fee müşterisi kazanımı planlanmalı (fee faturası kesilen marka sayısı 22).",
+  'Personel giderindeki büyük payı (%58,4) göz önünde bulundurarak, ekip büyümesi planlanıyorsa kâr marjı etkisi önceden modellenmeli; Muhtasar\'daki artış (Ocak ₺0,47 M → Ekim ₺0,92 M) ayrıca incelenmeli.',
+  "Kur kaybını azaltmak için sabit fee'li markalarda fee'yi kura veya enflasyona endeksleyen dönemsel (ör. 6 aylık) güncelleme maddesi sözleşmelere eklenmeli; kur Ocak'tan beri %18,0 yükseldi. 2026 için resmi bir bütçe/hedef belirlenip rapora eklenmeli — sadece geçen yılla değil hedefle kıyas da yapılabilsin.",
 ];
 
 export default { genelDegerlendirme, giderYorumlari, gelirYorumlari, aksiyonlar };
