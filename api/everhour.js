@@ -1,7 +1,7 @@
 // Everhour müşteri adı eşleştirme: yalnızca admin. GET liste + mevcut eşleşmeler, PUT eşleştir/kaldır.
 import { json, sameOriginJson, readBody, currentUser } from './_lib/http.js';
 import { getEverhour, clearEverhourCache, teshis, teshis2, teshis3, teshis4 } from './_lib/everhour.js';
-import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, readTatil, setTatiller } from './_lib/everhourMap.js';
+import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, readTatil, setTatiller, kisiOzet, kaydetKisiOzet, readKisiOzet } from './_lib/everhourMap.js';
 
 export default async function handler(req, res) {
   try {
@@ -18,15 +18,17 @@ export default async function handler(req, res) {
       return json(res, 200, await teshis({ key: process.env.EVERHOUR_API_KEY, user: q.get('user') || '', ym, task: q.get('task') || '' }));
     }
     // Hafif okuma: yalnızca resmi tatil listesi (Everhour'a gitmez)
+    // Hafif okuma (maliyet bölümü): Everhour'a gitmeden; kişi listesi son kaydedilen özetten gelir (yoksa kisiler: null)
+    if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('bolum') === 'maliyet') {
+      const oz = await readKisiOzet();
+      return json(res, 200, { kisiler: oz ? oz.kisiler : null, aylikSaat: oz ? oz.aylikSaat : {}, ozetZamani: oz?.at || null, pasif: await readPasif(), maliyet: await readMaliyet(), tatiller: await readTatil() });
+    }
     if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('bolum') === 'tatil') return json(res, 200, { tatiller: await readTatil() });
     if (req.method === 'GET') {
       const ev = await getEverhour({ key: process.env.EVERHOUR_API_KEY, year: new Date().getFullYear(), upToMonth: new Date().getMonth() + 1 });
-      const saat = new Map();
-      (ev.personel || []).forEach(([u, , , h]) => saat.set(u, (saat.get(u) || 0) + h));
-      const aylikSaat = {};
-      (ev.personel || []).forEach(([u, ym, , h]) => { (aylikSaat[u] ||= {})[ym] = Math.round(((aylikSaat[u][ym] || 0) + h) * 100) / 100; });
-      const kisiler = [...saat].map(([name, hours]) => ({ name, hours: Math.round(hours) })).sort((a, b) => b.hours - a.hours);
-      return json(res, 200, { musteriler: ev.musteriler, map: await readMap(), kisiler, departman: await readDepartman(), pasif: await readPasif(), maliyet: await readMaliyet(), aylikSaat, tatiller: await readTatil() });
+      const { kisiler, aylikSaat } = kisiOzet(ev.personel);
+      await kaydetKisiOzet(ev.personel);
+      return json(res, 200, { musteriler: ev.musteriler, map: await readMap(), kisiler, departman: await readDepartman(), pasif: await readPasif(), maliyet: await readMaliyet(), aylikSaat, tatiller: await readTatil(), ozetZamani: new Date().toISOString() });
     }
     if (req.method === 'PUT') {
       if (!sameOriginJson(req)) return json(res, 403, { error: 'İstek reddedildi' });

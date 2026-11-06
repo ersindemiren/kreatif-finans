@@ -78,13 +78,29 @@ function MaliyetHesaplama() {
   const [girdi, setGirdi] = useState({});
   const [dagitimGirdi, setDagitimGirdi] = useState(null);
   const [busy, setBusy] = useState('');
+  const [kisiYukleniyor, setKisiYukleniyor] = useState(false);
+  const [ozetZamani, setOzetZamani] = useState(null);
+  // Canlı Everhour okuması (yavaş): kişi listesi yoksa ya da "Yenile" ile
+  const canliYukle = useCallback(async () => {
+    setKisiYukleniyor(true);
+    const r = await api('/api/everhour');
+    if (r.ok) {
+      setSt((x) => ({ ...x, kisiler: r.data.kisiler || [], aylikSaat: r.data.aylikSaat || {}, pasif: r.data.pasif || {}, error: '' }));
+      setOzetZamani(r.data.ozetZamani || null);
+    } else setSt((x) => ({ ...x, error: r.data.error || 'Everhour verisi alınamadı' }));
+    setKisiYukleniyor(false);
+  }, []);
   useEffect(() => {
     (async () => {
-      const r = await api('/api/everhour');
-      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], pasif: r.data.pasif || {}, aylikSaat: r.data.aylikSaat || {}, maliyet: r.data.maliyet || { aylar: {} }, tatiller: r.data.tatiller || VARSAYILAN_TATILLER, error: '' });
-      else setSt((x) => ({ ...x, loading: false, error: r.data.error || 'Everhour verisi alınamadı' }));
+      // 1) Hızlı: kayıtlı maliyet + tatil + son kişi özeti (Everhour'a gitmez)
+      const r = await api('/api/everhour?bolum=maliyet');
+      if (!r.ok) { setSt((x) => ({ ...x, loading: false, error: r.data.error || 'Okunamadı' })); return; }
+      setSt({ loading: false, kisiler: r.data.kisiler || [], pasif: r.data.pasif || {}, aylikSaat: r.data.aylikSaat || {}, maliyet: r.data.maliyet || { aylar: {} }, tatiller: r.data.tatiller || VARSAYILAN_TATILLER, error: '' });
+      setOzetZamani(r.data.ozetZamani);
+      // 2) Özet yoksa (ilk kez) kişi listesini canlı çek; form o sırada görünür
+      if (!r.data.kisiler) canliYukle();
     })();
-  }, []);
+  }, [canliYukle]);
   const ym = ayAnahtar(ay);
   const aySaat = aySaati(st.tatiller, new Date().getFullYear(), ay);
   const veri = st.maliyet.aylar[ym] || { kisi: {}, dagitim: 0 };
@@ -127,7 +143,7 @@ function MaliyetHesaplama() {
           return <button key={m} onClick={() => ayDegis(i)} className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${ay === i ? 'bg-slate-900 text-white' : dolu ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{m}</button>;
         })}
       </div>
-      {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Everhour kişileri okunuyor...</div>}
+      {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Okunuyor...</div>}
       {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
       {!st.loading && (
         <>
@@ -137,6 +153,10 @@ function MaliyetHesaplama() {
             <div className="sm:w-48">
               <input inputMode="decimal" value={dagitimGirdi ?? gosterim(veri.dagitim)} disabled={busy === '__dagitim'} placeholder="0" onChange={(e) => setDagitimGirdi(e.target.value)} onBlur={dagitimKaydet} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label="Genel işletme dağıtım gideri" className={input} />
             </div>
+          </div>
+          <div className="flex items-center gap-2 mb-3 text-[11px] text-slate-400">
+            {kisiYukleniyor ? <><Loader2 size={12} className="animate-spin" /> Everhour kişi listesi güncelleniyor...</> : <>Kişi listesi {ozetZamani ? `${new Date(ozetZamani).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} itibarıyla` : ''}</>}
+            <button type="button" onClick={canliYukle} disabled={kisiYukleniyor} className="underline decoration-dotted hover:text-slate-600 disabled:opacity-50">Yenile</button>
           </div>
           <div className="hidden sm:flex items-center gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
             <span className="flex-1 min-w-0">Personel</span>

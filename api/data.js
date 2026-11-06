@@ -5,7 +5,7 @@ import { filterData } from './_lib/filter.js';
 import yorumlar from './_data/yorumlar.js';
 import sureler from './_data/sureler.js';
 import { getEverhour, applyMap } from './_lib/everhour.js';
-import { readMap, readDepartman, readPasif, readMaliyet, readTatil } from './_lib/everhourMap.js';
+import { readMap, readDepartman, readPasif, readMaliyet, readTatil, kaydetKisiOzet } from './_lib/everhourMap.js';
 import { groupsFor } from './_lib/filter.js';
 
 export default async function handler(req, res) {
@@ -29,6 +29,7 @@ export default async function handler(req, res) {
       try {
         const now = new Date();
         const ev = applyMap(await getEverhour({ key: process.env.EVERHOUR_API_KEY, year: now.getFullYear(), upToMonth: now.getMonth() + 1 }), await readMap());
+        await kaydetKisiOzet(ev.personel);
         sure = { kaynak: 'Everhour', rows: ev.rows, personel: ev.personel, departman: await readDepartman(), pasif: await readPasif() };
       } catch (e) { sureError = e.message; }
       sure = { ...sure, tatiller: await readTatil() };

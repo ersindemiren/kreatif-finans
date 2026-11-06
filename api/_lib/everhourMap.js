@@ -188,3 +188,42 @@ export async function setTatiller(liste) {
   await tatilStore.write(temiz);
   return temiz;
 }
+
+// Kişi listesi özeti (kişi adı, toplam saat, aylık saat): panel Everhour verisini çektikçe güncellenir; Yönetim'deki maliyet bölümü
+// Everhour'a gitmeden buradan okur.
+const KISI_PATH = 'kf-auth/everhour-kisiler.json';
+let kisiStore = {
+  async read() {
+    const r = await get(KISI_PATH, { access: 'private', useCache: false });
+    if (!r || r.statusCode !== 200) return null;
+    return JSON.parse(await new Response(r.stream).text());
+  },
+  async write(v) {
+    await put(KISI_PATH, JSON.stringify(v), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  },
+};
+export const setKisiStore = (s) => { kisiStore = s; };
+
+// personel: Everhour satırları [kişi, 'YYYY-AA', müşteri, saat]
+export function kisiOzet(personel) {
+  const saat = new Map();
+  const aylikSaat = {};
+  (personel || []).forEach(([u, ym, , h]) => {
+    saat.set(u, (saat.get(u) || 0) + h);
+    const a = (aylikSaat[u] ||= {});
+    a[ym] = Math.round(((a[ym] || 0) + h) * 100) / 100;
+  });
+  const kisiler = [...saat].map(([name, hours]) => ({ name, hours: Math.round(hours) })).sort((a, b) => b.hours - a.hours);
+  return { kisiler, aylikSaat };
+}
+
+let sonYazim = 0;
+export async function kaydetKisiOzet(personel, simdi = Date.now()) {
+  if (simdi - sonYazim < 60 * 1000) return; // en fazla dakikada bir yaz
+  sonYazim = simdi;
+  try { await kisiStore.write({ ...kisiOzet(personel), at: new Date(simdi).toISOString() }); } catch { /* yedek veri: yazılamazsa sessiz geç */ }
+}
+
+export async function readKisiOzet() {
+  try { const v = await kisiStore.read(); return v && Array.isArray(v.kisiler) ? v : null; } catch { return null; }
+}
