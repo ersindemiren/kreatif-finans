@@ -409,7 +409,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const kartlar = [
     ['Maksimum Kapasite', maksP ? `${fmtN(maksP)} Saat` : '–', maksP ? `${maksAyP} ay · iş günü × 8,5 sa` : 'süre girilmemiş', ''],
     ['Gerçekleşen Süre', `${fmtN(toplamP)} Saat`, `ekibin ${pct1(ekipP ? toplamP / ekipP : 0)}'i ${donem}`, ''],
-    ['Süre Oranı', oranP == null ? '–' : pct1(oranP), 'Gerçekleşen Süre / Maksimum Kapasite', oranP != null && oranP < ESIK ? ORAN_KIRMIZI : ''],
+    ['Kapasite Oranı', oranP == null ? '–' : pct1(oranP), 'Gerçekleşen Süre / Maksimum Kapasite', oranP != null && oranP < ESIK ? ORAN_KIRMIZI : ''],
     ['Girilen Süre', `${fmtN(grpP.faturali)} Saat`, `${payP(grpP.faturali)} · ${donem}`, ''],
     ['Atanmamış Süre', `${fmtN(grpP.atil)} Saat`, `${payP(grpP.atil)} · ${donem}`, ''],
     ['Kayıp Süre', `${fmtN(grpP.kayip)} Saat`, `${payP(grpP.kayip)} · ${donem}`, ''],
@@ -447,7 +447,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
       ['Gerçekleşen Maliyet', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || 'aylık personel maliyetlerinin toplamı'],
     ] : []),
     ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
-    ['Verimlilik Skoru', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Süre ${Math.round(skorP.sure)}/40 · Kayıt ${Math.round(skorP.kayit)}/40 · Kayıp ${Math.round(skorP.kayip)}/20` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : ''],
+    ['Verimlilik Skoru', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Kapasite ${Math.round(skorP.sure)}/40 · Kayıt ${Math.round(skorP.kayit)}/40 · Kayıp ${Math.round(skorP.kayip)}/20` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : ''],
   ];
   const pillClass = (m, active) => {
     const durum = ayDurumu?.[months.indexOf(m)];
@@ -474,7 +474,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
 
   const gridA = 'grid grid-cols-[minmax(4rem,1fr)_repeat(10,minmax(5.5rem,1fr))]';
   const maksAy = (i) => (sayilan.has(i) ? maksSaat(i) : 0);
-  // Süre Oranı: sürenin faturası kesilmiş markalara giden payı (seçilen aylar için)
+  // Kayıt Oranı: sürenin faturası kesilmiş markalara giden payı (seçilen aylar için)
   const kayitOraniAy = (idxs) => {
     const tpl = sum(d.monthly, idxs);
     if (!tpl) return null;
@@ -549,10 +549,10 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
 
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ort. Saat Maliyeti = o ayın saat maliyeti (yukarı yuvarlanır); Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki o ayın personel maliyeti (maaş + dağıtım payı). Maks. Kapasite = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite (%85 altı kırmızı). Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor = Verimlilik Skoru (0–100): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ort. Saat Maliyeti = o ayın saat maliyeti (yukarı yuvarlanır); Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki o ayın personel maliyeti (maaş + dağıtım payı). Maks. Kapasite = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite (%85 altı kırmızı). Kayıt Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor = Verimlilik Skoru (0–100): Kapasite Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20.</p>
         <div className="rounded-xl overflow-x-auto border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm"><div className="min-w-[980px]">
           <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
-            <span className={`${cellA} text-left`}>Ay</span>{['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Maks. Kapasite', 'Kapasite Oranı', 'Gerçekleşen Süre', 'Süre Oranı', 'Ekip Süresi', 'Ekip Payı', 'Dep. Payı', 'Skor'].map((h) => <span key={h} className={`${cellA} !whitespace-normal leading-tight`}>{h}</span>)}
+            <span className={`${cellA} text-left`}>Ay</span>{['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Maks. Kapasite', 'Kapasite Oranı', 'Gerçekleşen Süre', 'Kayıt Oranı', 'Ekip Süresi', 'Ekip Payı', 'Dep. Payı', 'Skor'].map((h) => <span key={h} className={`${cellA} !whitespace-normal leading-tight`}>{h}</span>)}
           </div>
           {idx.map((i) => {
             const sm = saatAyDeger(i);

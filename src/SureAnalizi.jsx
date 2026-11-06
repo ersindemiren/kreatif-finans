@@ -108,7 +108,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const kartlar = [
     ['Maksimum Kapasite', maksToplam ? `${fmtN(maksToplam)} Saat` : '–', maksToplam ? `${kisiAy} kişi-ay · iş günü × 8,5 sa` : 'kişi bazlı veri yok', ''],
     ['Gerçekleşen Süre', `${fmtN(toplam)} Saat`, donem, ''],
-    ['Süre Oranı', sureOrani == null ? '–' : pct1(sureOrani), 'Gerçekleşen Süre / Maksimum Kapasite', sureOrani != null && sureOrani < ESIK ? ORAN_KIRMIZI : ''],
+    ['Kapasite Oranı', sureOrani == null ? '–' : pct1(sureOrani), 'Gerçekleşen Süre / Maksimum Kapasite', sureOrani != null && sureOrani < ESIK ? ORAN_KIRMIZI : ''],
     ['Girilen Süre', `${fmtN(aktif)} Saat`, `${pct1(toplam ? aktif / toplam : 0)} · ${donem}`, ''],
     ['Atanmamış Süre', `${fmtN(atil)} Saat`, `${pct1(toplam ? atil / toplam : 0)} · ${donem}`, ''],
     ['Kayıp Süre', `${fmtN(kayip)} Saat`, `${pct1(toplam ? kayip / toplam : 0)} · ${donem}`, ''],
@@ -232,7 +232,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const ADW = 'w-72 shrink-0 whitespace-nowrap';
   const SUTUNLAR = [
     ['ort', 'Ort. Saat Maliyeti', W], ['gm', 'Gerçekleşen Maliyet', W], ['maks', 'Maks. Kapasite', W], ['kapOran', 'Kapasite Oranı', W],
-    ['sure', 'Gerçekleşen Süre', W], ['sureOran', 'Süre Oranı', W], ['ekipS', 'Ekip Süresi', W], ['ekipPay', 'Ekip Payı', W], ['depPay', 'Dep. Payı', W], ['skor', 'Skor', W],
+    ['sure', 'Gerçekleşen Süre', W], ['sureOran', 'Kayıt Oranı', W], ['ekipS', 'Ekip Süresi', W], ['ekipPay', 'Ekip Payı', W], ['depPay', 'Dep. Payı', W], ['skor', 'Skor', W],
   ];
   const TL0 = (v) => '₺' + Math.ceil(v).toLocaleString('tr-TR'); // Ort. Saat Maliyeti: ondalık yok, yukarı yuvarlanır
   const hucreMetni = {
@@ -394,7 +394,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki aylık personel maliyetlerinin toplamı (maaş + dağıtım payı). Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kapasite Oranı ve Süre Oranı %85'in altındaysa kırmızı. Skor = Verimlilik Skoru (0–100, %80 altı kırmızı): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20. Alttaki satırlar listedeki kişilerin ortalaması ve toplamıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki aylık personel maliyetlerinin toplamı (maaş + dağıtım payı). Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Kayıt Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kapasite Oranı ve Kayıt Oranı %85'in altındaysa kırmızı. Skor = Verimlilik Skoru (0–100, %80 altı kırmızı): Kapasite Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20. Alttaki satırlar listedeki kişilerin ortalaması ve toplamıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
             <div className="overflow-x-auto"><div className="min-w-[1340px]">
             {olcuBaslik('Personel')}
             <div className="flex flex-col">

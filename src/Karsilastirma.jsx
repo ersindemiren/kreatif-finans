@@ -29,12 +29,12 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
   // yon: 'yuksek' = büyük olan iyi, 'dusuk' = küçük olan iyi; verilmezse vurgu yapılmaz. num: karşılaştırılacak sayı
   const gruplar = olcu && [
     [
-      { l: 'Verimlilik Skoru', f: (o) => (o.skor ? `${Math.round(o.skor.toplam)} / 100` : 'Veri yetersiz'), alt: (o) => (o.skor ? `Süre ${Math.round(o.skor.sure)}/40 · Kayıt ${Math.round(o.skor.kayit)}/40 · Kayıp ${Math.round(o.skor.kayip)}/20` : ''), num: (o) => o.skor?.toplam ?? null, yon: 'yuksek', buyuk: true, kirmizi: (o) => skorKirmizi(o.skor), not: 'Süre Oranı %40 · Kayıt Oranı %40 · Kayıp Süre %20 (ters)' },
+      { l: 'Verimlilik Skoru', f: (o) => (o.skor ? `${Math.round(o.skor.toplam)} / 100` : 'Veri yetersiz'), alt: (o) => (o.skor ? `Kapasite ${Math.round(o.skor.sure)}/40 · Kayıt ${Math.round(o.skor.kayit)}/40 · Kayıp ${Math.round(o.skor.kayip)}/20` : ''), num: (o) => o.skor?.toplam ?? null, yon: 'yuksek', buyuk: true, kirmizi: (o) => skorKirmizi(o.skor), not: 'Kapasite Oranı %40 · Kayıt Oranı %40 · Kayıp Süre %20 (ters)' },
     ],
     [
       { l: 'Maksimum Kapasite', f: (o) => (o.maks ? `${fmtS(o.maks)} Saat` : VAR), alt: (o) => (o.maksAy ? `${o.maksAy} ay` : ''), not: '(hafta içi − resmi tatil) × 8,5 sa' },
       { l: 'Gerçekleşen Süre', f: (o) => `${fmtS(o.toplam)} Saat`, num: (o) => o.toplam, yon: 'yuksek' },
-      { l: 'Süre Oranı', f: (o) => (o.oran == null ? VAR : pct1(o.oran)), num: (o) => o.oran, yon: 'yuksek', kirmizi: (o) => o.oran != null && o.oran < ESIK, not: 'Gerçekleşen Süre / Maksimum Kapasite' },
+      { l: 'Kapasite Oranı', f: (o) => (o.oran == null ? VAR : pct1(o.oran)), num: (o) => o.oran, yon: 'yuksek', kirmizi: (o) => o.oran != null && o.oran < ESIK, not: 'Gerçekleşen Süre / Maksimum Kapasite' },
       { l: 'Girilen Süre', f: (o) => `${fmtS(o.aktif)} Saat`, alt: (o) => (o.toplam ? pct1(o.aktif / o.toplam) : ''), num: (o) => o.aktif, yon: 'yuksek' },
       { l: 'Atanmamış Süre', f: (o) => `${fmtS(o.atanmamis)} Saat`, alt: (o) => (o.toplam ? pct1(o.atanmamis / o.toplam) : ''), num: (o) => o.atanmamis, yon: 'dusuk' },
       { l: 'Kayıp Süre', f: (o) => `${fmtS(o.kayip)} Saat`, alt: (o) => (o.toplam ? pct1(o.kayip / o.toplam) : ''), num: (o) => o.kayip, yon: 'dusuk' },
@@ -132,7 +132,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
             </div>
           </div>
           <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4 leading-relaxed">
-            Verimlilik Skoru: Süre Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan). {SKOR_ESIK} altındaki skor kırmızıdır. Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
+            Verimlilik Skoru: Kapasite Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan). {SKOR_ESIK} altındaki skor kırmızıdır. Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
           </p>
         </div>
       )}
