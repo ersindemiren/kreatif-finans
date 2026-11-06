@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         try { veri = JSON.parse(process.env.MALIYET_ICE_AKTAR || ''); } catch { /* aşağıda hata */ }
         if (!veri) return json(res, 400, { error: 'Aktarılacak veri tanımlı değil' });
         const oz = await readKisiOzet();
-        return json(res, 200, await maliyetIceAktar(veri, (oz?.kisiler || []).map((k) => k.name)));
+        return json(res, 200, await maliyetIceAktar(veri, (oz?.kisiler || []).map((k) => k.name), JSON.parse(process.env.MALIYET_ICE_HARIC || '[]')));
       }
       if (body.maliyetKisi !== undefined) return json(res, 200, { maliyet: await setMaliyetKisi(body.ay, body.maliyetKisi, body.tutar) });
       if (body.dagitim !== undefined) return json(res, 200, { maliyet: await setDagitim(body.ay, body.dagitim) });
