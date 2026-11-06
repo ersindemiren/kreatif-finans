@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       } catch (e) { sureError = e.message; }
     }
     // Maliyet bilgisi yalnızca admin'e gönderilir
-    if (user.role === 'admin' && groupsFor(user.pages).has('SURE') && sure) sure = { ...sure, maliyet: await readMaliyet() };
+    if (user.role === 'admin' && groupsFor(user.pages).has('PERSONEL') && sure) sure = { ...sure, maliyet: await readMaliyet() };
     const out = filterData({ ...src, yorumlar, sureler: sure }, user.pages);
     out.satisError = src.satisError;
     out.sureError = sureError;

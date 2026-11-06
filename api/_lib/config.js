@@ -1,5 +1,6 @@
 // Sayfa kimlikleri (istemcideki menüyle aynı) ve başlangıç kullanıcıları.
-export const PAGES = ['dashboard', 'gelirler', 'giderler', 'alacaklar', 'nakitAkisi', 'satisTablosu', 'sureAnalizi', 'feeTakip', 'yorumlar'];
+export const PAGES = ['dashboard', 'gelirler', 'giderler', 'alacaklar', 'nakitAkisi', 'satisTablosu', 'sureAnalizi', 'sureAnalizPersonel', 'sureAnalizDepartman', 'feeTakip', 'yorumlar'];
+// 'sureAnalizi' = Süre Analiz · Müşteri görünümü (eski yetki aynen müşteri görünümüne denk gelir); personel ve departman ayrı yetkidir.
 
 // Kullanıcı listesi Blob'da yoksa (ilk açılış) bu liste yazılır. Sonrasında değişiklikler Yönetim sayfasından yapılır.
 export const DEFAULT_USERS = [

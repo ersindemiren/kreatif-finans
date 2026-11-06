@@ -16,9 +16,11 @@ const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
 const farkText = (v) => (Math.round(v) > 0 ? 'text-rose-600 dark:text-rose-400' : Math.round(v) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400');
 const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200' : Math.round(v) < 0 ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200' : '');
 
-export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData, sureError }) {
+export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData, sureError, gorunumler }) {
   const [selected, setSelected] = useState('Toplam');
-  const [gorunum, setGorunum] = useState('musteri'); // 'musteri' | 'personel'
+  const izinliGorunum = gorunumler?.length ? gorunumler : ['musteri'];
+  const personelAcik = izinliGorunum.includes('personel') || izinliGorunum.includes('departman');
+  const [gorunum, setGorunum] = useState(izinliGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
   const [acikDep, setAcikDep] = useState(null);
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
   const setSeciliMarka = (n) => setYigin([{ t: 'm', n }]);
@@ -79,7 +81,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const atil = gIc.hours + gAtanmamis.hours; // Atanmamış Süre kartı: iç süre + markaya atanmamış
 
   // Üst kartlar (Müşteri / Personel / Departman görünümünde aynı): azami süre = 22 gün x 8,5 saat x dönemdeki kişi-ay sayısı
-  const kisiAy = kisiAySayisi({ rows: sureData?.personel || [], idxs: periodIdx });
+  const kisiAy = sureData?.kisiAy ? periodIdx.reduce((t, i) => t + (sureData.kisiAy[i] || 0), 0) : kisiAySayisi({ rows: sureData?.personel || [], idxs: periodIdx });
   const maksToplam = kisiAy * MAKS_SURE;
   const sureOrani = maksToplam ? toplam / maksToplam : null;
   const donem = `(${selected === 'Toplam' ? rangeLabel : selected})`;
@@ -166,7 +168,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     const b = brandOf(sayfa.n);
     if (b) {
       return (
-        <MarkaDetay key={'m' + b.name} brand={b} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} pasifKisiler={pasifSet} pasif={pasifKeys.has(normalizeNameKey(b.name))}
+        <MarkaDetay key={'m' + b.name} brand={b} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} pasifKisiler={pasifSet} personelAcik={personelAcik} pasif={pasifKeys.has(normalizeNameKey(b.name))}
           onBack={geri} backLabel={etiket || 'Tüm markalar'} onKisi={(n) => setYigin((y) => [...y, { t: 'k', n }])} />
       );
     }
@@ -206,9 +208,9 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
             aria-label="Görünüm"
             className="ml-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400"
           >
-            <option value="musteri">Müşteri</option>
-            <option value="personel">Personel</option>
-            <option value="departman">Departman</option>
+            {izinliGorunum.includes('musteri') && <option value="musteri">Müşteri</option>}
+            {izinliGorunum.includes('personel') && <option value="personel">Personel</option>}
+            {izinliGorunum.includes('departman') && <option value="departman">Departman</option>}
           </select>
         </div>
         <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">

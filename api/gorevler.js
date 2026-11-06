@@ -1,4 +1,4 @@
-// Bir kişinin bir aydaki Everhour görevleri. Yalnızca Süre Analiz yetkisi olan kullanıcı.
+// Bir kişinin bir aydaki Everhour görevleri. Yalnızca Süre Analiz personel/departman yetkisi olan kullanıcı (kişi bazlı veri).
 import { json, currentUser } from './_lib/http.js';
 import { groupsFor } from './_lib/filter.js';
 import { fetchGorevler } from './_lib/everhour.js';
@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   try {
     const me = await currentUser(req);
     if (!me) return json(res, 401, { error: 'Giriş gerekli' });
-    if (!groupsFor(me.pages).has('SURE')) return json(res, 403, { error: 'Bu veriye erişim yetkiniz yok' });
+    if (!groupsFor(me.pages).has('PERSONEL')) return json(res, 403, { error: 'Bu veriye erişim yetkiniz yok' });
     const url = new URL(req.url, 'http://x');
     const list = await fetchGorevler({ key: process.env.EVERHOUR_API_KEY, user: url.searchParams.get('user'), ym: url.searchParams.get('ym') });
     const map = await readMap();

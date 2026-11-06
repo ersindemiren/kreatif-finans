@@ -96,7 +96,10 @@ function NavItem({ icon: Icon, label, active, onClick }) {
 export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, lastUpdatedOdeme, onRefresh, refreshing }) {
   // Kullanıcının izinli sayfaları (sunucu zaten yalnızca bu sayfaların verisini gönderir); admin ayrıca Yönetim sayfasını görür
   const izinli = user?.pages || [];
-  const [page, setPage] = useState(izinli[0] || (user?.role === 'admin' ? 'yonetim' : 'dashboard'));
+  // Süre Analiz üç ayrı yetkidir (müşteri / personel / departman); menüde tek sayfa olarak görünür
+  const sureGorunumler = [['sureAnalizi', 'musteri'], ['sureAnalizPersonel', 'personel'], ['sureAnalizDepartman', 'departman']].filter(([k]) => izinli.includes(k)).map(([, g]) => g);
+  const menuIzinli = [...izinli.filter((p) => !p.startsWith('sureAnaliz')), ...(sureGorunumler.length ? ['sureAnalizi'] : [])];
+  const [page, setPage] = useState(menuIzinli[0] || (user?.role === 'admin' ? 'yonetim' : 'dashboard'));
   const { genelDegerlendirme = [], giderYorumlari = [], gelirYorumlari = [], aksiyonlar = [] } = data.yorumlar || {};
   const [selectedMonth, setSelectedMonth] = useState('Toplam');
   const [gelirGorunum, setGelirGorunum] = useState('güncel');
@@ -302,8 +305,12 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
     { id: 'feeTakip', label: 'Fee Takip', icon: LineChart },
     { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
   ];
+  // Yönetim'deki yetki düğmeleri: Süre Analiz üç ayrı düğmedir
+  const yetkiSayfalari = tumSayfalar.flatMap((p) => (p.id === 'sureAnalizi'
+    ? [{ ...p, label: 'Süre Analiz · Müşteri' }, { id: 'sureAnalizPersonel', label: 'Süre Analiz · Personel', icon: Clock }, { id: 'sureAnalizDepartman', label: 'Süre Analiz · Departman', icon: Clock }]
+    : [p]));
   const pages = [
-    ...tumSayfalar.filter((p) => izinli.includes(p.id)),
+    ...tumSayfalar.filter((p) => menuIzinli.includes(p.id)),
     ...(user?.role === 'admin' ? [{ id: 'yonetim', label: 'Yönetim', icon: ShieldCheck }] : []),
   ];
 
@@ -1175,10 +1182,10 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
             <SatisTablosu satis={data.satis} satisError={data.satisError} months={months} kurUSD={data.kurUSD} ozet={{ ciro, gider, ciroUSD, giderUSD, ayDurumu }} />
           )}
 
-          {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} sureError={data.sureError} />}
+          {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} sureError={data.sureError} gorunumler={sureGorunumler} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
-          {page === 'yonetim' && user?.role === 'admin' && <Yonetim me={user} tumSayfalar={tumSayfalar} markalar={markaListesi} />}
+          {page === 'yonetim' && user?.role === 'admin' && <Yonetim me={user} tumSayfalar={yetkiSayfalari} markalar={markaListesi} />}
           {page === 'feeTakip' && <FeeTakip feeTakip={data.feeTakip} feeTakipError={data.feeTakipError} pasifMarkalar={pasifMarkalar} satisRows={data.satis?.rows} kurUSD={data.kurUSD} />}
           {page === 'yorumlar' && (
             <div className="flex flex-col gap-5">

@@ -24,7 +24,7 @@ export function sanitizeUser(u) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Geçersiz e-posta');
   const role = u.role === 'admin' ? 'admin' : 'member';
   const pages = role === 'admin' ? PAGES : PAGES.filter((p) => (u.pages || []).includes(p));
-  return { email, name: String(u.name || '').trim().slice(0, 80), title: String(u.title || '').trim().slice(0, 80), role, pages };
+  return { email, name: String(u.name || '').trim().slice(0, 80), title: String(u.title || '').trim().slice(0, 80), role, pages, v: 2 };
 }
 
 export async function listUsers() {
@@ -32,6 +32,17 @@ export async function listUsers() {
   try { users = await store.read(); } catch (err) { throw new Error('Kullanıcı listesi okunamadı'); }
   if (!Array.isArray(users) || !users.length) {
     users = DEFAULT_USERS.map(sanitizeUser);
+    await store.write(users);
+  }
+  // Tek seferlik geçiş (v2): Süre Analiz personel/departman yetkileri ayrıldı. Eski tüm sayfalara yetkisi olan üyeler yenilerini de alır;
+  // kısıtlı üyelerde "Süre Analiz" yalnızca müşteri görünümü olarak kalır.
+  if (users.some((u) => u.v !== 2)) {
+    const eski = PAGES.filter((p) => p !== 'sureAnalizPersonel' && p !== 'sureAnalizDepartman');
+    users = users.map((u) => {
+      if (u.v === 2) return u;
+      const tam = u.role === 'admin' || eski.every((p) => (u.pages || []).includes(p));
+      return sanitizeUser({ ...u, pages: tam ? PAGES : u.pages });
+    });
     await store.write(users);
   }
   return users;

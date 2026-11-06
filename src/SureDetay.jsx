@@ -207,7 +207,7 @@ const ayKey = (yil, i) => `${yil}-${String(i + 1).padStart(2, '0')}`;
 const useTop = () => useEffect(() => { window.scrollTo(0, 0); }, []);
 
 /* =============================== MARKA DETAYI =============================== */
-export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler, pasif, onBack, backLabel, onKisi }) {
+export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler, personelAcik = true, pasif, onBack, backLabel, onKisi }) {
   useTop();
   const [gorev, setGorev] = useState(null);
   const idx = months.map((_, i) => i);
@@ -331,7 +331,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
         </p>
       </div>
 
-      <div className={`${CARD} p-5`}>
+      {personelAcik && <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel × Ay Matrisi</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Bu markada kim, hangi ay kaç saat çalışmış (saat). Kişi adına tıklayınca personel sayfası açılır.</p>
         {kisiler.length ? (
@@ -339,7 +339,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
         ) : (
           <div className="text-xs text-slate-400 py-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Bu marka için personel kaydı yok (kişi bazlı veri Everhour kaynağından gelir).</div>
         )}
-      </div>
+      </div>}
       {gorev && <GorevKutusu user={gorev.user} client={gorev.client} ym={ayKey(yilOf(personelRows), gorev.i)} ayAdi={months[gorev.i]} onClose={() => setGorev(null)} />}
     </div>
   );

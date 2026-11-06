@@ -7,7 +7,9 @@ export const PAGE_GROUPS = {
   alacaklar: ['ALACAK'],
   nakitAkisi: ['NAKIT', 'ALACAK'],
   satisTablosu: ['CIRO', 'SATIS'],
-  sureAnalizi: ['CIRO', 'GELIR', 'SATIS', 'SURE'],
+  sureAnalizi: ['CIRO', 'GELIR', 'SATIS', 'SURE'], // müşteri görünümü
+  sureAnalizPersonel: ['CIRO', 'GELIR', 'SATIS', 'SURE', 'PERSONEL'],
+  sureAnalizDepartman: ['CIRO', 'GELIR', 'SATIS', 'SURE', 'PERSONEL'],
   feeTakip: ['CIRO', 'SATIS', 'FEETAKIP'],
   yorumlar: ['YORUM'],
 };
@@ -28,6 +30,19 @@ export function filterDash(grid, groups) {
   return grid.map((row) => (Array.isArray(row) ? row.map((v, i) => (keep.has(i) ? v : '')) : row));
 }
 
+// Süre verisi: kişi bazlı bilgi (kişi adları, kişi-ay süreleri, departman, pasif, maliyet) yalnızca personel/departman yetkisi olana gider.
+// Yalnızca müşteri görünümü olanlara, maksimum süre kartı için ay başına çalışan SAYISI (isimsiz) gönderilir.
+export function filterSure(sure, g) {
+  if (!sure || !g.has('SURE')) return null;
+  if (g.has('PERSONEL')) return sure;
+  const kisiAy = new Array(12).fill(0);
+  const top = new Map();
+  (sure.personel || []).forEach(([u, ym, , h]) => { const k = `${u}|${Number(String(ym).slice(5, 7)) - 1}`; top.set(k, (top.get(k) || 0) + h); });
+  top.forEach((h, k) => { if (h > 0) kisiAy[Number(k.split('|')[1])] += 1; });
+  const { personel, departman, pasif, maliyet, ...kalan } = sure; // eslint-disable-line no-unused-vars
+  return { ...kalan, personel: [], departman: {}, pasif: {}, kisiAy };
+}
+
 export function filterData({ fee, odeme, satis, yorumlar, sureler }, pages) {
   const g = groupsFor(pages);
   const out = { fee: {}, odeme: { '2026 ÖDEME LİSTESİ': [] }, satis: null, yorumlar: null, sureler: null };
@@ -43,6 +58,6 @@ export function filterData({ fee, odeme, satis, yorumlar, sureler }, pages) {
   else if (odeme) out.odeme._lastUpdated = odeme._lastUpdated;
   if (g.has('SATIS')) out.satis = satis;
   if (g.has('YORUM')) out.yorumlar = yorumlar;
-  if (g.has('SURE')) out.sureler = sureler;
+  out.sureler = filterSure(sureler, g);
   return out;
 }
