@@ -3,6 +3,7 @@
 // Fatura durumu: Satış Tablosu. Satış Tablosu'nda olup süre girilmemiş markalar 0 süreyle listelenir.
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { buildSure, buildPersonel, buildDepartman, kisiAyDizisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
+import Karsilastirma from './Karsilastirma.jsx';
 import { MarkaDetay, KisiDetay, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { aySaati, VARSAYILAN_TATILLER } from './lib/takvim.js';
 import { normalizeNameKey } from './lib/parseData.js';
@@ -21,9 +22,10 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const [selected, setSelected] = useState('Toplam');
   // Düğme tepkisi anında (selected), ağır tablolar hemen ardından (sel) çizilir: tıklama sırasında arayüz kilitlenmez
   const sel = useDeferredValue(selected);
-  const izinliGorunum = gorunumler?.length ? gorunumler : ['musteri'];
+  const temelGorunum = gorunumler?.length ? gorunumler : ['musteri'];
+  const izinliGorunum = temelGorunum.includes('personel') ? [...temelGorunum, 'karsilastirma'] : temelGorunum; // Karşılaştırma, personel yetkisine bağlıdır
   const personelAcik = izinliGorunum.includes('personel') || izinliGorunum.includes('departman');
-  const [gorunum, setGorunum] = useState(izinliGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
+  const [gorunum, setGorunum] = useState(temelGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
   const gor = useDeferredValue(gorunum);
   const [acikDep, setAcikDep] = useState(null);
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
@@ -220,6 +222,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
             {izinliGorunum.includes('musteri') && <option value="musteri">Müşteri</option>}
             {izinliGorunum.includes('personel') && <option value="personel">Personel</option>}
             {izinliGorunum.includes('departman') && <option value="departman">Departman</option>}
+            {izinliGorunum.includes('karsilastirma') && <option value="karsilastirma">Karşılaştırma</option>}
           </select>
         </div>
         <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
@@ -235,7 +238,13 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         </div>
       </div>
 
-      {gor === 'departman' ? (
+      {gor === 'karsilastirma' ? (
+        <Karsilastirma
+          kisiler={[...personel.map((u) => u.name)].sort((x, y) => x.localeCompare(y, 'tr'))} rows={sureData?.personel || []} departman={sureData?.departman} pasifSet={pasifSet}
+          per={periodIdx} donem={donem} maksSaat={maksSaat} brandOf={brandOf} months={months} maliyetAcik={!!sureData?.maliyet}
+          maliyetAy={(u) => Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[u]?.saat || 0]))}
+        />
+      ) : gor === 'departman' ? (
         <>
           {UstKartlar}
           <div className={`${CARD} p-5`}>
