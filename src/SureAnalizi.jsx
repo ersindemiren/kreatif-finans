@@ -2,8 +2,9 @@
 // Süre: zaman takip raporu (sunucuda api/_data/sureler.js; yalnızca yetkili kullanıcıya gelir). Fee + Proje: SATIŞ TABLOSU 2026 faturaları (KDV hariç).
 // Fatura durumu: Satış Tablosu. Satış Tablosu'nda olup süre girilmemiş markalar 0 süreyle listelenir.
 import React, { useEffect, useMemo, useState } from 'react';
-import { buildSure, buildPersonel, buildDepartman, kisiAySayisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
-import { MarkaDetay, KisiDetay, MAKS_SURE, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
+import { buildSure, buildPersonel, buildDepartman, kisiAyDizisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
+import { MarkaDetay, KisiDetay, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
+import { aySaati, VARSAYILAN_TATILLER } from './lib/takvim.js';
 import { normalizeNameKey } from './lib/parseData.js';
 import { hesaplaMaliyet } from './lib/maliyet.js';
 
@@ -54,7 +55,11 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   };
 
   const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx }), [sureData, selected, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
-  const maliyetHesap = useMemo(() => hesaplaMaliyet(sureData?.maliyet), [sureData]);
+  // Azami süre: her ayın hafta içi sayısı - resmi tatiller (Yönetim > Resmi Tatiller), x 8,5 saat
+  const yil = new Date().getFullYear();
+  const tatiller = sureData?.tatiller || VARSAYILAN_TATILLER;
+  const maksSaat = (i) => aySaati(tatiller, yil, i);
+  const maliyetHesap = useMemo(() => hesaplaMaliyet(sureData?.maliyet, (ym) => aySaati(tatiller, yil, Number(ym.slice(5, 7)) - 1)), [sureData]); // eslint-disable-line react-hooks/exhaustive-deps
   const pasifSet = useMemo(() => new Set(Object.keys(sureData?.pasif || {})), [sureData]);
   const departmanlar = useMemo(() => buildDepartman({ personel, map: sureData?.departman }), [personel, sureData]);
   const personelToplam = personel.reduce((s, u) => s + u.hours, 0);
@@ -81,12 +86,13 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const atil = gIc.hours + gAtanmamis.hours; // Atanmamış Süre kartı: iç süre + markaya atanmamış
 
   // Üst kartlar (Müşteri / Personel / Departman görünümünde aynı): azami süre = 22 gün x 8,5 saat x dönemdeki kişi-ay sayısı
-  const kisiAy = sureData?.kisiAy ? periodIdx.reduce((t, i) => t + (sureData.kisiAy[i] || 0), 0) : kisiAySayisi({ rows: sureData?.personel || [], idxs: periodIdx });
-  const maksToplam = kisiAy * MAKS_SURE;
+  const kisiAyD = sureData?.kisiAy || kisiAyDizisi({ rows: sureData?.personel || [], idxs: periodIdx });
+  const kisiAy = periodIdx.reduce((t, i) => t + (kisiAyD[i] || 0), 0);
+  const maksToplam = periodIdx.reduce((t, i) => t + (kisiAyD[i] || 0) * maksSaat(i), 0);
   const sureOrani = maksToplam ? toplam / maksToplam : null;
   const donem = `(${selected === 'Toplam' ? rangeLabel : selected})`;
   const kartlar = [
-    ['Maksimum Süre', maksToplam ? `${fmtN(maksToplam)} Saat` : '–', maksToplam ? `8,5 sa × 22 gün × ${kisiAy} kişi-ay` : 'kişi bazlı veri yok', ''],
+    ['Maksimum Süre', maksToplam ? `${fmtN(maksToplam)} Saat` : '–', maksToplam ? `${kisiAy} kişi-ay · iş günü × 8,5 sa` : 'kişi bazlı veri yok', ''],
     ['Toplam Süre', `${fmtN(toplam)} Saat`, donem, ''],
     ['Süre Oranı', sureOrani == null ? '–' : pct1(sureOrani), 'toplam süre / maksimum süre', sureOrani != null && sureOrani < ESIK ? ORAN_KIRMIZI : ''],
     ['Aktif Süre', `${fmtN(aktif)} Saat`, `${pct1(toplam ? aktif / toplam : 0)} · ${donem}`, ''],
@@ -175,7 +181,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   }
   if (sayfa?.t === 'k') {
     return (
-      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} maliyetAy={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.saat || 0]))} maliyetAcik={!!sureData?.maliyet} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
+      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} maliyetAy={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.saat || 0]))} maliyetAcik={!!sureData?.maliyet} maksSaat={maksSaat} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
         onBack={geri} backLabel={etiket || 'Tüm personel'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
     );
   }
@@ -274,7 +280,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Süre = süre girdiği ay sayısı × 22 gün × 8,5 saat; Kayıt Oranı ve Maks Süre Oranı %85'in altındaysa kırmızı.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Süre = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kayıt Oranı ve Maks Süre Oranı %85'in altındaysa kırmızı.</p>
             <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
               <span className="w-5 sm:w-6 shrink-0" />
               <span className="flex-1 min-w-0">Personel</span>
@@ -289,8 +295,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
                   <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
                   <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
                   <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${kayitOrani(u) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{pct1(kayitOrani(u))}</span>
-                  <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{fmtN(u.aylar * MAKS_SURE)} sa</span>
-                  <span className={`w-14 sm:w-24 text-right shrink-0 tabular-nums ${u.aylar && u.hours / (u.aylar * MAKS_SURE) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{u.aylar ? pct1(u.hours / (u.aylar * MAKS_SURE)) : '–'}</span>
+                  <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{fmtN(u.aySet.reduce((t, i) => t + maksSaat(i), 0))} sa</span>
+                  <span className={`w-14 sm:w-24 text-right shrink-0 tabular-nums ${u.aylar && u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{u.aylar ? pct1(u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0)) : '–'}</span>
                   <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
                     {fmtN(u.hours)} sa
                     <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>

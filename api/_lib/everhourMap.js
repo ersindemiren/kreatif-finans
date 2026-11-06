@@ -146,3 +146,45 @@ export async function kopyalaAy(kaynak, hedef) {
   await malStore.write(m);
   return m;
 }
+
+// Resmi tatiller (Yönetim'den düzenlenir): [{ tarih: 'YYYY-AA-GG', ad, yarim? }]. Kayıt yoksa 2026 varsayılan listesi.
+export const VARSAYILAN_TATILLER = [
+  ['2026-01-01', 'Yılbaşı'], ['2026-03-19', 'Ramazan Bayramı Arifesi', 1], ['2026-03-20', 'Ramazan Bayramı 1. Gün'], ['2026-03-21', 'Ramazan Bayramı 2. Gün'], ['2026-03-22', 'Ramazan Bayramı 3. Gün'],
+  ['2026-04-23', 'Ulusal Egemenlik ve Çocuk Bayramı'], ['2026-05-01', 'Emek ve Dayanışma Günü'], ['2026-05-19', "Atatürk'ü Anma, Gençlik ve Spor Bayramı"],
+  ['2026-05-26', 'Kurban Bayramı Arifesi', 1], ['2026-05-27', 'Kurban Bayramı 1. Gün'], ['2026-05-28', 'Kurban Bayramı 2. Gün'], ['2026-05-29', 'Kurban Bayramı 3. Gün'], ['2026-05-30', 'Kurban Bayramı 4. Gün'],
+  ['2026-07-15', 'Demokrasi ve Milli Birlik Günü'], ['2026-08-30', 'Zafer Bayramı'], ['2026-10-28', 'Cumhuriyet Bayramı Arifesi', 1], ['2026-10-29', 'Cumhuriyet Bayramı'],
+].map(([tarih, ad, y]) => ({ tarih, ad, ...(y ? { yarim: true } : {}) }));
+
+const TATIL_PATH = 'kf-auth/resmi-tatiller.json';
+let tatilStore = {
+  async read() {
+    const r = await get(TATIL_PATH, { access: 'private', useCache: false });
+    if (!r || r.statusCode !== 200) return null;
+    return JSON.parse(await new Response(r.stream).text());
+  },
+  async write(v) {
+    await put(TATIL_PATH, JSON.stringify(v), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  },
+};
+export const setTatilStore = (s) => { tatilStore = s; };
+
+export async function readTatil() {
+  try {
+    const l = await tatilStore.read();
+    return Array.isArray(l) ? l : VARSAYILAN_TATILLER;
+  } catch { return VARSAYILAN_TATILLER; }
+}
+
+export async function setTatiller(liste) {
+  if (!Array.isArray(liste) || liste.length > 200) throw new Error('Geçersiz liste');
+  const seen = new Set();
+  const temiz = liste.map((t) => {
+    const tarih = String(t?.tarih || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tarih) || Number.isNaN(Date.parse(`${tarih}T00:00:00Z`))) throw new Error(`Geçersiz tarih: ${tarih || '(boş)'}`);
+    if (seen.has(tarih)) throw new Error(`Aynı tarih iki kez girilmiş: ${tarih}`);
+    seen.add(tarih);
+    return { tarih, ad: String(t.ad || '').trim().slice(0, 80) || 'Resmi tatil', ...(t.yarim ? { yarim: true } : {}) };
+  }).sort((a, b) => a.tarih.localeCompare(b.tarih));
+  await tatilStore.write(temiz);
+  return temiz;
+}

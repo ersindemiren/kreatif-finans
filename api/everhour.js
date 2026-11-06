@@ -1,7 +1,7 @@
 // Everhour müşteri adı eşleştirme: yalnızca admin. GET liste + mevcut eşleşmeler, PUT eşleştir/kaldır.
 import { json, sameOriginJson, readBody, currentUser } from './_lib/http.js';
 import { getEverhour, clearEverhourCache, teshis, teshis2, teshis3, teshis4 } from './_lib/everhour.js';
-import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy } from './_lib/everhourMap.js';
+import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, readTatil, setTatiller } from './_lib/everhourMap.js';
 
 export default async function handler(req, res) {
   try {
@@ -24,13 +24,14 @@ export default async function handler(req, res) {
       const aylikSaat = {};
       (ev.personel || []).forEach(([u, ym, , h]) => { (aylikSaat[u] ||= {})[ym] = Math.round(((aylikSaat[u][ym] || 0) + h) * 100) / 100; });
       const kisiler = [...saat].map(([name, hours]) => ({ name, hours: Math.round(hours) })).sort((a, b) => b.hours - a.hours);
-      return json(res, 200, { musteriler: ev.musteriler, map: await readMap(), kisiler, departman: await readDepartman(), pasif: await readPasif(), maliyet: await readMaliyet(), aylikSaat });
+      return json(res, 200, { musteriler: ev.musteriler, map: await readMap(), kisiler, departman: await readDepartman(), pasif: await readPasif(), maliyet: await readMaliyet(), aylikSaat, tatiller: await readTatil() });
     }
     if (req.method === 'PUT') {
       if (!sameOriginJson(req)) return json(res, 403, { error: 'İstek reddedildi' });
       const body = await readBody(req);
       if (body.maliyetKisi !== undefined) return json(res, 200, { maliyet: await setMaliyetKisi(body.ay, body.maliyetKisi, body.tutar) });
       if (body.dagitim !== undefined) return json(res, 200, { maliyet: await setDagitim(body.ay, body.dagitim) });
+      if (body.tatiller !== undefined) return json(res, 200, { tatiller: await setTatiller(body.tatiller) });
       if (body.kopyala) return json(res, 200, { maliyet: await kopyalaAy(body.kopyala.kaynak, body.kopyala.hedef) });
       if (body.kisi !== undefined && body.pasif !== undefined) {
         const pasif = await setPasif(body.kisi, !!body.pasif);

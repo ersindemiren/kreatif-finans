@@ -105,13 +105,13 @@ export function buildPersonel({ rows, idxs }) {
     u.clients.set(c, (u.clients.get(c) || 0) + hours);
   });
   return [...map.values()]
-    .map((u) => ({ name: u.name, hours: u.hours, aylar: [...u.ay.values()].filter((h) => h > 0).length, clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
+    .map((u) => ({ name: u.name, hours: u.hours, aylar: [...u.ay.values()].filter((h) => h > 0).length, aySet: [...u.ay].filter(([, h]) => h > 0).map(([i]) => i), clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
     .filter((u) => u.hours > 0)
     .sort((a, b) => b.hours - a.hours);
 }
 
-// Dönemde süre girmiş kişi-ay sayısı (azami süre = bu sayı x aylık azami süre)
-export function kisiAySayisi({ rows, idxs }) {
+// Dönemdeki her ay için süre girmiş kişi sayısı (azami süre = Σ kişi sayısı x o ayın azami saati)
+export function kisiAyDizisi({ rows, idxs }) {
   const set = new Set();
   const top = new Map();
   (rows || []).forEach(([user, ym, , hours]) => {
@@ -121,7 +121,9 @@ export function kisiAySayisi({ rows, idxs }) {
     top.set(k, (top.get(k) || 0) + hours);
   });
   top.forEach((h, k) => { if (h > 0) set.add(k); });
-  return set.size;
+  const dizi = new Array(12).fill(0);
+  set.forEach((k) => { dizi[Number(k.split('|')[1])] += 1; });
+  return dizi;
 }
 
 // Tek kişinin ayrıntısı: aylık süre, o ayda ekibin toplam süresi, müşteri kırılımı (müşteri x ay). rows: [kişi, 'YYYY-MM', müşteri, saat]

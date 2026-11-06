@@ -4,12 +4,10 @@ import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
-import { AYLIK_SAAT, ayAnahtar } from './lib/maliyet.js';
+import { ayAnahtar } from './lib/maliyet.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', warn: 'bg-amber-500', info: 'bg-slate-400' };
-// Aylık azami çalışma süresi: 22 gün x 8,5 saat
-export const MAKS_SURE = AYLIK_SAAT;
 export const ESIK = 0.85; // süre / kayıt oranı bu değerin altındaysa kırmızı
 export const ORAN_KIRMIZI = 'text-rose-600 dark:text-rose-400 font-semibold';
 const up = (x) => String(x).toLocaleUpperCase('tr-TR');
@@ -346,7 +344,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 }
 
 /* =============================== PERSONEL DETAYI =============================== */
-export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, maliyetAy, maliyetAcik, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
+export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, maliyetAy, maliyetAcik, maksSaat, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
   useTop();
   const [gorev, setGorev] = useState(null);
   const [secili, setSecili] = useState('Toplam');
@@ -375,7 +373,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const toplamP = sum(d.monthly, per);
   const ekipP = sum(d.team, per);
   const maksAyP = per.filter((i) => d.monthly[i] > 0).length;
-  const maksP = maksAyP * MAKS_SURE;
+  const maksP = per.filter((i) => d.monthly[i] > 0).reduce((t, i) => t + maksSaat(i), 0);
   const oranP = maksP ? toplamP / maksP : null;
   const clP = d.clients.map((c) => ({ ...c, toplam: sum(c.hours, per), brand: brandOf(c.name) })).filter((c) => c.toplam > 0).sort((a, b) => b.toplam - a.toplam);
   const grpP = { faturali: 0, kayip: 0, atil: 0 };
@@ -385,7 +383,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   });
   const payP = (v) => pct1(toplamP ? v / toplamP : 0);
   const kartlar = [
-    ['Maksimum Süre', maksP ? `${fmtN(maksP)} Saat` : '–', maksP ? `${maksAyP} ay × ${fmtSaat(MAKS_SURE)} sa` : 'süre girilmemiş', ''],
+    ['Maksimum Süre', maksP ? `${fmtN(maksP)} Saat` : '–', maksP ? `${maksAyP} ay · iş günü × 8,5 sa` : 'süre girilmemiş', ''],
     ['Toplam Süre', `${fmtN(toplamP)} Saat`, `ekibin ${pct1(ekipP ? toplamP / ekipP : 0)}'i ${donem}`, ''],
     ['Süre Oranı', oranP == null ? '–' : pct1(oranP), 'toplam süre / maksimum süre', oranP != null && oranP < ESIK ? ORAN_KIRMIZI : ''],
     ['Aktif Süre', `${fmtN(grpP.faturali)} Saat`, `${payP(grpP.faturali)} · ${donem}`, ''],
@@ -395,7 +393,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   // Maliyet değerleri ay ay hesaplanır: o ayın saat maliyeti x süre
   const saatAy = (i) => maliyetAy?.[ayAnahtar(i)] || 0;
   const sureliP = per.filter((i) => d.monthly[i] > 0);
-  const maksDeger = sureliP.reduce((t, i) => t + MAKS_SURE * saatAy(i), 0);
+  const maksDeger = sureliP.reduce((t, i) => t + maksSaat(i) * saatAy(i), 0);
   const topDeger = sureliP.reduce((t, i) => t + d.monthly[i] * saatAy(i), 0);
   const eksikAy = sureliP.filter((i) => !saatAy(i)).length;
   const maliyetVar = maksDeger > 0;
@@ -432,7 +430,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   if (toplamEkip > 0) yorumlar.push({ tone: 'info', text: `Ekibin toplam süresinin ${pct1(toplamKisi / toplamEkip)}'ini üstlendi.` });
 
   const gridA = 'grid grid-cols-7';
-  const maksAy = (i) => (d.monthly[i] > 0 ? MAKS_SURE : 0);
+  const maksAy = (i) => (d.monthly[i] > 0 ? maksSaat(i) : 0);
   const toplamMaks = aktif.reduce((t, i) => t + maksAy(i), 0);
   const toplamDep = sum(d.dep, aktif);
   const oranCls = (r) => (r < ESIK ? ORAN_KIRMIZI : '');
@@ -501,7 +499,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
 
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Maks. Süre = 22 gün × 8,5 saat. Süre Oranı = Süre / Maks. Süre (%85 altı kırmızı). Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Maks. Süre = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Süre Oranı = Süre / Maks. Süre (%85 altı kırmızı). Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre.</p>
         <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm">
           <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
             <span className={`${cellA} text-left`}>Ay</span><span className={cellA}>Maks. Süre</span><span className={cellA}>Süre</span><span className={cellA}>Süre Oranı</span><span className={cellA}>Ekip Süresi</span><span className={cellA}>Ekip Payı</span><span className={cellA}>Dep. Payı</span>

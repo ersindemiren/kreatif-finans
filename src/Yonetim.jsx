@@ -3,7 +3,8 @@ import { Trash2, UserPlus, ShieldCheck, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { autoBrand, DEPARTMANLAR } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
-import { hesaplaAy, parseTR, ayAnahtar, AYLIK_SAAT } from './lib/maliyet.js';
+import { hesaplaAy, parseTR, ayAnahtar } from './lib/maliyet.js';
+import { aySaati, ayIsGunu, haftaIci, tatilGunu, tatilEtkisi, gunAdi, haftaSonu, VARSAYILAN_TATILLER } from './lib/takvim.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 
@@ -72,7 +73,7 @@ const AY_ADLARI = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Ey
 // Personel maliyeti (aylık): seçilen ay için kişi başı aylık toplam ajans maliyeti + o ayın genel işletme dağıtım gideri.
 // Dağıtım, o ay maliyeti girilmiş kişilere kendi maliyetleri oranında paylaştırılır; maliyeti girilmeyen (ayrılan) kişi dağıtımdan çıkar.
 function MaliyetHesaplama() {
-  const [st, setSt] = useState({ loading: true, kisiler: [], pasif: {}, aylikSaat: {}, maliyet: { aylar: {} }, error: '' });
+  const [st, setSt] = useState({ loading: true, kisiler: [], pasif: {}, aylikSaat: {}, maliyet: { aylar: {} }, tatiller: VARSAYILAN_TATILLER, error: '' });
   const [ay, setAy] = useState(new Date().getMonth()); // 0-11
   const [girdi, setGirdi] = useState({});
   const [dagitimGirdi, setDagitimGirdi] = useState(null);
@@ -80,11 +81,12 @@ function MaliyetHesaplama() {
   useEffect(() => {
     (async () => {
       const r = await api('/api/everhour');
-      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], pasif: r.data.pasif || {}, aylikSaat: r.data.aylikSaat || {}, maliyet: r.data.maliyet || { aylar: {} }, error: '' });
+      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], pasif: r.data.pasif || {}, aylikSaat: r.data.aylikSaat || {}, maliyet: r.data.maliyet || { aylar: {} }, tatiller: r.data.tatiller || VARSAYILAN_TATILLER, error: '' });
       else setSt((x) => ({ ...x, loading: false, error: r.data.error || 'Everhour verisi alınamadı' }));
     })();
   }, []);
   const ym = ayAnahtar(ay);
+  const aySaat = aySaati(st.tatiller, new Date().getFullYear(), ay);
   const veri = st.maliyet.aylar[ym] || { kisi: {}, dagitim: 0 };
   const oncekiVar = ay > 0 && !!st.maliyet.aylar[ayAnahtar(ay - 1)];
   const kaydet = async (govde, anahtar) => {
@@ -109,7 +111,7 @@ function MaliyetHesaplama() {
   };
   const canli = { kisi: { ...veri.kisi }, dagitim: dagitimGirdi !== null ? parseTR(dagitimGirdi) : veri.dagitim };
   Object.keys(girdi).forEach((k) => { canli.kisi[k] = parseTR(girdi[k]); });
-  const hs = hesaplaAy(canli);
+  const hs = hesaplaAy(canli, aySaat);
   const gosterim = (v) => (v ? Number(v).toLocaleString('tr-TR') : '');
   const saatAy = (k) => st.aylikSaat[k.name]?.[ym] || 0;
   const sirali = [...st.kisiler].sort((a, b) => (!!hs.rows[b.name] - !!hs.rows[a.name]) || (saatAy(b) - saatAy(a)));
@@ -118,7 +120,7 @@ function MaliyetHesaplama() {
   return (
     <div className={`${CARD} p-4 sm:p-5`}>
       <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Personel Maliyet Hesaplama</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Ay seçin; o ay için her personelin aylık toplam ajans maliyetini (maaş + işveren yükü vb.) ve genel işletme dağıtım giderini girin. Dağıtım gideri, o ay maliyeti girilen kişilere kendi maliyetleri oranında paylaştırılır; maliyeti boş bırakılan (ayrılan) kişi dağıtımdan çıkar. Saat maliyeti = toplam maliyet / {AYLIK_SAAT.toLocaleString('tr-TR')} saat (22 gün × 8,5). Değer, alandan çıkınca kaydedilir.</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Ay seçin; o ay için her personelin aylık toplam ajans maliyetini (maaş + işveren yükü vb.) ve genel işletme dağıtım giderini girin. Dağıtım gideri, o ay maliyeti girilen kişilere kendi maliyetleri oranında paylaştırılır; maliyeti boş bırakılan (ayrılan) kişi dağıtımdan çıkar. Saat maliyeti = toplam maliyet / ayın azami saati ({AY_ADLARI[ay]} için {aySaat.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} saat = hafta içi − resmi tatil, × 8,5). Değer, alandan çıkınca kaydedilir.</p>
       <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5 mb-4">
         {AY_ADLARI.map((m, i) => {
           const dolu = !!st.maliyet.aylar[ayAnahtar(i)] && Object.keys(st.maliyet.aylar[ayAnahtar(i)].kisi).length > 0;
@@ -171,6 +173,85 @@ function MaliyetHesaplama() {
           </div>
           {eksik.length > 0 && <p className="text-[11px] text-amber-600 mt-3">{AY_ADLARI[ay]} ayında süre girmiş ama maliyeti girilmemiş {eksik.length} kişi var ({eksik.slice(0, 4).map((k) => k.name).join(', ')}{eksik.length > 4 ? '…' : ''}). Bu kişiler dağıtımdan pay almaz, sayfalarında o ayın maliyet değeri hesaplanmaz.</p>}
           {hs.toplamKisi === 0 && veri.dagitim > 0 && <p className="text-[11px] text-amber-600 mt-2">Dağıtım gideri, kişi maliyeti girilmeden paylaştırılamaz.</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Resmi tatiller: liste ve aylık iş günü özeti. Azami süre ve saat maliyeti bu listeden hesaplanır.
+function ResmiTatiller() {
+  const yil = new Date().getFullYear();
+  const [st, setSt] = useState({ loading: true, liste: [], error: '', not: '' });
+  const [kirli, setKirli] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const r = await api('/api/everhour');
+      if (r.ok) setSt({ loading: false, liste: r.data.tatiller || VARSAYILAN_TATILLER, error: '', not: '' });
+      else setSt((x) => ({ ...x, loading: false, error: r.data.error || 'Liste okunamadı' }));
+    })();
+  }, []);
+  const degistir = (i, alan, v) => { setSt((x) => ({ ...x, not: '', liste: x.liste.map((t, k) => (k === i ? { ...t, [alan]: v } : t)) })); setKirli(true); };
+  const sil = (i) => { setSt((x) => ({ ...x, not: '', liste: x.liste.filter((_, k) => k !== i) })); setKirli(true); };
+  const ekle = () => { setSt((x) => ({ ...x, not: '', liste: [...x.liste, { tarih: `${yil}-01-01`, ad: '' }] })); setKirli(true); };
+  const kaydet = async () => {
+    setBusy(true);
+    const r = await api('/api/everhour', { method: 'PUT', body: { tatiller: st.liste.map((t) => ({ tarih: t.tarih, ad: t.ad, yarim: !!t.yarim })) } });
+    if (r.ok) { setSt((x) => ({ ...x, liste: r.data.tatiller, error: '', not: 'Kaydedildi. Rapor bir sonraki yenilemede yeni iş günlerini kullanır.' })); setKirli(false); }
+    else setSt((x) => ({ ...x, error: r.data.error || 'Kaydedilemedi' }));
+    setBusy(false);
+  };
+  const sirali = st.liste.map((t, i) => ({ t, i })).sort((a, b) => (a.t.tarih || '').localeCompare(b.t.tarih || ''));
+  const input = 'border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-slate-400';
+  const toplamTatil = st.liste.filter((t) => t.tarih.startsWith(`${yil}-`)).reduce((s, t) => s + tatilEtkisi(t), 0);
+  return (
+    <div className={`${CARD} p-4 sm:p-5`}>
+      <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Resmi Tatiller</h3>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Her ayın azami çalışma süresi = (o ayın hafta içi sayısı − aşağıdaki resmi tatiller) × 8,5 saat. Hafta sonuna denk gelen tatil iş gününden düşmez; "Yarım gün" (arife) 0,5 gün düşer. Köprü/idari izin gibi ek günleri buraya ekleyebilirsiniz. Değişiklikler "Kaydet" ile uygulanır.</p>
+      {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Liste okunuyor...</div>}
+      {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
+      {st.not && <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">{st.not}</div>}
+      {!st.loading && (
+        <>
+          <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+            {sirali.map(({ t, i }) => {
+              const etki = tatilEtkisi(t);
+              return (
+                <div key={i} className="py-2 flex flex-col sm:flex-row sm:items-center gap-2">
+                  <input type="date" value={t.tarih} onChange={(e) => degistir(i, 'tarih', e.target.value)} aria-label="Tarih" className={`${input} sm:w-40`} />
+                  <span className="text-xs text-slate-500 w-8 shrink-0">{t.tarih ? gunAdi(t.tarih) : ''}</span>
+                  <input value={t.ad} onChange={(e) => degistir(i, 'ad', e.target.value)} placeholder="Tatil adı" aria-label="Tatil adı" className={`${input} flex-1 min-w-0`} />
+                  <select value={t.yarim ? 'yarim' : 'tam'} onChange={(e) => degistir(i, 'yarim', e.target.value === 'yarim')} aria-label="Süre" className={`${input} sm:w-28`}>
+                    <option value="tam">Tam gün</option>
+                    <option value="yarim">Yarım gün</option>
+                  </select>
+                  <span className={`text-xs sm:w-28 shrink-0 tabular-nums ${etki ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>{t.tarih && haftaSonu(t.tarih) ? 'hafta sonu, etki yok' : `−${etki.toLocaleString('tr-TR')} iş günü`}</span>
+                  <button type="button" onClick={() => sil(i)} aria-label="Sil" title="Sil" className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 self-end sm:self-auto"><Trash2 size={15} /></button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2 mt-3">
+            <button type="button" onClick={ekle} className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">+ Gün ekle</button>
+            <button type="button" onClick={kaydet} disabled={!kirli || busy} className="text-xs bg-slate-900 text-white rounded-lg px-4 py-1.5 disabled:opacity-40 flex items-center gap-1.5">{busy && <Loader2 size={12} className="animate-spin" />} Kaydet</button>
+            {kirli && <span className="text-[11px] text-amber-600">Kaydedilmemiş değişiklik var</span>}
+          </div>
+          <h4 className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-6 mb-2">{yil} aylık iş günü özeti <span className="text-[11px] font-normal text-slate-400">(yıllık toplam tatil: {toplamTatil.toLocaleString('tr-TR')} gün)</span></h4>
+          <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-xs sm:text-sm">
+            <div className="grid grid-cols-5 bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 text-center">
+              <span className="py-2 text-left pl-3">Ay</span><span className="py-2">Hafta içi</span><span className="py-2">Tatil</span><span className="py-2">İş günü</span><span className="py-2">Azami saat</span>
+            </div>
+            {AY_ADLARI.map((m, i) => (
+              <div key={m} className="grid grid-cols-5 border-t border-slate-100 dark:border-slate-800 text-center tabular-nums text-slate-700 dark:text-slate-300">
+                <span className="py-1.5 text-left pl-3">{m}</span>
+                <span className="py-1.5">{haftaIci(yil, i)}</span>
+                <span className="py-1.5">{tatilGunu(st.liste, yil, i) ? `−${tatilGunu(st.liste, yil, i).toLocaleString('tr-TR')}` : '–'}</span>
+                <span className="py-1.5">{ayIsGunu(st.liste, yil, i).toLocaleString('tr-TR')}</span>
+                <span className="py-1.5 font-medium">{aySaati(st.liste, yil, i).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>
@@ -309,6 +390,7 @@ export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
           <option value="everhour">Everhour Müşteri Eşleştirme</option>
           <option value="departman">Personel Departman Eşleştirme</option>
           <option value="maliyet">Personel Maliyet Hesaplama</option>
+          <option value="tatil">Resmi Tatiller</option>
         </select>
       </div>
       {bolum === '' && (
@@ -385,6 +467,7 @@ export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
       {bolum === 'everhour' && <EverhourEslestirme markalar={markalar} />}
       {bolum === 'departman' && <DepartmanEslestirme />}
       {bolum === 'maliyet' && <MaliyetHesaplama />}
+      {bolum === 'tatil' && <ResmiTatiller />}
     </div>
   );
 }
