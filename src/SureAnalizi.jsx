@@ -4,6 +4,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { buildSure, buildPersonel, buildDepartman, kisiAyDizisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
 import Karsilastirma from './Karsilastirma.jsx';
+import { verimlilikSkoru } from './lib/karsilastirma.js';
 import { MarkaDetay, KisiDetay, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { aySaati, VARSAYILAN_TATILLER } from './lib/takvim.js';
 import { normalizeNameKey } from './lib/parseData.js';
@@ -174,6 +175,15 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     }, 0);
     return f / u.hours;
   };
+  // Verimlilik Skoru (Karşılaştırma sayfasıyla aynı formül)
+  const skorOf = (u) => {
+    const maks = u.aySet.reduce((t, i) => t + maksSaat(i), 0);
+    const kayip = u.clients.reduce((t, c) => {
+      const b = brandOf(c.name);
+      return t + (b && b.tip === 'marka' && !periodIdx.some((i) => b.faturali[i]) ? c.hours : 0);
+    }, 0);
+    return verimlilikSkoru({ oran: maks ? u.hours / maks : null, kayitOrani: u.hours ? kayitOrani(u) : null, kayip, toplam: u.hours, sureliAy: u.hours > 0 ? 1 : 0 });
+  };
   const sayfa = yigin[yigin.length - 1];
   const etiket = yigin.length > 1 ? 'Geri' : null;
   if (sayfa?.t === 'm') {
@@ -295,13 +305,14 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Süre = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kayıt Oranı ve Maks Süre Oranı %85'in altındaysa kırmızı.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Süre = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kayıt Oranı ve Maks Süre Oranı %85'in altındaysa kırmızı. Verimlilik Skoru (0–100): Süre Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20; süre girilmemişse –.</p>
             <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
               <span className="w-5 sm:w-6 shrink-0" />
               <span className="flex-1 min-w-0">Personel</span>
               <span className="w-14 sm:w-20 text-right shrink-0 leading-tight">Kayıt Oranı</span>
               <span className="w-14 sm:w-20 text-right shrink-0 leading-tight">Maks. Süre</span>
               <span className="w-14 sm:w-24 text-right shrink-0 leading-tight">Maks Süre Oranı</span>
+              <span className="w-14 sm:w-20 text-right shrink-0 leading-tight">Verimlilik Skoru</span>
               <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
             </div>
             <div className="flex flex-col">
@@ -312,6 +323,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
                   <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${kayitOrani(u) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{pct1(kayitOrani(u))}</span>
                   <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{fmtN(u.aySet.reduce((t, i) => t + maksSaat(i), 0))} sa</span>
                   <span className={`w-14 sm:w-24 text-right shrink-0 tabular-nums ${u.aylar && u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{u.aylar ? pct1(u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0)) : '–'}</span>
+                  <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{(() => { const sk = skorOf(u); return sk ? Math.round(sk.toplam) : '–'; })()}</span>
                   <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
                     {fmtN(u.hours)} sa
                     <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>
