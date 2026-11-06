@@ -28,6 +28,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const [gorunum, setGorunum] = useState(temelGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
   const gor = useDeferredValue(gorunum);
   const [acikDep, setAcikDep] = useState(null);
+  const [kars, setKars] = useState(null); // personel sayfasından gelen hızlı karşılaştırma: { a, b, k }
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
   const setSeciliMarka = (n) => setYigin([{ t: 'm', n }]);
   const setSeciliKisi = (n) => setYigin([{ t: 'k', n }]);
@@ -187,6 +188,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   if (sayfa?.t === 'k') {
     return (
       <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} maliyetAy={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.saat || 0]))} maliyetAcik={!!sureData?.maliyet} maksSaat={maksSaat} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
+        karsilastirKisiler={izinliGorunum.includes('karsilastirma') ? personel.map((u) => u.name).sort((x, y) => x.localeCompare(y, 'tr')) : null}
+        onKarsilastir={(a, b) => { setKars({ a, b, k: Date.now() }); setGorunum('karsilastirma'); setYigin([]); }}
         onBack={geri} backLabel={etiket || 'Tüm personel'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
     );
   }
@@ -239,7 +242,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
       </div>
 
       {gor === 'karsilastirma' ? (
-        <Karsilastirma
+        <Karsilastirma key={kars?.k || 0} baslangic={kars ? [kars.a, kars.b] : null}
           kisiler={[...personel.map((u) => u.name)].sort((x, y) => x.localeCompare(y, 'tr'))} rows={sureData?.personel || []} departman={sureData?.departman} pasifSet={pasifSet}
           per={periodIdx} donem={donem} maksSaat={maksSaat} brandOf={brandOf} months={months} maliyetAcik={!!sureData?.maliyet}
           maliyetAy={(u) => Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[u]?.saat || 0]))}

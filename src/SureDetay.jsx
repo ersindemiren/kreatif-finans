@@ -345,7 +345,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 }
 
 /* =============================== PERSONEL DETAYI =============================== */
-export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, maliyetAy, maliyetAcik, maksSaat, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
+export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, maliyetAy, maliyetAcik, maksSaat, pasif, pasifMarkaKeys, onBack, backLabel, onMarka, karsilastirKisiler, onKarsilastir }) {
   useTop();
   const [gorev, setGorev] = useState(null);
   const [secili, setSecili] = useState('Toplam');
@@ -447,6 +447,13 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50 uppercase">{name}</h2>
           {pasif && <Badge>Pasif</Badge>}
+          {onKarsilastir && karsilastirKisiler?.length > 0 && (
+            <select value="" onChange={(e) => e.target.value && onKarsilastir(name, e.target.value)} aria-label="Karşılaştır"
+              className="ml-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400 uppercase max-w-[11rem] sm:max-w-none">
+              <option value="">Karşılaştır…</option>
+              {karsilastirKisiler.filter((k) => k !== name).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          )}
         </div>
       </div>
 

@@ -13,9 +13,9 @@ const VAR = '–';
 
 const EN_COK = 6;
 
-export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per, donem, maksSaat, brandOf, maliyetAy, maliyetAcik, months }) {
-  const [secimler, setSecimler] = useState(['', '']);
-  const [sonuc, setSonuc] = useState(null); // Karşılaştır düğmesine basılınca seçilen kişiler
+export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per, donem, maksSaat, brandOf, maliyetAy, maliyetAcik, months, baslangic }) {
+  const [secimler, setSecimler] = useState(baslangic || ['', '']);
+  const [sonuc, setSonuc] = useState(baslangic || null); // Karşılaştır düğmesine basılınca seçilen kişiler
   const dolu = secimler.filter(Boolean);
   const hazir = secimler.length >= 2 && dolu.length === secimler.length && new Set(dolu).size === dolu.length;
   const degistir = (k, v) => setSecimler((l) => l.map((x, j) => (j === k ? v : x)));
