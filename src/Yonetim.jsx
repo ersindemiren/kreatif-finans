@@ -140,7 +140,7 @@ function MaliyetHesaplama() {
   return (
     <div className={`${CARD} p-4 sm:p-5`}>
       <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Personel Maliyet Hesaplama</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Ay seçin; o ay için her personelin aylık toplam ajans maliyetini (maaş + işveren yükü vb.) ve genel işletme dağıtım giderini girin. Dağıtım gideri, o ay maliyeti girilen kişilere kendi maliyetleri oranında paylaştırılır; maliyeti boş bırakılan (ayrılan) kişi dağıtımdan çıkar. Saat maliyeti = toplam maliyet / ayın azami saati ({AY_ADLARI[ay]} için {aySaat.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} saat = hafta içi − resmi tatil, × 8,5). Değer, alandan çıkınca kaydedilir.</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Ay seçin; o ay için her personelin aylık toplam ajans maliyetini (maaş + işveren yükü vb.) ve genel işletme dağıtım giderini girin. Dağıtım gideri, o ay maliyeti girilen kişilere kendi maliyetleri oranında paylaştırılır; maliyeti boş bırakılan (ayrılan) kişi dağıtımdan çıkar. Saat maliyeti = toplam maliyet / ayın Maksimum Kapasitesi ({AY_ADLARI[ay]} için {aySaat.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} saat = hafta içi − resmi tatil, × 8,5). Değer, alandan çıkınca kaydedilir.</p>
       <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5 mb-4">
         {AY_ADLARI.map((m, i) => {
           const dolu = !!st.maliyet.aylar[ayAnahtar(i)] && Object.keys(st.maliyet.aylar[ayAnahtar(i)].kisi).length > 0;
@@ -232,7 +232,7 @@ function ResmiTatiller() {
   return (
     <div className={`${CARD} p-4 sm:p-5`}>
       <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Resmi Tatiller</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Her ayın azami çalışma süresi = (o ayın hafta içi sayısı − aşağıdaki resmi tatiller) × 8,5 saat. Hafta sonuna denk gelen tatil iş gününden düşmez; "Yarım gün" (arife) 0,5 gün düşer. Köprü/idari izin gibi ek günleri buraya ekleyebilirsiniz. Değişiklikler "Kaydet" ile uygulanır.</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Her ayın Maksimum Kapasitesi = (o ayın hafta içi sayısı − aşağıdaki resmi tatiller) × 8,5 saat. Hafta sonuna denk gelen tatil iş gününden düşmez; "Yarım gün" (arife) 0,5 gün düşer. Köprü/idari izin gibi ek günleri buraya ekleyebilirsiniz. Değişiklikler "Kaydet" ile uygulanır.</p>
       {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Liste okunuyor...</div>}
       {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
       {st.not && <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">{st.not}</div>}
@@ -264,7 +264,7 @@ function ResmiTatiller() {
           <h4 className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-6 mb-2">{yil} aylık iş günü özeti <span className="text-[11px] font-normal text-slate-400">(yıllık toplam tatil: {toplamTatil.toLocaleString('tr-TR')} gün)</span></h4>
           <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-xs sm:text-sm">
             <div className="grid grid-cols-5 bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 text-center">
-              <span className="py-2 text-left pl-3">Ay</span><span className="py-2">Hafta içi</span><span className="py-2">Tatil</span><span className="py-2">İş günü</span><span className="py-2">Azami saat</span>
+              <span className="py-2 text-left pl-3">Ay</span><span className="py-2">Hafta içi</span><span className="py-2">Tatil</span><span className="py-2">İş günü</span><span className="py-2">Maksimum Kapasite</span>
             </div>
             {AY_ADLARI.map((m, i) => (
               <div key={m} className="grid grid-cols-5 border-t border-slate-100 dark:border-slate-800 text-center tabular-nums text-slate-700 dark:text-slate-300">

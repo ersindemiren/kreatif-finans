@@ -108,7 +108,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const kartlar = [
     ['Maksimum Kapasite', maksToplam ? `${fmtN(maksToplam)} Saat` : '–', maksToplam ? `${kisiAy} kişi-ay · iş günü × 8,5 sa` : 'kişi bazlı veri yok', ''],
     ['Gerçekleşen Süre', `${fmtN(toplam)} Saat`, donem, ''],
-    ['Süre Oranı', sureOrani == null ? '–' : pct1(sureOrani), 'toplam süre / maksimum süre', sureOrani != null && sureOrani < ESIK ? ORAN_KIRMIZI : ''],
+    ['Süre Oranı', sureOrani == null ? '–' : pct1(sureOrani), 'Gerçekleşen Süre / Maksimum Kapasite', sureOrani != null && sureOrani < ESIK ? ORAN_KIRMIZI : ''],
     ['Girilen Süre', `${fmtN(aktif)} Saat`, `${pct1(toplam ? aktif / toplam : 0)} · ${donem}`, ''],
     ['Atanmamış Süre', `${fmtN(atil)} Saat`, `${pct1(toplam ? atil / toplam : 0)} · ${donem}`, ''],
     ['Kayıp Süre', `${fmtN(kayip)} Saat`, `${pct1(toplam ? kayip / toplam : 0)} · ${donem}`, ''],
@@ -413,7 +413,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
       <div className={`${CARD} p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Süre Dağılımı</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-          Fark = harcanan süre × saatlik baz − aynı dönemin Fee + Proje faturası (Satış Tablosu, KDV hariç). Satış Tablosu'nda faturası olup süresi girilmemiş markalar 0 süreyle listelenir. Marka adına tıklayınca aylık ayrıntı açılır.
+          Fark = Gerçekleşen Süre × saatlik baz − aynı dönemin Fee + Proje faturası (Satış Tablosu, KDV hariç). Satış Tablosu'nda faturası olup süresi girilmemiş markalar 0 süreyle listelenir. Marka adına tıklayınca aylık ayrıntı açılır.
         </p>
         <TableHead label="Marka" />
         <div className="flex flex-col">

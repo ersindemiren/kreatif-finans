@@ -253,8 +253,8 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
   else if (degerYok) yorumlar.push({ tone: 'info', text: 'Kreatif iç süresi: gelir getirmediği için TL değeri hesaplanmaz.' });
   else if (t.hours > 0 || t.fee > 0) {
     if (Math.round(t.fark) > 0) yorumlar.push({ tone: 'bad', text: `Güncel aylarda fee'den ${fmtTL(t.fark)} fazla zaman harcandı (Saat × Baz ${fmtTL(t.saatBaz)}, Fee + Proje ${fmtTL(t.fee)}).` });
-    else if (Math.round(t.fark) < 0) yorumlar.push({ tone: 'good', text: `Fee içinde kalındı: faturalanan tutar, harcanan süre değerinin ${fmtTL(t.fark)} üzerinde.` });
-    else yorumlar.push({ tone: 'info', text: 'Harcanan süre değeri ile fatura tutarı başa baş.' });
+    else if (Math.round(t.fark) < 0) yorumlar.push({ tone: 'good', text: `Fee içinde kalındı: faturalanan tutar, gerçekleşen süre değerinin ${fmtTL(t.fark)} üzerinde.` });
+    else yorumlar.push({ tone: 'info', text: 'Gerçekleşen süre değeri ile fatura tutarı başa baş.' });
   }
   if (asimAylari.length && !hic) yorumlar.push({ tone: 'warn', text: `${aktif.length} güncel ayın ${asimAylari.length} tanesinde bütçe aşıldı: ${asimAylari.map((i) => months[i]).join(', ')}.` });
   const sureliAylar = aktif.filter((i) => brand.hours[i] > 0);
@@ -302,7 +302,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {[
-          ['Harcanan Süre', `${fmtN(tP.hours)} Saat`, sureliP.length ? `aylık ort. ${fmtSaat(tP.hours / sureliP.length)} sa` : 'süre girilmemiş', ''],
+          ['Gerçekleşen Süre', `${fmtN(tP.hours)} Saat`, sureliP.length ? `aylık ort. ${fmtSaat(tP.hours / sureliP.length)} sa` : 'süre girilmemiş', ''],
           ['Saat × Baz', degerYok ? '–' : fmtTL(tP.saatBaz), degerYok ? 'iç süre' : `ort. baz ${fmtN(bazP)} ₺/sa`, ''],
           ['Fee + Proje (KDV hariç)', tP.fee ? fmtTL(tP.fee) : '–', faturaliP.length ? `${faturaliP.length} ay faturalı` : 'fatura yok', ''],
           ['Fark', degerYok ? '–' : fmtTL(tP.fark), degerYok ? '' : Math.round(tP.fark) > 0 ? 'bütçe aşıldı' : Math.round(tP.fark) < 0 ? 'bütçe içinde' : 'başa baş', degerYok ? '' : farkText(tP.fark)],
@@ -409,7 +409,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const kartlar = [
     ['Maksimum Kapasite', maksP ? `${fmtN(maksP)} Saat` : '–', maksP ? `${maksAyP} ay · iş günü × 8,5 sa` : 'süre girilmemiş', ''],
     ['Gerçekleşen Süre', `${fmtN(toplamP)} Saat`, `ekibin ${pct1(ekipP ? toplamP / ekipP : 0)}'i ${donem}`, ''],
-    ['Süre Oranı', oranP == null ? '–' : pct1(oranP), 'toplam süre / maksimum süre', oranP != null && oranP < ESIK ? ORAN_KIRMIZI : ''],
+    ['Süre Oranı', oranP == null ? '–' : pct1(oranP), 'Gerçekleşen Süre / Maksimum Kapasite', oranP != null && oranP < ESIK ? ORAN_KIRMIZI : ''],
     ['Girilen Süre', `${fmtN(grpP.faturali)} Saat`, `${payP(grpP.faturali)} · ${donem}`, ''],
     ['Atanmamış Süre', `${fmtN(grpP.atil)} Saat`, `${payP(grpP.atil)} · ${donem}`, ''],
     ['Kayıp Süre', `${fmtN(grpP.kayip)} Saat`, `${payP(grpP.kayip)} · ${donem}`, ''],
@@ -470,7 +470,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
     const atilPay = grp.atil / toplamKisi;
     if (atilPay >= 0.15) yorumlar.push({ tone: 'warn', text: `Süresinin ${pct1(atilPay)}'i iç süre / markaya atanmamış kayıtlarda.` });
   }
-  if (toplamEkip > 0) yorumlar.push({ tone: 'info', text: `Ekibin toplam süresinin ${pct1(toplamKisi / toplamEkip)}'ini üstlendi.` });
+  if (toplamEkip > 0) yorumlar.push({ tone: 'info', text: `Ekip Süresinin ${pct1(toplamKisi / toplamEkip)}'ini üstlendi.` });
 
   const gridA = 'grid grid-cols-[minmax(4rem,1fr)_repeat(10,minmax(5.5rem,1fr))]';
   const maksAy = (i) => (sayilan.has(i) ? maksSaat(i) : 0);
