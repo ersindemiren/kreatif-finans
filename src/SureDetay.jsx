@@ -552,7 +552,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ort. Saat Maliyeti = o ayın saat maliyeti (yukarı yuvarlanır); Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki o ayın personel maliyeti (maaş + dağıtım payı). Maks. Kapasite = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite (%85 altı kırmızı). Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor = Verimlilik Skoru (0–100): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20.</p>
         <div className="rounded-xl overflow-x-auto border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm"><div className="min-w-[980px]">
           <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
-            <span className={`${cellA} text-left`}>Ay</span>{['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Maks. Kapasite', 'Kapasite Oranı', 'Gerçekleşen Süre', 'Süre Oranı', 'Ekip Süresi', 'Ekip Payı', 'Dep. Payı', 'Skor'].map((h) => <span key={h} className={cellA}>{h}</span>)}
+            <span className={`${cellA} text-left`}>Ay</span>{['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Maks. Kapasite', 'Kapasite Oranı', 'Gerçekleşen Süre', 'Süre Oranı', 'Ekip Süresi', 'Ekip Payı', 'Dep. Payı', 'Skor'].map((h) => <span key={h} className={`${cellA} !whitespace-normal leading-tight`}>{h}</span>)}
           </div>
           {idx.map((i) => {
             const sm = saatAyDeger(i);
