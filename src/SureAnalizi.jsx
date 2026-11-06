@@ -228,9 +228,11 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     </button>
   );
   // Personel ve Departman görünümlerinin ortak tablosu: sütunlar birebir aynı
+  const W = 'flex-1 min-w-[5.5rem]'; // sütunlar kalan genişliği eşit paylaşır (sağda boşluk kalmaz)
+  const ADW = 'flex-[1.6] min-w-[10rem]';
   const SUTUNLAR = [
-    ['ort', 'Ort. Saat Maliyeti', 'w-24'], ['gm', 'Gerçekleşen Maliyet', 'w-24'], ['maks', 'Maks. Kapasite', 'w-20'], ['kapOran', 'Kapasite Oranı', 'w-20'],
-    ['sure', 'Gerçekleşen Süre', 'w-20'], ['sureOran', 'Süre Oranı', 'w-20'], ['ekipS', 'Ekip Süresi', 'w-20'], ['ekipPay', 'Ekip Payı', 'w-16'], ['depPay', 'Dep. Payı', 'w-16'], ['skor', 'Skor', 'w-14'],
+    ['ort', 'Ort. Saat Maliyeti', W], ['gm', 'Gerçekleşen Maliyet', W], ['maks', 'Maks. Kapasite', W], ['kapOran', 'Kapasite Oranı', W],
+    ['sure', 'Gerçekleşen Süre', W], ['sureOran', 'Süre Oranı', W], ['ekipS', 'Ekip Süresi', W], ['ekipPay', 'Ekip Payı', W], ['depPay', 'Dep. Payı', W], ['skor', 'Skor', W],
   ];
   const TL0 = (v) => '₺' + Math.ceil(v).toLocaleString('tr-TR'); // Ort. Saat Maliyeti: ondalık yok, yukarı yuvarlanır
   const hucreMetni = {
@@ -240,21 +242,21 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const olcuBaslik = (etiket) => (
     <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
       <span className="w-5 sm:w-6 shrink-0" />
-      <span className="w-40 sm:w-56 shrink-0">{etiket}</span>
+      <span className={`${ADW}`}>{etiket}</span>
       {SUTUNLAR.map(([k, label, w]) => <SiraBasligi key={k} k={k} label={label} cls={w} />)}
     </div>
   );
   const olcuHucreleri = (o) => SUTUNLAR.map(([k, , w]) => {
     const v = o?.[k];
     const kirmizi = v != null && ((k === 'kapOran' || k === 'sureOran') ? v < ESIK : k === 'skor' ? Math.round(v) < 80 : false);
-    return <span key={k} className={`${w} text-right shrink-0 tabular-nums ${kirmizi ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{v == null ? '–' : hucreMetni[k](v)}</span>;
+    return <span key={k} className={`${w} ${v == null ? 'text-center' : 'text-right'} tabular-nums ${kirmizi ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{v == null ? '–' : hucreMetni[k](v)}</span>;
   });
   const personelSatiri = (u, no) => {
     const Kap = u.ek ? 'div' : 'button';
     return (
     <Kap key={u.name} {...(u.ek ? {} : { type: 'button', onClick: () => setSeciliKisi(u.name) })} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
       <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{no}</span>
-      <span className="w-40 sm:w-56 shrink-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}{u.ek && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">süre girilmemiş</span>}</span>
+      <span className={`${ADW} break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase`}>{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}{u.ek && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">süre yok</span>}</span>
       {olcuHucreleri(personelOlcu.get(u.name))}
     </Kap>
     );
@@ -268,21 +270,20 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     return (
       <div className="flex items-start gap-2 sm:gap-3 pt-2.5 text-[11px] sm:text-sm leading-5 font-semibold text-slate-900 dark:text-slate-50 border-t-2 border-slate-200 dark:border-slate-700">
         <span className="w-5 sm:w-6 shrink-0" />
-        <span className="w-40 sm:w-56 shrink-0">{etiket}</span>
+        <span className={`${ADW}`}>{etiket}</span>
         {olcuHucreleri(o)}
       </div>
     );
   };
-  // Toplam satırı: Gerçekleşen Maliyet, Maks. Kapasite, Gerçekleşen Süre ve paylar toplanır; diğer sütunlar boş kalır
+  // Toplam satırı: Gerçekleşen Maliyet, Maks. Kapasite, Gerçekleşen Süre ve Ekip Payı toplanır; diğer sütunlar boş kalır
   const toplamSatiri = (liste, depToplami = false) => {
     const ol = liste.map((u) => personelOlcu.get(u.name)).filter(Boolean);
     const top = (k) => { const v = ol.map((x) => x[k]).filter((x) => x != null); return v.length ? v.reduce((t, x) => t + x, 0) : null; };
-    const o = { gm: top('gm'), maks: top('maks'), sure: top('sure'), ekipS: personelToplam, ekipPay: top('ekipPay'), depPay: depToplami ? top('depPay') : null };
-    o.kapOran = o.maks ? o.sure / o.maks : null;
+    const o = { gm: top('gm'), maks: top('maks'), sure: top('sure'), ekipPay: top('ekipPay'), depPay: depToplami ? top('depPay') : null };
     return (
       <div className="flex items-start gap-2 sm:gap-3 pt-2 pb-1 text-[11px] sm:text-sm leading-5 font-bold text-slate-900 dark:text-slate-50">
         <span className="w-5 sm:w-6 shrink-0" />
-        <span className="w-40 sm:w-56 shrink-0">Toplam</span>
+        <span className={`${ADW}`}>Toplam</span>
         {olcuHucreleri(o)}
       </div>
     );
@@ -372,7 +373,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
               return (
                 <div key={d.name} className="mt-6 first:mt-2">
                   <h3 className={`text-sm font-semibold uppercase mb-2 ${d.name === DEPARTMAN_YOK ? 'text-amber-600' : 'text-slate-800 dark:text-slate-100'}`}>{d.name} <span className="ml-1 text-[11px] font-normal normal-case text-slate-400">{d.kisiler.filter((k) => !pasifSet.has(k.name)).length} aktif kişi · {fmtN(d.hours)} sa · {pct1(personelToplam ? d.hours / personelToplam : 0)}</span></h3>
-                  <div className="overflow-x-auto"><div className="min-w-[1040px]">
+                  <div className="overflow-x-auto"><div className="min-w-[1200px]">
                     {olcuBaslik('Personel')}
                     <div className="flex flex-col">
                       {sirali.map((u, k) => personelSatiri(u, k + 1))}
@@ -394,7 +395,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki aylık personel maliyetlerinin toplamı (maaş + dağıtım payı). Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Süre Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kapasite Oranı ve Süre Oranı %85'in altındaysa kırmızı. Skor = Verimlilik Skoru (0–100, %80 altı kırmızı): Kapasite Oranı %40, Süre Oranı %40, Kayıp Süre payı (ters) %20. Alttaki satırlar listedeki kişilerin ortalaması ve toplamıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
-            <div className="overflow-x-auto"><div className="min-w-[1040px]">
+            <div className="overflow-x-auto"><div className="min-w-[1200px]">
             {olcuBaslik('Personel')}
             <div className="flex flex-col">
               {siraliPersonel.map((u, k) => personelSatiri(u, k + 1))}
