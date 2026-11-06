@@ -542,19 +542,6 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
       <Yorumlar list={yorumlar} />
 
       <div className={`${CARD} p-5`}>
-        <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Süre Seyri</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Kişinin her ay girdiği toplam süre (saat). Gri çizgi altındaki açık sütun, ekibin kişi başı ortalamasıdır.</p>
-        <Bars
-          months={months}
-          on={on}
-          series={[
-            { name: up(name), color: 'bg-sky-400', values: d.monthly },
-            { name: 'Ekip ortalaması (kişi başı)', color: 'bg-slate-300 dark:bg-slate-600', values: d.team.map((v, i) => (d.kisiSayisi?.[i] ? v / d.kisiSayisi[i] : 0)) },
-          ]}
-        />
-      </div>
-
-      <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Müşteri × Ay Matrisi</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Hangi müşteriye hangi ay kaç saat (saat). Marka adına tıklayınca marka sayfası açılır.</p>
         <Matris months={months} on={on} rows={cl.map((c) => ({ name: c.name, values: c.hours }))} firstLabel="Müşteri" onPick={(n) => onMarka(n)} pasifSet={{ has: (n) => !!pasifMarkaKeys?.has(normalizeNameKey(n)) }} onCell={(musteri, i) => setGorev({ user: name, client: musteri, i })} />
