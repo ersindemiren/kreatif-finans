@@ -2,7 +2,7 @@
 // Apps Script web app uç noktaları üzerinden otomatik çekilir (bkz. src/lib/parseData.js)
 import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
 import {
-  LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
+  Home, LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
   Wallet, PiggyBank, Percent, Table, Clock, LineChart, LogOut, ShieldCheck, Eye, EyeOff,
 } from 'lucide-react';
@@ -93,14 +93,29 @@ function NavItem({ icon: Icon, label, active, onClick }) {
 /* ------------------------------------------------------------------ */
 /* ANA UYGULAMA                                                         */
 /* ------------------------------------------------------------------ */
+// Giriş sayfası kart renkleri
+const GIRIS_RENK = {
+  dashboard: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300',
+  gelirler: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300',
+  giderler: 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300',
+  alacaklar: 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300',
+  nakitAkisi: 'bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300',
+  satisTablosu: 'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300',
+  sureAnalizi: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-300',
+  feeTakip: 'bg-teal-50 text-teal-600 dark:bg-teal-950/50 dark:text-teal-300',
+  yorumlar: 'bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-300',
+  yonetim: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+};
+
 export default function FinansDashboard({ data, user, izleniyor, onViewAs, baslangicSayfa, onLogout, lastUpdatedFee, lastUpdatedOdeme, onRefresh, refreshing }) {
   // Kullanıcının izinli sayfaları (sunucu zaten yalnızca bu sayfaların verisini gönderir); admin ayrıca Yönetim sayfasını görür
   const izinli = user?.pages || [];
   // Süre Analiz üç ayrı yetkidir (müşteri / personel / departman); menüde tek sayfa olarak görünür
   const sureGorunumler = [['sureAnalizi', 'musteri'], ['sureAnalizPersonel', 'personel'], ['sureAnalizDepartman', 'departman'], ['sureAnalizKarsilastirma', 'karsilastirma']].filter(([k]) => izinli.includes(k)).map(([, g]) => g);
-  const menuIzinli = [...izinli.filter((p) => !p.startsWith('sureAnaliz')), ...(sureGorunumler.length ? ['sureAnalizi'] : [])];
+  // 'giris' (Giriş) herkese açıktır; yetki gerektirmez, yalnızca kullanıcının erişebildiği sayfalara kısayol kartları gösterir
+  const menuIzinli = ['giris', ...izinli.filter((p) => !p.startsWith('sureAnaliz')), ...(sureGorunumler.length ? ['sureAnalizi'] : [])];
   // Menü tıklaması anında (navPage) boyanır; sayfanın ağır içeriği hemen ardından, kesintiye uğrayabilir şekilde (page) çizilir
-  const [navPage, setPage] = useState(baslangicSayfa || menuIzinli[0] || (user?.role === 'admin' ? 'yonetim' : 'dashboard'));
+  const [navPage, setPage] = useState(baslangicSayfa || 'giris');
   const page = useDeferredValue(navPage);
   const { genelDegerlendirme = [], giderYorumlari = [], gelirYorumlari = [], aksiyonlar = [] } = data.yorumlar || {};
   const [selectedMonth, setSelectedMonth] = useState('Toplam');
@@ -297,6 +312,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
   // Tahmini Hedef Ciro'nun $ karşılığı (Gelirler'deki Tahmini Ciro ile aynı mantık)
 
   const tumSayfalar = [
+    { id: 'giris', label: 'Giriş', icon: Home },
     { id: 'dashboard', label: 'Yönetici Özeti', icon: LayoutDashboard },
     { id: 'gelirler', label: 'Gelirler', icon: TrendingUp },
     { id: 'giderler', label: 'Giderler', icon: Receipt },
@@ -308,7 +324,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
     { id: 'yorumlar', label: 'Yorumlar', icon: MessageSquare },
   ];
   // Yönetim'deki yetki düğmeleri: Süre Analiz üç ayrı düğmedir
-  const yetkiSayfalari = tumSayfalar.flatMap((p) => (p.id === 'sureAnalizi'
+  const yetkiSayfalari = tumSayfalar.filter((p) => p.id !== 'giris').flatMap((p) => (p.id === 'sureAnalizi'
     ? [{ ...p, label: 'Süre Analiz · Müşteri' }, { id: 'sureAnalizPersonel', label: 'Süre Analiz · Personel', icon: Clock }, { id: 'sureAnalizDepartman', label: 'Süre Analiz · Departman', icon: Clock }, { id: 'sureAnalizKarsilastirma', label: 'Süre Analiz · Karşılaştırma', icon: Clock }]
     : [p]));
   const pages = [
@@ -435,6 +451,28 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
 
         <div className="p-4 sm:p-8 flex flex-col gap-6">
           <h1 className="font-serif text-3xl text-slate-900 dark:text-slate-50 dark:text-white">{pageTitle}</h1>
+
+          {/* ---------------- GİRİŞ ---------------- */}
+          {page === 'giris' && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-5 max-w-5xl">
+              {pages.filter((p) => p.id !== 'giris').map((p) => {
+                const Icon = p.icon;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPage(p.id)}
+                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all py-6 px-3 flex flex-col items-center gap-3"
+                  >
+                    <span className={`w-16 h-16 rounded-2xl flex items-center justify-center ${GIRIS_RENK[p.id] || 'bg-slate-100 text-slate-600'}`}>
+                      <Icon size={32} strokeWidth={1.75} />
+                    </span>
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 text-center leading-tight">{p.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* ---------------- DASHBOARD ---------------- */}
           {page === 'dashboard' && (
