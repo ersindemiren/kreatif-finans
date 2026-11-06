@@ -417,8 +417,8 @@ export class AuthError extends Error {}
 
 // Ham veri artık tarayıcıdan Google Sheets'e değil, giriş yapmış kullanıcının yetkisine göre süzülmüş olarak
 // sunucudan (/api/data) gelir. Yetkisi olmayan veri hiç gelmez; ilgili parçalar boş/sıfır olarak okunur.
-export async function fetchFinansData() {
-  const res = await fetch('/api/data', { credentials: 'same-origin' });
+export async function fetchFinansData(asEmail) {
+  const res = await fetch(asEmail ? `/api/data?as=${encodeURIComponent(asEmail)}` : '/api/data', { credentials: 'same-origin' });
   if (res.status === 401) throw new AuthError('Oturum gerekli');
   let payload = null;
   try { payload = await res.json(); } catch { /* aşağıda hata verilir */ }

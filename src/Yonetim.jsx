@@ -247,7 +247,7 @@ function EverhourEslestirme({ markalar }) {
   );
 }
 
-export default function Yonetim({ me, tumSayfalar, markalar }) {
+export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
   const [users, setUsers] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -335,6 +335,7 @@ export default function Yonetim({ me, tumSayfalar, markalar }) {
                   {busy === u.email && <Loader2 size={14} className="animate-spin text-slate-400 mt-1" />}
                   {!isMe && (
                     <>
+                      {onViewAs && <button type="button" onClick={() => onViewAs(u)} className="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shrink-0">Bu kullanıcı olarak görüntüle</button>}
                       <button type="button" onClick={() => save({ ...u, role: admin ? 'member' : 'admin' })} className="text-[11px] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shrink-0">
                         {admin ? 'Üye yap' : 'Admin yap'}
                       </button>

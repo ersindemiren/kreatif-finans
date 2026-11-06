@@ -25,7 +25,9 @@ function Spinner({ text }) {
 }
 
 function FinansApp({ user, onLogout }) {
-  const { loading, error, data, reload, unauthorized } = useFinansData();
+  const [izle, setIzle] = useState(null); // admin: görüntülenen kullanıcı
+  const [donus, setDonus] = useState(false);
+  const { loading, error, data, reload, unauthorized } = useFinansData(izle?.email);
 
   // Oturum sunucuda sona erdiyse (12 saat dolduysa ya da yetki kaldırıldıysa) giriş ekranına dön
   useEffect(() => { if (unauthorized) onLogout(); }, [unauthorized, onLogout]);
@@ -48,21 +50,33 @@ function FinansApp({ user, onLogout }) {
             <RefreshCw size={14} />
             Tekrar dene
           </button>
-          <button onClick={onLogout} className="text-xs text-slate-500 hover:text-slate-900">Çıkış yap</button>
+          {izle ? <button onClick={() => { setIzle(null); setDonus(true); }} className="text-xs text-slate-500 hover:text-slate-900">Görüntülemeden çık</button> : <button onClick={onLogout} className="text-xs text-slate-500 hover:text-slate-900">Çıkış yap</button>}
         </div>
       </div>
     );
   }
 
   return (
+    <>
     <FinansDashboard
+      key={izle?.email || 'ben'}
+      baslangicSayfa={donus && !izle ? 'yonetim' : undefined}
+      izleniyor={!!izle}
+      onViewAs={(u) => { setDonus(false); setIzle(u); }}
       data={data}
-      user={user}
+      user={izle || user}
       onLogout={onLogout}
       lastUpdatedFee={data.lastUpdatedFee}
       lastUpdatedOdeme={data.lastUpdatedOdeme}
       onRefresh={reload}
       refreshing={loading}
     />
+    {izle && (
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-amber-100 border border-amber-300 text-amber-900 text-sm rounded-full pl-4 pr-2 py-1.5 shadow-lg max-w-[92vw]">
+        <span className="truncate"><strong>{izle.name || izle.email}</strong> olarak görüntülüyorsun</span>
+        <button onClick={() => { setIzle(null); setDonus(true); }} className="shrink-0 bg-amber-900 text-white text-xs font-medium rounded-full px-3 py-1 hover:bg-amber-800">Çık</button>
+      </div>
+    )}
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import { json, currentUser } from './_lib/http.js';
+import { findUser } from './_lib/users.js';
 import { fetchSources } from './_lib/source.js';
 import { filterData } from './_lib/filter.js';
 import yorumlar from './_data/yorumlar.js';
@@ -10,8 +11,16 @@ import { groupsFor } from './_lib/filter.js';
 export default async function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Yöntem desteklenmiyor' });
   try {
-    const user = await currentUser(req);
+    let user = await currentUser(req);
     if (!user) return json(res, 401, { error: 'Giriş gerekli' });
+    // Admin, başka bir kullanıcının görünümünü görüntüleyebilir (oturum değişmez; yalnızca o kişinin yetkisine göre süzülmüş veri döner)
+    const as = new URL(req.url, 'http://x').searchParams.get('as');
+    if (as) {
+      if (user.role !== 'admin') return json(res, 403, { error: 'Bu işlem için admin yetkisi gerekir' });
+      const hedef = await findUser(as);
+      if (!hedef) return json(res, 404, { error: 'Kullanıcı bulunamadı' });
+      user = hedef;
+    }
     const src = await fetchSources();
     // Süre: Everhour (canlı). Alınamazsa yedek olarak son dışa aktarılan rapora düşer.
     let sure = sureler;

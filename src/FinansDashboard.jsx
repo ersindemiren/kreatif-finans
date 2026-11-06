@@ -93,13 +93,13 @@ function NavItem({ icon: Icon, label, active, onClick }) {
 /* ------------------------------------------------------------------ */
 /* ANA UYGULAMA                                                         */
 /* ------------------------------------------------------------------ */
-export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, lastUpdatedOdeme, onRefresh, refreshing }) {
+export default function FinansDashboard({ data, user, izleniyor, onViewAs, baslangicSayfa, onLogout, lastUpdatedFee, lastUpdatedOdeme, onRefresh, refreshing }) {
   // Kullanıcının izinli sayfaları (sunucu zaten yalnızca bu sayfaların verisini gönderir); admin ayrıca Yönetim sayfasını görür
   const izinli = user?.pages || [];
   // Süre Analiz üç ayrı yetkidir (müşteri / personel / departman); menüde tek sayfa olarak görünür
   const sureGorunumler = [['sureAnalizi', 'musteri'], ['sureAnalizPersonel', 'personel'], ['sureAnalizDepartman', 'departman']].filter(([k]) => izinli.includes(k)).map(([, g]) => g);
   const menuIzinli = [...izinli.filter((p) => !p.startsWith('sureAnaliz')), ...(sureGorunumler.length ? ['sureAnalizi'] : [])];
-  const [page, setPage] = useState(menuIzinli[0] || (user?.role === 'admin' ? 'yonetim' : 'dashboard'));
+  const [page, setPage] = useState(baslangicSayfa || menuIzinli[0] || (user?.role === 'admin' ? 'yonetim' : 'dashboard'));
   const { genelDegerlendirme = [], giderYorumlari = [], gelirYorumlari = [], aksiyonlar = [] } = data.yorumlar || {};
   const [selectedMonth, setSelectedMonth] = useState('Toplam');
   const [gelirGorunum, setGelirGorunum] = useState('güncel');
@@ -311,7 +311,7 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
     : [p]));
   const pages = [
     ...tumSayfalar.filter((p) => menuIzinli.includes(p.id)),
-    ...(user?.role === 'admin' ? [{ id: 'yonetim', label: 'Yönetim', icon: ShieldCheck }] : []),
+    ...(user?.role === 'admin' && !izleniyor ? [{ id: 'yonetim', label: 'Yönetim', icon: ShieldCheck }] : []),
   ];
 
   const pageTitle = pages.find((p) => p.id === page)?.label ?? 'Finans Özeti';
@@ -1185,7 +1185,7 @@ export default function FinansDashboard({ data, user, onLogout, lastUpdatedFee, 
           {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} sureError={data.sureError} gorunumler={sureGorunumler} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
-          {page === 'yonetim' && user?.role === 'admin' && <Yonetim me={user} tumSayfalar={yetkiSayfalari} markalar={markaListesi} />}
+          {page === 'yonetim' && user?.role === 'admin' && !izleniyor && <Yonetim onViewAs={onViewAs} me={user} tumSayfalar={yetkiSayfalari} markalar={markaListesi} />}
           {page === 'feeTakip' && <FeeTakip feeTakip={data.feeTakip} feeTakipError={data.feeTakipError} pasifMarkalar={pasifMarkalar} satisRows={data.satis?.rows} kurUSD={data.kurUSD} />}
           {page === 'yorumlar' && (
             <div className="flex flex-col gap-5">
