@@ -1,3 +1,4 @@
+import { kisiAySayilari } from '../../src/lib/kisiAylar.js';
 // Yetkiye göre veri süzme: kullanıcı yetkisi olmayan hiçbir veri tarayıcıya gönderilmez.
 // Her sayfa, ihtiyaç duyduğu "veri gruplarını" açar; grupların birleşimi gönderilir.
 export const PAGE_GROUPS = {
@@ -35,10 +36,7 @@ export function filterDash(grid, groups) {
 export function filterSure(sure, g) {
   if (!sure || !g.has('SURE')) return null;
   if (g.has('PERSONEL')) return sure;
-  const kisiAy = new Array(12).fill(0);
-  const top = new Map();
-  (sure.personel || []).forEach(([u, ym, , h]) => { const k = `${u}|${Number(String(ym).slice(5, 7)) - 1}`; top.set(k, (top.get(k) || 0) + h); });
-  top.forEach((h, k) => { if (h > 0) kisiAy[Number(k.split('|')[1])] += 1; });
+  const kisiAy = kisiAySayilari(sure.personel || [], sure.pasif || {});
   const { personel, departman, pasif, maliyet, ...kalan } = sure; // eslint-disable-line no-unused-vars
   return { ...kalan, personel: [], departman: {}, pasif: {}, kisiAy };
 }

@@ -3,6 +3,8 @@
 // Süre kaynağı: Everhour (sunucu /api/data). Everhour alınamazsa yedek olarak api/_data/sureler.js (son dışa aktarım) kullanılır.
 // ============================================================================
 import { normalizeNameKey } from './parseData.js';
+import { kisiAylari, kisiAySayilari } from './kisiAylar.js';
+export { kisiAylari };
 
 // Saatlik baz (₺/saat) — ay ay. Ocak-Haziran 5.000, Temmuz sonrası 6.000. Değişirse yalnızca burası güncellenir.
 export const FEE_BAZI = [5000, 5000, 5000, 5000, 5000, 5000, 6000, 6000, 6000, 6000, 6000, 6000];
@@ -92,8 +94,9 @@ export function buildMarkaPersonel({ rows, brandName }) {
 }
 
 // Personel görünümü: kişi bazında süre (saat) ve müşteri kırılımı. rows: [kişi, 'YYYY-MM', müşteri, saat]
-export function buildPersonel({ rows, idxs }) {
+export function buildPersonel({ rows, idxs, pasif }) {
   const map = new Map();
+  const sayilan = kisiAylari(rows, pasif || {});
   (rows || []).forEach(([user, ym, client, hours]) => {
     const i = Number(String(ym).slice(5, 7)) - 1;
     if (!idxs.includes(i) || SIFIRLANAN_AYLAR.includes(i)) return;
@@ -104,26 +107,18 @@ export function buildPersonel({ rows, idxs }) {
     const c = kanonikMusteri(client);
     u.clients.set(c, (u.clients.get(c) || 0) + hours);
   });
+  // Aktif ve işten ayrılmamış ama dönemde hiç süre girmemiş kişiler de listede 0 saatle görünür (süre girmiyor / unutuyor)
+  sayilan.forEach((s, user) => { if (!map.has(user) && [...s].some((m) => idxs.includes(m))) map.set(user, { name: user, hours: 0, clients: new Map(), ay: new Map() }); });
   return [...map.values()]
-    .map((u) => ({ name: u.name, hours: u.hours, aylar: [...u.ay.values()].filter((h) => h > 0).length, aySet: [...u.ay].filter(([, h]) => h > 0).map(([i]) => i), clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
-    .filter((u) => u.hours > 0)
+    .map((u) => ({ name: u.name, hours: u.hours, aySet: [...(sayilan.get(u.name) || [])].filter((m) => idxs.includes(m)), aylar: [...(sayilan.get(u.name) || [])].filter((m) => idxs.includes(m)).length, clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
+    .filter((u) => u.hours > 0 || u.aylar > 0)
     .sort((a, b) => b.hours - a.hours);
 }
 
-// Dönemdeki her ay için süre girmiş kişi sayısı (azami süre = Σ kişi sayısı x o ayın azami saati)
-export function kisiAyDizisi({ rows, idxs }) {
-  const set = new Set();
-  const top = new Map();
-  (rows || []).forEach(([user, ym, , hours]) => {
-    const i = Number(String(ym).slice(5, 7)) - 1;
-    if (!idxs.includes(i) || SIFIRLANAN_AYLAR.includes(i)) return;
-    const k = `${user}|${i}`;
-    top.set(k, (top.get(k) || 0) + hours);
-  });
-  top.forEach((h, k) => { if (h > 0) set.add(k); });
-  const dizi = new Array(12).fill(0);
-  set.forEach((k) => { dizi[Number(k.split('|')[1])] += 1; });
-  return dizi;
+// Dönemdeki her ay için maksimum süreye sayılan kişi sayısı (aktif: süre girmese de sayılır; pasif: ayrılana kadar)
+export function kisiAyDizisi({ rows, idxs, pasif }) {
+  const d = kisiAySayilari(rows, pasif);
+  return d.map((v, i) => (idxs.includes(i) && !SIFIRLANAN_AYLAR.includes(i) ? v : 0));
 }
 
 // Tek kişinin ayrıntısı: aylık süre, o ayda ekibin toplam süresi, müşteri kırılımı (müşteri x ay). rows: [kişi, 'YYYY-MM', müşteri, saat]

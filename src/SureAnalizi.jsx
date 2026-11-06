@@ -54,7 +54,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     return { hours, saatBaz, fee, fark, faturali: idxs.some((i) => b.faturali[i]) };
   };
 
-  const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx }), [sureData, selected, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
+  const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx, pasif: sureData?.pasif }), [sureData, selected, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
   // Azami süre: her ayın hafta içi sayısı - resmi tatiller (Yönetim > Resmi Tatiller), x 8,5 saat
   const yil = new Date().getFullYear();
   const tatiller = sureData?.tatiller || VARSAYILAN_TATILLER;
@@ -86,7 +86,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const atil = gIc.hours + gAtanmamis.hours; // Atanmamış Süre kartı: iç süre + markaya atanmamış
 
   // Üst kartlar (Müşteri / Personel / Departman görünümünde aynı): azami süre = 22 gün x 8,5 saat x dönemdeki kişi-ay sayısı
-  const kisiAyD = sureData?.kisiAy || kisiAyDizisi({ rows: sureData?.personel || [], idxs: periodIdx });
+  const kisiAyD = sureData?.kisiAy || kisiAyDizisi({ rows: sureData?.personel || [], idxs: periodIdx, pasif: sureData?.pasif });
   const kisiAy = periodIdx.reduce((t, i) => t + (kisiAyD[i] || 0), 0);
   const maksToplam = periodIdx.reduce((t, i) => t + (kisiAyD[i] || 0) * maksSaat(i), 0);
   const sureOrani = maksToplam ? toplam / maksToplam : null;

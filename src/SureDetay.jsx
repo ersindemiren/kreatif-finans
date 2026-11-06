@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
+import { kisiAylari } from './lib/kisiAylar.js';
 import { normalizeNameKey } from './lib/parseData.js';
 import { ayAnahtar } from './lib/maliyet.js';
 
@@ -372,8 +373,11 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const donem = `(${secili === 'Toplam' ? (aktif.length ? `${months[aktif[0]]}-${months[aktif[aktif.length - 1]]}` : '') : secili})`;
   const toplamP = sum(d.monthly, per);
   const ekipP = sum(d.team, per);
-  const maksAyP = per.filter((i) => d.monthly[i] > 0).length;
-  const maksP = per.filter((i) => d.monthly[i] > 0).reduce((t, i) => t + maksSaat(i), 0);
+  // Maksimum süreye sayılan aylar: aktif kişide süre girmediği aylar da sayılır (unutuyor), pasif kişide ayrılana kadar
+  const sayilan = useMemo(() => kisiAylari((personelRows || []).filter((r) => r[0] === name), pasif ? { [name]: true } : {}).get(name) || new Set(), [personelRows, name, pasif]);
+  const maksAylar = per.filter((i) => sayilan.has(i));
+  const maksAyP = maksAylar.length;
+  const maksP = maksAylar.reduce((t, i) => t + maksSaat(i), 0);
   const oranP = maksP ? toplamP / maksP : null;
   const clP = d.clients.map((c) => ({ ...c, toplam: sum(c.hours, per), brand: brandOf(c.name) })).filter((c) => c.toplam > 0).sort((a, b) => b.toplam - a.toplam);
   const grpP = { faturali: 0, kayip: 0, atil: 0 };
@@ -392,7 +396,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   ];
   // Maliyet değerleri ay ay hesaplanır: o ayın saat maliyeti x süre
   const saatAy = (i) => maliyetAy?.[ayAnahtar(i)] || 0;
-  const sureliP = per.filter((i) => d.monthly[i] > 0);
+  const sureliP = maksAylar;
   const maksDeger = sureliP.reduce((t, i) => t + maksSaat(i) * saatAy(i), 0);
   const topDeger = sureliP.reduce((t, i) => t + d.monthly[i] * saatAy(i), 0);
   const eksikAy = sureliP.filter((i) => !saatAy(i)).length;
@@ -430,7 +434,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   if (toplamEkip > 0) yorumlar.push({ tone: 'info', text: `Ekibin toplam süresinin ${pct1(toplamKisi / toplamEkip)}'ini üstlendi.` });
 
   const gridA = 'grid grid-cols-7';
-  const maksAy = (i) => (d.monthly[i] > 0 ? maksSaat(i) : 0);
+  const maksAy = (i) => (sayilan.has(i) ? maksSaat(i) : 0);
   const toplamMaks = aktif.reduce((t, i) => t + maksAy(i), 0);
   const toplamDep = sum(d.dep, aktif);
   const oranCls = (r) => (r < ESIK ? ORAN_KIRMIZI : '');
