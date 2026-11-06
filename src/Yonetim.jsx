@@ -4,6 +4,7 @@ import { api } from './lib/auth.js';
 import { autoBrand, DEPARTMANLAR } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
 import { hesaplaAy, parseTR, ayAnahtar } from './lib/maliyet.js';
+import { VARSAYILAN_ESIKLER, uygulaEsikler } from './lib/esikler.js';
 import { aySaati, ayIsGunu, haftaIci, tatilGunu, tatilEtkisi, gunAdi, haftaSonu, VARSAYILAN_TATILLER } from './lib/takvim.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -197,6 +198,65 @@ function MaliyetHesaplama() {
           </div>
           {eksik.length > 0 && <p className="text-[11px] text-amber-600 mt-3">{AY_ADLARI[ay]} ayında süre girmiş ama maliyeti girilmemiş {eksik.length} kişi var ({eksik.slice(0, 4).map((k) => k.name).join(', ')}{eksik.length > 4 ? '…' : ''}). Bu kişiler dağıtımdan pay almaz, sayfalarında o ayın maliyet değeri hesaplanmaz.</p>}
           {hs.toplamKisi === 0 && veri.dagitim > 0 && <p className="text-[11px] text-amber-600 mt-2">Dağıtım gideri, kişi maliyeti girilmeden paylaştırılamaz.</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Ayarlar: Süre Analizi / Karşılaştırma'daki kırmızı baraj değerleri. Bu değerin altındaki sonuçlar kırmızı gösterilir.
+function Ayarlar() {
+  const [st, setSt] = useState({ loading: true, error: '', not: '' });
+  const [g, setG] = useState({ kapasite: '', kayit: '', skor: '' });
+  const [busy, setBusy] = useState(false);
+  const yuzde = (v) => String(Math.round(v * 1000) / 10).replace('.', ',');
+  const doldur = (a) => setG({ kapasite: yuzde(a.kapasite), kayit: yuzde(a.kayit), skor: String(a.skor).replace('.', ',') });
+  useEffect(() => {
+    (async () => {
+      const r = await api('/api/everhour?bolum=ayarlar');
+      if (r.ok) { doldur(r.data.ayarlar); setSt({ loading: false, error: '', not: '' }); } else setSt({ loading: false, error: r.data.error || 'Ayarlar okunamadı', not: '' });
+    })();
+  }, []);
+  const kaydet = async (govde) => {
+    setBusy(true);
+    const r = await api('/api/everhour', { method: 'PUT', body: { ayarlar: govde } });
+    if (r.ok) { uygulaEsikler(r.data.ayarlar); doldur(r.data.ayarlar); setSt({ loading: false, error: '', not: 'Kaydedildi. Süre Analizi ve Karşılaştırma sayfaları yeniden açıldığında yeni barajları kullanır.' }); } else setSt((x) => ({ ...x, error: r.data.error || 'Kaydedilemedi', not: '' }));
+    setBusy(false);
+  };
+  const al = () => ({ kapasite: parseFloat(String(g.kapasite).replace(',', '.')), kayit: parseFloat(String(g.kayit).replace(',', '.')), skor: parseFloat(String(g.skor).replace(',', '.')) });
+  const input = 'w-28 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm text-right tabular-nums outline-none focus:border-slate-400';
+  const satirlar = [
+    ['kapasite', 'Kapasite Oranı', '%', 'Gerçekleşen Süre / Maksimum Kapasite bu değerin altındaysa kırmızı.'],
+    ['kayit', 'Kayıt Oranı', '%', 'Sürenin faturası kesilmiş markalara giden payı bu değerin altındaysa kırmızı.'],
+    ['skor', 'Verimlilik Skoru', '/ 100', 'Verimlilik Skoru bu değerin altındaysa kırmızı.'],
+  ];
+  return (
+    <div className={`${CARD} p-4 sm:p-5`}>
+      <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Ayarlar</h3>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Süre Analizi (Personel, Departman, kişi detayı) ve Karşılaştırma sayfalarında sonuçların kırmızı görüneceği baraj değerleri. Oranlar yüzde olarak girilir.</p>
+      {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Okunuyor...</div>}
+      {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
+      {st.not && <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">{st.not}</div>}
+      {!st.loading && (
+        <>
+          <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+            {satirlar.map(([k, ad, birim, not]) => (
+              <div key={k} className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{ad}</div>
+                  <div className="text-[11px] text-slate-400">{not}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input inputMode="decimal" value={g[k]} onChange={(e) => setG((x) => ({ ...x, [k]: e.target.value }))} aria-label={`${ad} barajı`} className={input} />
+                  <span className="w-10 text-xs text-slate-400">{birim}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <button type="button" onClick={() => kaydet(al())} disabled={busy} className="text-sm bg-slate-900 text-white rounded-lg px-4 py-1.5 disabled:opacity-50">{busy ? 'Kaydediliyor...' : 'Kaydet'}</button>
+            <button type="button" onClick={() => kaydet({ kapasite: VARSAYILAN_ESIKLER.kapasite * 100, kayit: VARSAYILAN_ESIKLER.kayit * 100, skor: VARSAYILAN_ESIKLER.skor })} disabled={busy} className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Varsayılana dön (%{VARSAYILAN_ESIKLER.kapasite * 100} / %{VARSAYILAN_ESIKLER.kayit * 100} / {VARSAYILAN_ESIKLER.skor})</button>
+          </div>
         </>
       )}
     </div>
@@ -415,6 +475,7 @@ export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
           <option value="departman">Personel Departman Eşleştirme</option>
           <option value="maliyet">Personel Maliyet Hesaplama</option>
           <option value="tatil">Resmi Tatiller</option>
+          <option value="ayarlar">Ayarlar</option>
         </select>
       </div>
       {bolum === '' && (
@@ -490,6 +551,7 @@ export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
       )}
       {bolum === 'everhour' && <EverhourEslestirme markalar={markalar} />}
       {bolum === 'departman' && <DepartmanEslestirme />}
+      {bolum === 'ayarlar' && <Ayarlar />}
       {bolum === 'maliyet' && <MaliyetHesaplama />}
       {bolum === 'tatil' && <ResmiTatiller />}
     </div>

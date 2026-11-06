@@ -2,11 +2,11 @@
 import { buildKisiDetay } from './sure.js';
 import { kisiAylari } from './kisiAylar.js';
 import { ayAnahtar } from './maliyet.js';
+import { ESIKLER } from './esikler.js';
 
 // Verimlilik Skoru (0-100): Kapasite Oranı 40 + Kayıt Oranı 40 + Kayıp Süre payı (ters) 20. Süre girilmiş ay yoksa skor üretilmez.
 export const SKOR = { sureTam: 0.95, sureSifir: 0.5, kayipSifir: 0.2, agirlik: { sure: 40, kayit: 40, kayip: 20 } };
-export const SKOR_ESIK = 80; // Verimlilik Skoru bunun altındaysa kırmızı
-export const skorKirmizi = (sk) => !!sk && Math.round(sk.toplam) < SKOR_ESIK;
+export const skorKirmizi = (sk) => !!sk && Math.round(sk.toplam) < ESIKLER.skor; // baraj: Yönetim > Ayarlar
 const kisit = (x) => Math.max(0, Math.min(1, x));
 export function verimlilikSkoru({ oran, kayitOrani, kayip, toplam, sureliAy }) {
   if (!sureliAy || oran == null || !toplam) return null;

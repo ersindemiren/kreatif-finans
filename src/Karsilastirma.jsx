@@ -1,7 +1,8 @@
 // Süre Analiz > Karşılaştırma: iki personeli seçilen dönemde yan yana karşılaştırır.
 import React, { useMemo, useState } from 'react';
-import { kisiOlcu, SKOR, SKOR_ESIK, skorKirmizi } from './lib/karsilastirma.js';
-import { ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
+import { kisiOlcu, SKOR, skorKirmizi } from './lib/karsilastirma.js';
+import { ORAN_KIRMIZI } from './SureDetay.jsx';
+import { ESIKLER, pctEsik } from './lib/esikler.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const SELECT = 'w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400 uppercase';
@@ -34,11 +35,11 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
     [
       { l: 'Maksimum Kapasite', f: (o) => (o.maks ? `${fmtS(o.maks)} Saat` : VAR), alt: (o) => (o.maksAy ? `${o.maksAy} ay` : ''), not: '(hafta içi − resmi tatil) × 8,5 sa' },
       { l: 'Gerçekleşen Süre', f: (o) => `${fmtS(o.toplam)} Saat`, num: (o) => o.toplam, yon: 'yuksek' },
-      { l: 'Kapasite Oranı', f: (o) => (o.oran == null ? VAR : pct1(o.oran)), num: (o) => o.oran, yon: 'yuksek', kirmizi: (o) => o.oran != null && o.oran < ESIK, not: 'Gerçekleşen Süre / Maksimum Kapasite' },
+      { l: 'Kapasite Oranı', f: (o) => (o.oran == null ? VAR : pct1(o.oran)), num: (o) => o.oran, yon: 'yuksek', kirmizi: (o) => o.oran != null && o.oran < ESIKLER.kapasite, not: 'Gerçekleşen Süre / Maksimum Kapasite' },
       { l: 'Girilen Süre', f: (o) => `${fmtS(o.aktif)} Saat`, alt: (o) => (o.toplam ? pct1(o.aktif / o.toplam) : ''), num: (o) => o.aktif, yon: 'yuksek' },
       { l: 'Atanmamış Süre', f: (o) => `${fmtS(o.atanmamis)} Saat`, alt: (o) => (o.toplam ? pct1(o.atanmamis / o.toplam) : ''), num: (o) => o.atanmamis, yon: 'dusuk' },
       { l: 'Kayıp Süre', f: (o) => `${fmtS(o.kayip)} Saat`, alt: (o) => (o.toplam ? pct1(o.kayip / o.toplam) : ''), num: (o) => o.kayip, yon: 'dusuk' },
-      { l: 'Kayıt Oranı', f: (o) => (o.kayitOrani == null ? VAR : pct1(o.kayitOrani)), num: (o) => o.kayitOrani, yon: 'yuksek', kirmizi: (o) => o.kayitOrani != null && o.kayitOrani < ESIK, not: 'faturası kesilen markalara giden süre payı' },
+      { l: 'Kayıt Oranı', f: (o) => (o.kayitOrani == null ? VAR : pct1(o.kayitOrani)), num: (o) => o.kayitOrani, yon: 'yuksek', kirmizi: (o) => o.kayitOrani != null && o.kayitOrani < ESIKLER.kayit, not: 'faturası kesilen markalara giden süre payı' },
       { l: 'Ekip Payı', f: (o) => (o.ekipPayi == null ? VAR : pct1(o.ekipPayi)), num: (o) => o.ekipPayi, yon: 'yuksek', not: `Ekip Süresi ${fmtN(olcu[0].ekip)} Saat` },
       { l: 'Dep. Payı', f: (o) => (o.depPayi == null ? VAR : pct1(o.depPayi)), num: (o) => o.depPayi, yon: 'yuksek', not: 'kendi departmanının Gerçekleşen Süresine oranı' },
       { l: 'Ortalama Aylık Süre', f: (o) => (o.ortAylik == null ? VAR : `${fmtS(o.ortAylik)} Saat`), alt: (o) => (o.sureliAy ? `${o.sureliAy} ay` : ''), not: 'süre girilen aylar üzerinden' },
@@ -132,7 +133,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
             </div>
           </div>
           <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4 leading-relaxed">
-            Verimlilik Skoru: Kapasite Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan). {SKOR_ESIK} altındaki skor kırmızıdır. Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
+            Verimlilik Skoru: Kapasite Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan). {ESIKLER.skor} altındaki skor kırmızıdır. Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
           </p>
         </div>
       )}

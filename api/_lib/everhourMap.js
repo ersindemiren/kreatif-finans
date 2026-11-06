@@ -270,3 +270,38 @@ export async function kaydetKisiOzet(personel, simdi = Date.now()) {
 export async function readKisiOzet() {
   try { const v = await kisiStore.read(); return v && Array.isArray(v.kisiler) ? v : null; } catch { return null; }
 }
+
+// Kırmızı baraj değerleri: Yönetim > Ayarlar. kapasite / kayit oran (0-1), skor 0-100. Herkes okur, yalnızca admin değiştirir.
+const AYAR_PATH = 'kf-auth/ayarlar.json';
+export const VARSAYILAN_AYARLAR = { kapasite: 0.85, kayit: 0.85, skor: 80 };
+let ayarStore = {
+  async read() {
+    const r = await get(AYAR_PATH, { access: 'private', useCache: false });
+    if (!r || r.statusCode !== 200) return null;
+    return JSON.parse(await new Response(r.stream).text());
+  },
+  async write(v) {
+    await put(AYAR_PATH, JSON.stringify(v), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  },
+};
+export const setAyarStore = (s) => { ayarStore = s; };
+export async function readAyarlar() {
+  try {
+    const a = await ayarStore.read();
+    const out = { ...VARSAYILAN_AYARLAR };
+    ['kapasite', 'kayit'].forEach((k) => { const v = Number(a?.[k]); if (Number.isFinite(v) && v >= 0 && v <= 1) out[k] = v; });
+    const s = Number(a?.skor);
+    if (Number.isFinite(s) && s >= 0 && s <= 100) out.skor = s;
+    return out;
+  } catch { return { ...VARSAYILAN_AYARLAR }; }
+}
+export async function setAyarlar(girdi) {
+  const mevcut = await readAyarlar();
+  const oran = (v, ad) => { const n = Number(v); if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error(`${ad}: 0 ile 100 arasında bir yüzde girin`); return Math.round(n * 10) / 1000; };
+  const yeni = { ...mevcut };
+  if (girdi?.kapasite !== undefined) yeni.kapasite = oran(girdi.kapasite, 'Kapasite Oranı');
+  if (girdi?.kayit !== undefined) yeni.kayit = oran(girdi.kayit, 'Kayıt Oranı');
+  if (girdi?.skor !== undefined) { const n = Number(girdi.skor); if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error('Verimlilik Skoru: 0 ile 100 arasında bir değer girin'); yeni.skor = Math.round(n * 10) / 10; }
+  await ayarStore.write(yeni);
+  return yeni;
+}

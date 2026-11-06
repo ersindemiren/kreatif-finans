@@ -1,7 +1,7 @@
 // Everhour müşteri adı eşleştirme: yalnızca admin. GET liste + mevcut eşleşmeler, PUT eşleştir/kaldır.
 import { json, sameOriginJson, readBody, currentUser } from './_lib/http.js';
 import { getEverhour, clearEverhourCache, teshis, teshis2, teshis3, teshis4 } from './_lib/everhour.js';
-import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, maliyetTohumla, maliyetKisileri, readTatil, setTatiller, kisiOzet, kaydetKisiOzet, readKisiOzet } from './_lib/everhourMap.js';
+import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, maliyetTohumla, maliyetKisileri, readTatil, setTatiller, readAyarlar, setAyarlar, kisiOzet, kaydetKisiOzet, readKisiOzet } from './_lib/everhourMap.js';
 
 export default async function handler(req, res) {
   try {
@@ -24,6 +24,7 @@ export default async function handler(req, res) {
       const oz = await readKisiOzet();
       return json(res, 200, { kisiler: oz ? oz.kisiler : null, aylikSaat: oz ? oz.aylikSaat : {}, ozetZamani: oz?.at || null, pasif: await readPasif(), maliyet: await readMaliyet(), tatiller: await readTatil() });
     }
+    if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('bolum') === 'ayarlar') return json(res, 200, { ayarlar: await readAyarlar() });
     if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('bolum') === 'tatil') return json(res, 200, { tatiller: await readTatil() });
     if (req.method === 'GET') {
       const ev = await getEverhour({ key: process.env.EVERHOUR_API_KEY, year: new Date().getFullYear(), upToMonth: new Date().getMonth() + 1 });
@@ -36,6 +37,7 @@ export default async function handler(req, res) {
     if (req.method === 'PUT') {
       if (!sameOriginJson(req)) return json(res, 403, { error: 'İstek reddedildi' });
       const body = await readBody(req);
+      if (body.ayarlar) return json(res, 200, { ayarlar: await setAyarlar(body.ayarlar) });
       if (body.maliyetKisi !== undefined) return json(res, 200, { maliyet: await setMaliyetKisi(body.ay, body.maliyetKisi, body.tutar) });
       if (body.dagitim !== undefined) return json(res, 200, { maliyet: await setDagitim(body.ay, body.dagitim) });
       if (body.tatiller !== undefined) return json(res, 200, { tatiller: await setTatiller(body.tatiller) });

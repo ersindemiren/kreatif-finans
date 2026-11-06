@@ -5,7 +5,7 @@ import { filterData } from './_lib/filter.js';
 import yorumlar from './_data/yorumlar.js';
 import sureler from './_data/sureler.js';
 import { getEverhour, applyMap } from './_lib/everhour.js';
-import { readMap, readDepartman, readPasif, readMaliyet, readTatil, kaydetKisiOzet } from './_lib/everhourMap.js';
+import { readMap, readDepartman, readPasif, readMaliyet, readTatil, readAyarlar, kaydetKisiOzet } from './_lib/everhourMap.js';
 import { groupsFor } from './_lib/filter.js';
 
 export default async function handler(req, res) {
@@ -39,6 +39,7 @@ export default async function handler(req, res) {
     const out = filterData({ ...src, yorumlar, sureler: sure }, user.pages);
     out.satisError = src.satisError;
     out.sureError = sureError;
+    out.ayarlar = await readAyarlar(); // kırmızı baraj değerleri (herkese)
     return json(res, 200, out);
   } catch (err) {
     return json(res, 500, { error: err.message || 'Sunucu hatası' });

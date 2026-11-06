@@ -1,3 +1,4 @@
+import { uygulaEsikler } from './esikler.js';
 // ============================================================================
 // Google Apps Script uç noktalarından gelen ham JSON'u, dashboard'un ihtiyaç
 // duyduğu temiz veri yapılarına (ciro, gider, expenseItemDefs, revenueRaw,
@@ -427,6 +428,7 @@ export async function fetchFinansData(asEmail) {
   const odemeJson = payload.odeme || {};
   const yorumlar = payload.yorumlar || null;
   const sureler = payload.sureler || null;
+  uygulaEsikler(payload.ayarlar);
 
   // Marka adı yazım farklarını tek isimde birleştirmek için resmi marka listesini önce kur
   setBrandCanon(feeJson['MARKA DURUM']);
