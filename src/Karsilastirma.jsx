@@ -1,6 +1,6 @@
 // Süre Analiz > Karşılaştırma: iki personeli seçilen dönemde yan yana karşılaştırır.
 import React, { useMemo, useState } from 'react';
-import { kisiOlcu, SKOR } from './lib/karsilastirma.js';
+import { kisiOlcu, SKOR, SKOR_ESIK, skorKirmizi } from './lib/karsilastirma.js';
 import { ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -29,7 +29,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
   // yon: 'yuksek' = büyük olan iyi, 'dusuk' = küçük olan iyi; verilmezse vurgu yapılmaz. num: karşılaştırılacak sayı
   const gruplar = olcu && [
     [
-      { l: 'Verimlilik Skoru', f: (o) => (o.skor ? `${Math.round(o.skor.toplam)} / 100` : 'Veri yetersiz'), alt: (o) => (o.skor ? `Süre ${Math.round(o.skor.sure)}/40 · Kayıt ${Math.round(o.skor.kayit)}/40 · Kayıp ${Math.round(o.skor.kayip)}/20` : ''), num: (o) => o.skor?.toplam ?? null, yon: 'yuksek', buyuk: true, not: 'Süre Oranı %40 · Kayıt Oranı %40 · Kayıp Süre %20 (ters)' },
+      { l: 'Verimlilik Skoru', f: (o) => (o.skor ? `${Math.round(o.skor.toplam)} / 100` : 'Veri yetersiz'), alt: (o) => (o.skor ? `Süre ${Math.round(o.skor.sure)}/40 · Kayıt ${Math.round(o.skor.kayit)}/40 · Kayıp ${Math.round(o.skor.kayip)}/20` : ''), num: (o) => o.skor?.toplam ?? null, yon: 'yuksek', buyuk: true, kirmizi: (o) => skorKirmizi(o.skor), not: 'Süre Oranı %40 · Kayıt Oranı %40 · Kayıp Süre %20 (ters)' },
     ],
     [
       { l: 'Maksimum Süre', f: (o) => (o.maks ? `${fmtS(o.maks)} Saat` : VAR), alt: (o) => (o.maksAy ? `${o.maksAy} ay` : ''), not: '(hafta içi − resmi tatil) × 8,5 sa' },
@@ -133,7 +133,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
             </div>
           </div>
           <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4 leading-relaxed">
-            Verimlilik Skoru: Süre Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan). Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
+            Verimlilik Skoru: Süre Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan). {SKOR_ESIK} altındaki skor kırmızıdır. Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
           </p>
         </div>
       )}

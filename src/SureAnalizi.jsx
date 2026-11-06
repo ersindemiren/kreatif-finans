@@ -4,7 +4,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { buildSure, buildPersonel, buildDepartman, kisiAyDizisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
 import Karsilastirma from './Karsilastirma.jsx';
-import { verimlilikSkoru } from './lib/karsilastirma.js';
+import { verimlilikSkoru, skorKirmizi } from './lib/karsilastirma.js';
 import { MarkaDetay, KisiDetay, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { aySaati, VARSAYILAN_TATILLER } from './lib/takvim.js';
 import { normalizeNameKey } from './lib/parseData.js';
@@ -29,6 +29,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const [gorunum, setGorunum] = useState(temelGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
   const gor = useDeferredValue(gorunum);
   const [acikDep, setAcikDep] = useState(null);
+  const [siralama, setSiralama] = useState({ k: 'sure', yon: 'desc' }); // Personel listesi sıralaması
   const [kars, setKars] = useState(null); // personel sayfasından gelen hızlı karşılaştırma: { a, b, k }
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
   const setSeciliMarka = (n) => setYigin([{ t: 'm', n }]);
@@ -184,6 +185,26 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     }, 0);
     return verimlilikSkoru({ oran: maks ? u.hours / maks : null, kayitOrani: u.hours ? kayitOrani(u) : null, kayip, toplam: u.hours, sureliAy: u.hours > 0 ? 1 : 0 });
   };
+  // Personel listesi sıralaması: boş (–) değerler yönden bağımsız hep sonda
+  const maksOf = (u) => u.aySet.reduce((t, i) => t + maksSaat(i), 0);
+  const siralaDeger = {
+    kayit: (u) => (u.hours ? kayitOrani(u) : null),
+    maks: (u) => maksOf(u) || null,
+    oran: (u) => (u.aylar && maksOf(u) ? u.hours / maksOf(u) : null),
+    skor: (u) => skorOf(u)?.toplam ?? null,
+    sure: (u) => u.hours,
+  };
+  const siraliPersonel = (() => {
+    const f = siralaDeger[siralama.k];
+    const m = siralama.yon === 'asc' ? 1 : -1;
+    return personel.map((u) => ({ u, v: f(u) })).sort((a, b) => (a.v == null) - (b.v == null) || (a.v == null ? 0 : (a.v - b.v) * m)).map((x) => x.u);
+  })();
+  const sirala = (k) => setSiralama((s) => (s.k === k ? { k, yon: s.yon === 'desc' ? 'asc' : 'desc' } : { k, yon: 'desc' }));
+  const SiraBasligi = ({ k, label, cls }) => (
+    <button type="button" onClick={() => sirala(k)} className={`${cls} text-right shrink-0 leading-tight uppercase tracking-wide hover:text-slate-700 dark:hover:text-slate-200 ${siralama.k === k ? 'text-slate-700 dark:text-slate-200 font-semibold' : ''}`}>
+      {label}{siralama.k === k ? (siralama.yon === 'desc' ? ' ↓' : ' ↑') : ''}
+    </button>
+  );
   const sayfa = yigin[yigin.length - 1];
   const etiket = yigin.length > 1 ? 'Geri' : null;
   if (sayfa?.t === 'm') {
@@ -305,25 +326,25 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Süre = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kayıt Oranı ve Maks Süre Oranı %85'in altındaysa kırmızı. Verimlilik Skoru (0–100): Süre Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20; süre girilmemişse –.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Süre = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kayıt Oranı ve Maks Süre Oranı %85'in altındaysa kırmızı. Verimlilik Skoru (0–100, %80 altı kırmızı): Süre Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20; süre girilmemişse –. Sütun başlığına tıklayarak o sütuna göre sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
             <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
               <span className="w-5 sm:w-6 shrink-0" />
               <span className="flex-1 min-w-0">Personel</span>
-              <span className="w-14 sm:w-20 text-right shrink-0 leading-tight">Kayıt Oranı</span>
-              <span className="w-14 sm:w-20 text-right shrink-0 leading-tight">Maks. Süre</span>
-              <span className="w-14 sm:w-24 text-right shrink-0 leading-tight">Maks Süre Oranı</span>
-              <span className="w-14 sm:w-20 text-right shrink-0 leading-tight">Verimlilik Skoru</span>
-              <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
+              <SiraBasligi k="kayit" label="Kayıt Oranı" cls="w-14 sm:w-20" />
+              <SiraBasligi k="maks" label="Maks. Süre" cls="w-14 sm:w-20" />
+              <SiraBasligi k="oran" label="Maks Süre Oranı" cls="w-14 sm:w-24" />
+              <SiraBasligi k="skor" label="Verimlilik Skoru" cls="w-14 sm:w-20" />
+              <SiraBasligi k="sure" label="Süre" cls={COL_SURE} />
             </div>
             <div className="flex flex-col">
-              {personel.map((u, k) => (
+              {siraliPersonel.map((u, k) => (
                 <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
                   <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
                   <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
                   <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${kayitOrani(u) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{pct1(kayitOrani(u))}</span>
                   <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{fmtN(u.aySet.reduce((t, i) => t + maksSaat(i), 0))} sa</span>
                   <span className={`w-14 sm:w-24 text-right shrink-0 tabular-nums ${u.aylar && u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{u.aylar ? pct1(u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0)) : '–'}</span>
-                  <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{(() => { const sk = skorOf(u); return sk ? Math.round(sk.toplam) : '–'; })()}</span>
+                  {(() => { const sk = skorOf(u); return <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${skorKirmizi(sk) ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{sk ? Math.round(sk.toplam) : '–'}</span>; })()}
                   <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
                     {fmtN(u.hours)} sa
                     <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>

@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
-import { verimlilikSkoru } from './lib/karsilastirma.js';
+import { verimlilikSkoru, skorKirmizi } from './lib/karsilastirma.js';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
 import { kisiAylari } from './lib/kisiAylar.js';
 import { normalizeNameKey } from './lib/parseData.js';
@@ -426,7 +426,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
       ['Top. Süre Değer', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || `maks. değerin ${pct1(maksDeger ? topDeger / maksDeger : 0)}'i`],
     ] : []),
     ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
-    ['Verimlilik Skoru', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Süre ${Math.round(skorP.sure)}/40 · Kayıt ${Math.round(skorP.kayit)}/40 · Kayıp ${Math.round(skorP.kayip)}/20` : 'süre girilmemiş'],
+    ['Verimlilik Skoru', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Süre ${Math.round(skorP.sure)}/40 · Kayıt ${Math.round(skorP.kayit)}/40 · Kayıp ${Math.round(skorP.kayip)}/20` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : ''],
   ];
   const pillClass = (m, active) => {
     const durum = ayDurumu?.[months.indexOf(m)];
@@ -496,10 +496,10 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
         ))}
       </div>
       <div className={`grid grid-cols-1 sm:grid-cols-2 ${kartlar2.length > 3 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-2 sm:gap-4 -mt-3 sm:-mt-1`}>
-        {kartlar2.map(([label, v, sub]) => (
+        {kartlar2.map(([label, v, sub, cls]) => (
           <div key={label} className={`${CARD} p-4`}>
             <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
-            <div className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{v}</div>
+            <div className={`text-base sm:text-lg lg:text-xl font-semibold tabular-nums mt-1 whitespace-nowrap overflow-hidden text-ellipsis ${cls || 'text-slate-900 dark:text-slate-50'}`}>{v}</div>
             <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block leading-snug truncate">{sub}</span>
           </div>
         ))}
@@ -542,11 +542,11 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
               <span className={cellA}>{on[i] ? fmtN(d.team[i]) : '–'}</span>
               <span className={cellA}>{on[i] && d.team[i] ? pct1(d.monthly[i] / d.team[i]) : '–'}</span>
               <span className={cellA}>{on[i] && d.dep[i] ? pct1(d.monthly[i] / d.dep[i]) : '–'}</span>
-              <span className={cellA}>{(() => { const sk = on[i] ? skorHesap([i]) : null; return sk ? Math.round(sk.toplam) : '–'; })()}</span>
+              {(() => { const sk = on[i] ? skorHesap([i]) : null; return <span className={`${cellA} ${skorKirmizi(sk) ? ORAN_KIRMIZI : ''}`}>{sk ? Math.round(sk.toplam) : '–'}</span>; })()}
             </div>
           ))}
           <div className={`${gridA} border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-900 dark:text-slate-50`}>
-            <span className={`${cellA} text-left`}>Toplam</span><span className={cellA}>{toplamMaks ? fmtSaat(toplamMaks) : '–'}</span><span className={cellA}>{fmtSaat(toplamKisi)}</span><span className={`${cellA} ${toplamMaks ? oranCls(toplamKisi / toplamMaks) : ''}`}>{toplamMaks ? pct1(toplamKisi / toplamMaks) : '–'}</span><span className={cellA}>{fmtN(toplamEkip)}</span><span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span><span className={cellA}>{toplamDep ? pct1(toplamKisi / toplamDep) : '–'}</span><span className={cellA}>{skorToplam ? Math.round(skorToplam.toplam) : '–'}</span>
+            <span className={`${cellA} text-left`}>Toplam</span><span className={cellA}>{toplamMaks ? fmtSaat(toplamMaks) : '–'}</span><span className={cellA}>{fmtSaat(toplamKisi)}</span><span className={`${cellA} ${toplamMaks ? oranCls(toplamKisi / toplamMaks) : ''}`}>{toplamMaks ? pct1(toplamKisi / toplamMaks) : '–'}</span><span className={cellA}>{fmtN(toplamEkip)}</span><span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span><span className={cellA}>{toplamDep ? pct1(toplamKisi / toplamDep) : '–'}</span><span className={`${cellA} ${skorKirmizi(skorToplam) ? ORAN_KIRMIZI : ''}`}>{skorToplam ? Math.round(skorToplam.toplam) : '–'}</span>
           </div>
         </div>
       </div>
