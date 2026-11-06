@@ -110,7 +110,7 @@ export function buildPersonel({ rows, idxs, pasif }) {
   // Aktif ve işten ayrılmamış ama dönemde hiç süre girmemiş kişiler de listede 0 saatle görünür (süre girmiyor / unutuyor)
   sayilan.forEach((s, user) => { if (!map.has(user) && [...s].some((m) => idxs.includes(m))) map.set(user, { name: user, hours: 0, clients: new Map(), ay: new Map() }); });
   return [...map.values()]
-    .map((u) => ({ name: u.name, hours: u.hours, aySet: [...(sayilan.get(u.name) || [])].filter((m) => idxs.includes(m)), aylar: [...(sayilan.get(u.name) || [])].filter((m) => idxs.includes(m)).length, clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
+    .map((u) => ({ name: u.name, hours: u.hours, aySet: [...(sayilan.get(u.name) || [])].filter((m) => idxs.includes(m)), aylar: [...(sayilan.get(u.name) || [])].filter((m) => idxs.includes(m)).length, ayH: Object.fromEntries(u.ay), clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
     .filter((u) => u.hours > 0 || u.aylar > 0)
     .sort((a, b) => b.hours - a.hours);
 }

@@ -8,7 +8,7 @@ import { verimlilikSkoru, skorKirmizi } from './lib/karsilastirma.js';
 import { MarkaDetay, KisiDetay, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { aySaati, VARSAYILAN_TATILLER } from './lib/takvim.js';
 import { normalizeNameKey } from './lib/parseData.js';
-import { hesaplaMaliyet } from './lib/maliyet.js';
+import { hesaplaMaliyet, ayAnahtar } from './lib/maliyet.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const fmtN = (n) => Math.round(n).toLocaleString('tr-TR');
@@ -28,7 +28,6 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const personelAcik = izinliGorunum.some((g) => g !== 'musteri');
   const [gorunum, setGorunum] = useState(temelGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
   const gor = useDeferredValue(gorunum);
-  const [acikDep, setAcikDep] = useState(null);
   const [siralama, setSiralama] = useState({ k: 'sure', yon: 'desc' }); // Personel listesi sıralaması
   const [kars, setKars] = useState(null); // personel sayfasından gelen hızlı karşılaştırma: { a, b, k }
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
@@ -183,6 +182,12 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   };
   // Personel listesi göstergeleri (kayıt oranı, maks. süre, oran, Verimlilik Skoru): dönem/veri değişince bir kez hesaplanır;
   // sıralama tıklamaları yeniden hesap yapmaz. Skor Karşılaştırma sayfasıyla aynı formülü kullanır.
+  // Ort. Saat Maliyeti: ay ay (saat maliyeti x süre) toplamı / maliyeti bilinen aylardaki süre
+  const ortSaatMaliyet = (ad, ayH) => {
+    let deger = 0; let saat = 0;
+    Object.entries(ayH || {}).forEach(([i, h]) => { const sm = maliyetHesap[ayAnahtar(Number(i))]?.rows[ad]?.saat || 0; if (sm > 0 && h > 0) { deger += h * sm; saat += h; } });
+    return saat ? deger / saat : null;
+  };
   const personelOlcu = useMemo(() => {
     const m = new Map();
     personel.forEach((u) => {
@@ -192,15 +197,16 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         return t + (bm && bm.tip === 'marka' && !periodIdx.some((i) => bm.faturali[i]) ? c.hours : 0);
       }, 0);
       const kayit = kayitOrani(u);
-      m.set(u.name, { maks, kayit, oran: u.aylar && maks ? u.hours / maks : null, skor: verimlilikSkoru({ oran: maks ? u.hours / maks : null, kayitOrani: u.hours ? kayit : null, kayip, toplam: u.hours, sureliAy: u.hours > 0 ? 1 : 0 }) });
+      m.set(u.name, { maks, ort: ortSaatMaliyet(u.name, u.ayH), kayit, oran: u.aylar && maks ? u.hours / maks : null, skor: verimlilikSkoru({ oran: maks ? u.hours / maks : null, kayitOrani: u.hours ? kayit : null, kayip, toplam: u.hours, sureliAy: u.hours > 0 ? 1 : 0 }) });
     });
     return m;
-  }, [personel, brandMap, sel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [personel, brandMap, sel, maliyetHesap]); // eslint-disable-line react-hooks/exhaustive-deps
   // Sıralama: boş (–) değerler yönden bağımsız hep sonda. Başlık oku anında, liste ertelenmiş değerle güncellenir.
+  const personelMap = useMemo(() => new Map(personel.map((u) => [u.name, u])), [personel]);
   const siraDef = useDeferredValue(siralama);
   const siralaDeger = {
     kayit: (u) => (u.hours ? personelOlcu.get(u.name)?.kayit : null),
-    maks: (u) => personelOlcu.get(u.name)?.maks || null,
+    ort: (u) => personelOlcu.get(u.name)?.ort ?? null,
     oran: (u) => personelOlcu.get(u.name)?.oran ?? null,
     skor: (u) => personelOlcu.get(u.name)?.skor?.toplam ?? null,
     sure: (u) => u.hours,
@@ -216,6 +222,49 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
       {label}{siralama.k === k ? (siralama.yon === 'desc' ? ' ↓' : ' ↑') : ''}
     </button>
   );
+  const COL_ORT = 'w-16 sm:w-24';
+  const tlSaat = (v) => (v == null ? '–' : '₺' + v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  // Personel ve Departman görünümlerinin ortak tablo başlığı ve satırı (sütunlar birebir aynı)
+  const olcuBaslik = (etiket) => (
+    <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+      <span className="w-5 sm:w-6 shrink-0" />
+      <span className="flex-1 min-w-0">{etiket}</span>
+      <SiraBasligi k="ort" label="Ort. Saat Maliyeti" cls={COL_ORT} />
+      <SiraBasligi k="kayit" label="Kayıt Oranı" cls="w-14 sm:w-20" />
+      <SiraBasligi k="oran" label="Maks. Kapasite" cls="w-14 sm:w-24" />
+      <SiraBasligi k="skor" label="Verimlilik Skoru" cls="w-14 sm:w-20" />
+    </div>
+  );
+  const olcuHucreleri = (o, hours, aylar) => {
+    const orn = o && o.maks && aylar ? hours / o.maks : null;
+    return (
+      <>
+        <span className={`${COL_ORT} text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300`}>{tlSaat(o?.ort)}</span>
+        <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${o?.kayit < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{pct1(o?.kayit || 0)}</span>
+        <span className={`w-14 sm:w-24 text-right shrink-0 tabular-nums ${orn != null && orn < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{orn != null ? pct1(orn) : '–'}</span>
+        <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${skorKirmizi(o?.skor) ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{o?.skor ? Math.round(o.skor.toplam) : '–'}</span>
+      </>
+    );
+  };
+  const personelSatiri = (u, no) => (
+    <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
+      <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{no}</span>
+      <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
+      {olcuHucreleri(personelOlcu.get(u.name), u.hours, u.aylar)}
+    </button>
+  );
+  // Departman toplamı: kişilerin ölçülerinden (maliyet süre ağırlıklı, kapasite toplamı, kayıp süre toplamı)
+  const depOlcu = (d) => {
+    const us = d.kisiler.map((k) => personelMap.get(k.name)).filter(Boolean);
+    const ol = us.map((u) => personelOlcu.get(u.name)).filter(Boolean);
+    const maks = ol.reduce((t, o) => t + o.maks, 0);
+    const hours = us.reduce((t, u) => t + u.hours, 0);
+    let deger = 0; let saat = 0;
+    us.forEach((u) => { const o = personelOlcu.get(u.name); if (o?.ort != null) { const h = Object.entries(u.ayH || {}).filter(([i]) => (maliyetHesap[ayAnahtar(Number(i))]?.rows[u.name]?.saat || 0) > 0).reduce((t, [, x]) => t + x, 0); deger += o.ort * h; saat += h; } });
+    const kayit = kayitOrani(d);
+    const kayipS = d.clients.reduce((t, c) => { const bm = brandOf(c.name); return t + (bm && bm.tip === 'marka' && !periodIdx.some((i) => bm.faturali[i]) ? c.hours : 0); }, 0);
+    return { maks, ort: saat ? deger / saat : null, kayit, skor: verimlilikSkoru({ oran: maks ? hours / maks : null, kayitOrani: hours ? kayit : null, kayip: kayipS, toplam: hours, sureliAy: hours > 0 ? 1 : 0 }), hours, aylar: us.reduce((t, u) => t + u.aylar, 0) };
+  };
   const sayfa = yigin[yigin.length - 1];
   const etiket = yigin.length > 1 ? 'Geri' : null;
   if (sayfa?.t === 'm') {
@@ -294,36 +343,22 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Departman Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Personelin Everhour'a girdiği süreler, Yönetim'deki departman eşleştirmesine göre toplanır. Departmana tıklayınca kişi dağılımı açılır. Kayıt Oranı: sürenin faturası kesilmiş markalara giden payı.</p>
-            <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              <span className="flex-1 min-w-0">Departman</span>
-              <span className="w-10 sm:w-14 text-right shrink-0">Aktif Kişi</span>
-              <span className="w-16 sm:w-24 text-right shrink-0">Kayıt Oranı</span>
-              <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Personelin Everhour'a girdiği süreler, Yönetim'deki departman eşleştirmesine göre toplanır. Her departman, Personel Bazlı Süre Dağılımı ile aynı sütunlarla listelenir; kişi adına tıklayınca ayrıntısı açılır. Departman satırı, kişilerin toplamıdır.</p>
             {departmanlar.map((d) => {
-              const acik = acikDep === d.name;
+              const o = depOlcu(d);
+              const sirali = d.kisiler.map((k) => personelMap.get(k.name)).filter(Boolean).map((u) => ({ u, v: siralaDeger[siraDef.k](u) })).sort((x, y) => (x.v == null) - (y.v == null) || (x.v == null ? 0 : (x.v - y.v) * (siraDef.yon === 'asc' ? 1 : -1))).map((x) => x.u);
               return (
-                <div key={d.name} className="border-b border-slate-50 dark:border-slate-800">
-                  <button type="button" onClick={() => setAcikDep(acik ? null : d.name)} className="w-full flex items-start gap-2 sm:gap-3 py-2.5 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
-                    <span className={`flex-1 min-w-0 break-words uppercase ${d.name === DEPARTMAN_YOK ? 'text-amber-600' : 'text-slate-700 dark:text-slate-300'}`}>{d.name}</span>
-                    <span className="w-10 sm:w-14 text-right shrink-0 tabular-nums text-slate-500">{d.kisiler.filter((k) => !pasifSet.has(k.name)).length}</span>
-                    <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{pct1(kayitOrani(d))}</span>
-                    <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
-                      {fmtN(d.hours)} sa
-                      <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? d.hours / personelToplam : 0)}</span>
-                    </span>
-                  </button>
-                  {acik && (
-                    <div className="pb-2 pl-3 sm:pl-5">
-                      {d.kisiler.map((k) => (
-                        <button key={k.name} type="button" onClick={() => setSeciliKisi(k.name)} className="w-full flex items-center gap-2 py-1.5 text-[11px] sm:text-xs text-left text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
-                          <span className="flex-1 min-w-0 truncate uppercase">{k.name}{pasifSet.has(k.name) && <span className="ml-2 normal-case text-[10px] border border-slate-300 dark:border-slate-600 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
-                          <span className="tabular-nums shrink-0">{fmtN(k.hours)} sa · {pct1(d.hours ? k.hours / d.hours : 0)}</span>
-                        </button>
-                      ))}
+                <div key={d.name} className="mt-6 first:mt-2">
+                  <h3 className={`text-sm font-semibold uppercase mb-2 ${d.name === DEPARTMAN_YOK ? 'text-amber-600' : 'text-slate-800 dark:text-slate-100'}`}>{d.name} <span className="ml-1 text-[11px] font-normal normal-case text-slate-400">{d.kisiler.filter((k) => !pasifSet.has(k.name)).length} aktif kişi · {fmtN(d.hours)} sa · {pct1(personelToplam ? d.hours / personelToplam : 0)}</span></h3>
+                  {olcuBaslik('Personel')}
+                  <div className="flex flex-col">
+                    {sirali.map((u, k) => personelSatiri(u, k + 1))}
+                    <div className="flex items-start gap-2 sm:gap-3 pt-2.5 text-[11px] sm:text-sm leading-5 font-semibold text-slate-900 dark:text-slate-50 border-t-2 border-slate-200 dark:border-slate-700">
+                      <span className="w-5 sm:w-6 shrink-0" />
+                      <span className="flex-1 min-w-0">Departman</span>
+                      {olcuHucreleri(o, o.hours, o.aylar)}
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
@@ -337,31 +372,10 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Süre = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kayıt Oranı ve Maks Süre Oranı %85'in altındaysa kırmızı. Verimlilik Skoru (0–100, %80 altı kırmızı): Süre Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20; süre girilmemişse –. Sütun başlığına tıklayarak o sütuna göre sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
-            <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              <span className="w-5 sm:w-6 shrink-0" />
-              <span className="flex-1 min-w-0">Personel</span>
-              <SiraBasligi k="kayit" label="Kayıt Oranı" cls="w-14 sm:w-20" />
-              <SiraBasligi k="maks" label="Maks. Süre" cls="w-14 sm:w-20" />
-              <SiraBasligi k="oran" label="Maks Süre Oranı" cls="w-14 sm:w-24" />
-              <SiraBasligi k="skor" label="Verimlilik Skoru" cls="w-14 sm:w-20" />
-              <SiraBasligi k="sure" label="Süre" cls={COL_SURE} />
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Kapasite = süre / maksimum süre; maksimum süre, süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamıdır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre. Kayıt Oranı ve Maks. Kapasite %85'in altındaysa kırmızı. Verimlilik Skoru (0–100, %80 altı kırmızı): Süre Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20; süre girilmemişse –. Sütun başlığına tıklayarak o sütuna göre sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
+            {olcuBaslik('Personel')}
             <div className="flex flex-col">
-              {siraliPersonel.map((u, k) => (
-                <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
-                  <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
-                  <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
-                  <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${personelOlcu.get(u.name)?.kayit < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{pct1(personelOlcu.get(u.name)?.kayit || 0)}</span>
-                  <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{fmtN(u.aySet.reduce((t, i) => t + maksSaat(i), 0))} sa</span>
-                  <span className={`w-14 sm:w-24 text-right shrink-0 tabular-nums ${u.aylar && u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{u.aylar ? pct1(u.hours / u.aySet.reduce((t, i) => t + maksSaat(i), 0)) : '–'}</span>
-                  {(() => { const sk = personelOlcu.get(u.name)?.skor; return <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${skorKirmizi(sk) ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{sk ? Math.round(sk.toplam) : '–'}</span>; })()}
-                  <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
-                    {fmtN(u.hours)} sa
-                    <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>
-                  </span>
-                </button>
-              ))}
+              {siraliPersonel.map((u, k) => personelSatiri(u, k + 1))}
               {personel.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için personel verisi yok{sureData?.personel ? '' : ' (kişi bazlı veri yalnızca Everhour kaynağından gelir)'}.</div>}
             </div>
           </div>
