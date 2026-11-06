@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
+import { verimlilikSkoru } from './lib/karsilastirma.js';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
 import { kisiAylari } from './lib/kisiAylar.js';
 import { normalizeNameKey } from './lib/parseData.js';
@@ -403,12 +404,29 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const maliyetVar = maksDeger > 0;
   const maliyetNot = !sureliP.length ? 'süre girilmemiş' : eksikAy === sureliP.length ? 'maliyet girilmemiş (Yönetim)' : null;
   const ortSaat = toplamP && topDeger ? topDeger / sum(d.monthly, sureliP.filter((i) => saatAy(i))) : 0;
+  // Verimlilik Skoru: seçilen ay kümesi için (Karşılaştırma ve Personel listesiyle aynı formül)
+  const skorHesap = (idxs) => {
+    const tpl = sum(d.monthly, idxs);
+    const mks = idxs.filter((i) => sayilan.has(i)).reduce((t, i) => t + maksSaat(i), 0);
+    let faturali = 0;
+    let kayip = 0;
+    d.clients.forEach((c) => {
+      const saat = sum(c.hours, idxs);
+      const b = brandOf(c.name);
+      if (!saat || !b || b.tip !== 'marka') return;
+      if (idxs.some((i) => b.faturali[i])) faturali += saat; else kayip += saat;
+    });
+    return verimlilikSkoru({ oran: mks ? tpl / mks : null, kayitOrani: tpl ? faturali / tpl : null, kayip, toplam: tpl, sureliAy: idxs.filter((i) => d.monthly[i] > 0).length });
+  };
+  const skorP = skorHesap(per);
+  const skorToplam = skorHesap(aktif);
   const kartlar2 = [
     ...(maliyetAcik ? [
       ['Maks. Süre Değer', maliyetVar ? fmtT(maksDeger) : '–', maliyetNot || (eksikAy ? `${eksikAy} ayın maliyeti girilmemiş` : `ort. saat maliyeti ${fmtT(ortSaat)}/sa`)],
       ['Top. Süre Değer', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || `maks. değerin ${pct1(maksDeger ? topDeger / maksDeger : 0)}'i`],
     ] : []),
     ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
+    ['Verimlilik Skoru', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Süre ${Math.round(skorP.sure)}/40 · Kayıt ${Math.round(skorP.kayit)}/40 · Kayıp ${Math.round(skorP.kayip)}/20` : 'süre girilmemiş'],
   ];
   const pillClass = (m, active) => {
     const durum = ayDurumu?.[months.indexOf(m)];
@@ -433,7 +451,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   }
   if (toplamEkip > 0) yorumlar.push({ tone: 'info', text: `Ekibin toplam süresinin ${pct1(toplamKisi / toplamEkip)}'ini üstlendi.` });
 
-  const gridA = 'grid grid-cols-7';
+  const gridA = 'grid grid-cols-8';
   const maksAy = (i) => (sayilan.has(i) ? maksSaat(i) : 0);
   const toplamMaks = aktif.reduce((t, i) => t + maksAy(i), 0);
   const toplamDep = sum(d.dep, aktif);
@@ -477,7 +495,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 -mt-3 sm:-mt-1">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${kartlar2.length > 3 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-2 sm:gap-4 -mt-3 sm:-mt-1`}>
         {kartlar2.map(([label, v, sub]) => (
           <div key={label} className={`${CARD} p-4`}>
             <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
@@ -510,10 +528,10 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
 
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Maks. Süre = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Süre Oranı = Süre / Maks. Süre (%85 altı kırmızı). Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Maks. Süre = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Süre Oranı = Süre / Maks. Süre (%85 altı kırmızı). Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor = Verimlilik Skoru (0–100): Süre Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20.</p>
         <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm">
           <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
-            <span className={`${cellA} text-left`}>Ay</span><span className={cellA}>Maks. Süre</span><span className={cellA}>Süre</span><span className={cellA}>Süre Oranı</span><span className={cellA}>Ekip Süresi</span><span className={cellA}>Ekip Payı</span><span className={cellA}>Dep. Payı</span>
+            <span className={`${cellA} text-left`}>Ay</span><span className={cellA}>Maks. Süre</span><span className={cellA}>Süre</span><span className={cellA}>Süre Oranı</span><span className={cellA}>Ekip Süresi</span><span className={cellA}>Ekip Payı</span><span className={cellA}>Dep. Payı</span><span className={cellA}>Skor</span>
           </div>
           {idx.map((i) => (
             <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
@@ -524,10 +542,11 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
               <span className={cellA}>{on[i] ? fmtN(d.team[i]) : '–'}</span>
               <span className={cellA}>{on[i] && d.team[i] ? pct1(d.monthly[i] / d.team[i]) : '–'}</span>
               <span className={cellA}>{on[i] && d.dep[i] ? pct1(d.monthly[i] / d.dep[i]) : '–'}</span>
+              <span className={cellA}>{(() => { const sk = on[i] ? skorHesap([i]) : null; return sk ? Math.round(sk.toplam) : '–'; })()}</span>
             </div>
           ))}
           <div className={`${gridA} border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-900 dark:text-slate-50`}>
-            <span className={`${cellA} text-left`}>Toplam</span><span className={cellA}>{toplamMaks ? fmtSaat(toplamMaks) : '–'}</span><span className={cellA}>{fmtSaat(toplamKisi)}</span><span className={`${cellA} ${toplamMaks ? oranCls(toplamKisi / toplamMaks) : ''}`}>{toplamMaks ? pct1(toplamKisi / toplamMaks) : '–'}</span><span className={cellA}>{fmtN(toplamEkip)}</span><span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span><span className={cellA}>{toplamDep ? pct1(toplamKisi / toplamDep) : '–'}</span>
+            <span className={`${cellA} text-left`}>Toplam</span><span className={cellA}>{toplamMaks ? fmtSaat(toplamMaks) : '–'}</span><span className={cellA}>{fmtSaat(toplamKisi)}</span><span className={`${cellA} ${toplamMaks ? oranCls(toplamKisi / toplamMaks) : ''}`}>{toplamMaks ? pct1(toplamKisi / toplamMaks) : '–'}</span><span className={cellA}>{fmtN(toplamEkip)}</span><span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span><span className={cellA}>{toplamDep ? pct1(toplamKisi / toplamDep) : '–'}</span><span className={cellA}>{skorToplam ? Math.round(skorToplam.toplam) : '–'}</span>
           </div>
         </div>
       </div>
