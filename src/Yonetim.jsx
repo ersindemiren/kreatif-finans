@@ -3,6 +3,7 @@ import { Trash2, UserPlus, ShieldCheck, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { autoBrand, DEPARTMANLAR } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
+import { hesaplaMaliyet, parseTR, AYLIK_SAAT } from './lib/maliyet.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 
@@ -57,6 +58,103 @@ function DepartmanEslestirme() {
               </div>
             ))}
           </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const tl = (n) => '₺' + Math.round(n).toLocaleString('tr-TR');
+const tl2 = (n) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Personel maliyeti: kişi başı aylık toplam ajans maliyeti + genel işletme dağıtım gideri. Dağıtım, kişilerin kendi maliyetine oranla paylaştırılır.
+function MaliyetHesaplama() {
+  const [st, setSt] = useState({ loading: true, kisiler: [], pasif: {}, maliyet: { kisi: {}, dagitim: 0 }, error: '' });
+  const [girdi, setGirdi] = useState({}); // yazılırken anlık değerler (metin)
+  const [dagitimGirdi, setDagitimGirdi] = useState(null);
+  const [busy, setBusy] = useState('');
+  useEffect(() => {
+    (async () => {
+      const r = await api('/api/everhour');
+      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], pasif: r.data.pasif || {}, maliyet: r.data.maliyet || { kisi: {}, dagitim: 0 }, error: '' });
+      else setSt((x) => ({ ...x, loading: false, error: r.data.error || 'Everhour verisi alınamadı' }));
+    })();
+  }, []);
+  const kaydet = async (govde, anahtar) => {
+    setBusy(anahtar);
+    const r = await api('/api/everhour', { method: 'PUT', body: govde });
+    if (r.ok) setSt((x) => ({ ...x, maliyet: r.data.maliyet, error: '' }));
+    else setSt((x) => ({ ...x, error: r.data.error || 'Kaydedilemedi' }));
+    setBusy('');
+  };
+  const kisiKaydet = (name) => {
+    if (girdi[name] === undefined) return;
+    const n = parseTR(girdi[name]);
+    setGirdi((g) => { const c = { ...g }; delete c[name]; return c; });
+    if (n !== (Number(st.maliyet.kisi[name]) || 0)) kaydet({ maliyetKisi: name, tutar: n }, name);
+  };
+  const dagitimKaydet = () => {
+    if (dagitimGirdi === null) return;
+    const n = parseTR(dagitimGirdi);
+    setDagitimGirdi(null);
+    if (n !== (Number(st.maliyet.dagitim) || 0)) kaydet({ dagitim: n }, '__dagitim');
+  };
+  // Anlık hesap: kaydedilmiş değerlerin üzerine yazılmakta olanlar uygulanır
+  const canli = { kisi: { ...st.maliyet.kisi }, dagitim: dagitimGirdi !== null ? parseTR(dagitimGirdi) : st.maliyet.dagitim };
+  Object.keys(girdi).forEach((k) => { canli.kisi[k] = parseTR(girdi[k]); });
+  const hs = hesaplaMaliyet(canli);
+  const gosterim = (v) => (v ? Number(v).toLocaleString('tr-TR') : '');
+  const sirali = [...st.kisiler].sort((a, b) => (!!st.pasif[a.name] - !!st.pasif[b.name]) || (!!hs.rows[b.name] - !!hs.rows[a.name]) || b.hours - a.hours);
+  const girilmemis = st.kisiler.filter((k) => !st.pasif[k.name] && !hs.rows[k.name]).length;
+  const input = 'w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm text-right tabular-nums outline-none focus:border-slate-400';
+  return (
+    <div className={`${CARD} p-4 sm:p-5`}>
+      <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Personel Maliyet Hesaplama</h3>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Her personel için aylık toplam ajans maliyetini (maaş + işveren yükü vb.) girin. Genel işletme dağıtım gideri, kişilerin kendi maliyetine oranla herkese paylaştırılır. Saat maliyeti = toplam maliyet / {AYLIK_SAAT.toLocaleString('tr-TR')} saat (22 gün × 8,5). Değer, alandan çıkınca kaydedilir.</p>
+      {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Everhour kişileri okunuyor...</div>}
+      {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
+      {!st.loading && (
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex-1 text-sm font-medium text-slate-800 dark:text-slate-200">Genel işletme dağıtım gideri <span className="text-[11px] font-normal text-slate-400">(aylık, ₺)</span></div>
+            <div className="sm:w-48">
+              <input inputMode="decimal" value={dagitimGirdi ?? gosterim(st.maliyet.dagitim)} disabled={busy === '__dagitim'} placeholder="0" onChange={(e) => setDagitimGirdi(e.target.value)} onBlur={dagitimKaydet} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label="Genel işletme dağıtım gideri" className={input} />
+            </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            <span className="flex-1 min-w-0">Personel</span>
+            <span className="w-36 text-right">Aylık maliyet</span>
+            <span className="w-28 text-right">Dağıtım payı</span>
+            <span className="w-28 text-right">Toplam maliyet</span>
+            <span className="w-24 text-right">Saat maliyeti</span>
+          </div>
+          <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+            {sirali.map((k) => {
+              const h = hs.rows[k.name];
+              return (
+                <div key={k.name} className={`py-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 ${st.pasif[k.name] ? 'opacity-60' : ''}`}>
+                  <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200 uppercase">{k.name}{st.pasif[k.name] && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</div>
+                  <div className="sm:w-36">
+                    <input inputMode="decimal" value={girdi[k.name] ?? gosterim(st.maliyet.kisi[k.name])} disabled={busy === k.name} placeholder="0" onChange={(e) => setGirdi((g) => ({ ...g, [k.name]: e.target.value }))} onBlur={() => kisiKaydet(k.name)} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label={`${k.name} aylık maliyet`} className={input} />
+                  </div>
+                  <div className="flex sm:contents gap-3 text-xs sm:text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                    <span className="sm:w-28 sm:text-right">{h ? tl(h.pay) : '–'}</span>
+                    <span className="sm:w-28 sm:text-right">{h ? tl(h.toplam) : '–'}</span>
+                    <span className="sm:w-24 sm:text-right font-medium text-slate-900 dark:text-slate-50">{h ? tl2(h.saat) : '–'}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 pt-3 border-t-2 border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-sm font-semibold text-slate-900 dark:text-slate-50 tabular-nums">
+            <span className="flex-1">Toplam</span>
+            <span className="sm:w-36 sm:text-right">{tl(hs.toplamKisi)}</span>
+            <span className="sm:w-28 sm:text-right">{tl(hs.toplamKisi ? hs.dagitim : 0)}</span>
+            <span className="sm:w-28 sm:text-right">{tl(hs.toplamKisi + (hs.toplamKisi ? hs.dagitim : 0))}</span>
+            <span className="sm:w-24" />
+          </div>
+          {girilmemis > 0 && <p className="text-[11px] text-amber-600 mt-3">{girilmemis} aktif kişi için maliyet girilmemiş; bu kişilerin sayfasında maliyet kartları "–" görünür ve dağıtımdan pay almazlar.</p>}
+          {hs.toplamKisi === 0 && st.maliyet.dagitim > 0 && <p className="text-[11px] text-amber-600 mt-2">Dağıtım gideri, kişi maliyeti girilmeden paylaştırılamaz.</p>}
         </>
       )}
     </div>
@@ -194,6 +292,7 @@ export default function Yonetim({ me, tumSayfalar, markalar }) {
           <option value="">Kullanıcılar ve Yetkiler</option>
           <option value="everhour">Everhour Müşteri Eşleştirme</option>
           <option value="departman">Personel Departman Eşleştirme</option>
+          <option value="maliyet">Personel Maliyet Hesaplama</option>
         </select>
       </div>
       {bolum === '' && (
@@ -268,6 +367,7 @@ export default function Yonetim({ me, tumSayfalar, markalar }) {
       )}
       {bolum === 'everhour' && <EverhourEslestirme markalar={markalar} />}
       {bolum === 'departman' && <DepartmanEslestirme />}
+      {bolum === 'maliyet' && <MaliyetHesaplama />}
     </div>
   );
 }

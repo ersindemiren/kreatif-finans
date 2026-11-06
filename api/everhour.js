@@ -1,7 +1,7 @@
 // Everhour müşteri adı eşleştirme: yalnızca admin. GET liste + mevcut eşleşmeler, PUT eşleştir/kaldır.
 import { json, sameOriginJson, readBody, currentUser } from './_lib/http.js';
 import { getEverhour, clearEverhourCache, teshis, teshis2, teshis3, teshis4 } from './_lib/everhour.js';
-import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif } from './_lib/everhourMap.js';
+import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim } from './_lib/everhourMap.js';
 
 export default async function handler(req, res) {
   try {
@@ -22,11 +22,13 @@ export default async function handler(req, res) {
       const saat = new Map();
       (ev.personel || []).forEach(([u, , , h]) => saat.set(u, (saat.get(u) || 0) + h));
       const kisiler = [...saat].map(([name, hours]) => ({ name, hours: Math.round(hours) })).sort((a, b) => b.hours - a.hours);
-      return json(res, 200, { musteriler: ev.musteriler, map: await readMap(), kisiler, departman: await readDepartman(), pasif: await readPasif() });
+      return json(res, 200, { musteriler: ev.musteriler, map: await readMap(), kisiler, departman: await readDepartman(), pasif: await readPasif(), maliyet: await readMaliyet() });
     }
     if (req.method === 'PUT') {
       if (!sameOriginJson(req)) return json(res, 403, { error: 'İstek reddedildi' });
       const body = await readBody(req);
+      if (body.maliyetKisi !== undefined) return json(res, 200, { maliyet: await setMaliyetKisi(body.maliyetKisi, body.tutar) });
+      if (body.dagitim !== undefined) return json(res, 200, { maliyet: await setDagitim(body.dagitim) });
       if (body.kisi !== undefined && body.pasif !== undefined) {
         const pasif = await setPasif(body.kisi, !!body.pasif);
         return json(res, 200, { pasif });

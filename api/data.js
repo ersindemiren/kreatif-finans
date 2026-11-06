@@ -4,7 +4,7 @@ import { filterData } from './_lib/filter.js';
 import yorumlar from './_data/yorumlar.js';
 import sureler from './_data/sureler.js';
 import { getEverhour, applyMap } from './_lib/everhour.js';
-import { readMap, readDepartman, readPasif } from './_lib/everhourMap.js';
+import { readMap, readDepartman, readPasif, readMaliyet } from './_lib/everhourMap.js';
 import { groupsFor } from './_lib/filter.js';
 
 export default async function handler(req, res) {
@@ -23,6 +23,8 @@ export default async function handler(req, res) {
         sure = { kaynak: 'Everhour', rows: ev.rows, personel: ev.personel, departman: await readDepartman(), pasif: await readPasif() };
       } catch (e) { sureError = e.message; }
     }
+    // Maliyet bilgisi yalnızca admin'e gönderilir
+    if (user.role === 'admin' && groupsFor(user.pages).has('SURE') && sure) sure = { ...sure, maliyet: await readMaliyet() };
     const out = filterData({ ...src, yorumlar, sureler: sure }, user.pages);
     out.satisError = src.satisError;
     out.sureError = sureError;

@@ -4,11 +4,12 @@ import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
+import { AYLIK_SAAT } from './lib/maliyet.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', warn: 'bg-amber-500', info: 'bg-slate-400' };
 // Aylık azami çalışma süresi: 22 gün x 8,5 saat
-export const MAKS_SURE = 22 * 8.5;
+export const MAKS_SURE = AYLIK_SAAT;
 export const ESIK = 0.85; // süre / kayıt oranı bu değerin altındaysa kırmızı
 export const ORAN_KIRMIZI = 'text-rose-600 dark:text-rose-400 font-semibold';
 const up = (x) => String(x).toLocaleUpperCase('tr-TR');
@@ -345,9 +346,10 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 }
 
 /* =============================== PERSONEL DETAYI =============================== */
-export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
+export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, saatMaliyet, maliyetAcik, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
   useTop();
   const [gorev, setGorev] = useState(null);
+  const [secili, setSecili] = useState('Toplam');
   const idx = months.map((_, i) => i);
   const aktif = idx.filter((i) => ayDurumu?.[i] === 'güncel');
   const on = idx.map((i) => ayDurumu?.[i] === 'güncel');
@@ -366,6 +368,43 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   };
   const grp = { faturali: 0, kayip: 0, atil: 0 };
   cl.forEach((c) => { grp[sinif(c)] += c.toplam; });
+
+  // Üst kartlar: seçilen dönem (Toplam = güncel aylar, ya da tek ay)
+  const per = secili === 'Toplam' ? aktif : [months.indexOf(secili)].filter((i) => i >= 0);
+  const donem = `(${secili === 'Toplam' ? (aktif.length ? `${months[aktif[0]]}-${months[aktif[aktif.length - 1]]}` : '') : secili})`;
+  const toplamP = sum(d.monthly, per);
+  const ekipP = sum(d.team, per);
+  const maksAyP = per.filter((i) => d.monthly[i] > 0).length;
+  const maksP = maksAyP * MAKS_SURE;
+  const oranP = maksP ? toplamP / maksP : null;
+  const clP = d.clients.map((c) => ({ ...c, toplam: sum(c.hours, per), brand: brandOf(c.name) })).filter((c) => c.toplam > 0).sort((a, b) => b.toplam - a.toplam);
+  const grpP = { faturali: 0, kayip: 0, atil: 0 };
+  clP.forEach((c) => {
+    const k = !c.brand || c.brand.tip !== 'marka' ? 'atil' : per.some((i) => c.brand.faturali[i]) ? 'faturali' : 'kayip';
+    grpP[k] += c.toplam;
+  });
+  const payP = (v) => pct1(toplamP ? v / toplamP : 0);
+  const kartlar = [
+    ['Maksimum Süre', maksP ? `${fmtN(maksP)} Saat` : '–', maksP ? `${maksAyP} ay × ${fmtSaat(MAKS_SURE)} sa` : 'süre girilmemiş', ''],
+    ['Toplam Süre', `${fmtN(toplamP)} Saat`, `ekibin ${pct1(ekipP ? toplamP / ekipP : 0)}'i ${donem}`, ''],
+    ['Süre Oranı', oranP == null ? '–' : pct1(oranP), 'toplam süre / maksimum süre', oranP != null && oranP < ESIK ? ORAN_KIRMIZI : ''],
+    ['Aktif Süre', `${fmtN(grpP.faturali)} Saat`, `${payP(grpP.faturali)} · ${donem}`, ''],
+    ['Atanmamış Süre', `${fmtN(grpP.atil)} Saat`, `${payP(grpP.atil)} · ${donem}`, ''],
+    ['Kayıp Süre', `${fmtN(grpP.kayip)} Saat`, `${payP(grpP.kayip)} · ${donem}`, ''],
+  ];
+  const maliyetVar = saatMaliyet > 0;
+  const kartlar2 = [
+    ...(maliyetAcik ? [
+      ['Maks. Süre Değer', maliyetVar && maksP ? fmtT(maksP * saatMaliyet) : '–', maliyetVar ? `saat maliyeti ${fmtT(saatMaliyet)}/sa` : 'maliyet girilmemiş (Yönetim)'],
+      ['Top. Süre Değer', maliyetVar && toplamP ? fmtT(toplamP * saatMaliyet) : '–', maliyetVar ? `maks. değerin ${pct1(maksP ? toplamP / maksP : 0)}'i` : 'maliyet girilmemiş (Yönetim)'],
+    ] : []),
+    ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
+  ];
+  const pillClass = (m, active) => {
+    const durum = ayDurumu?.[months.indexOf(m)];
+    if (durum === 'güncel') return active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+    return active ? 'bg-rose-300 text-white' : 'bg-rose-50 text-rose-400 hover:bg-rose-100';
+  };
 
   const yorumlar = [];
   if (cl.length) yorumlar.push({ tone: 'info', text: `Süresinin ${pct1(toplamKisi ? cl[0].toplam / toplamKisi : 0)}'si ${cl[0].name} markasına gitti (${fmtSaat(cl[0].toplam)} saat); toplam ${cl.length} müşteriyle çalıştı.` });
@@ -399,13 +438,36 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
           <h2 className="font-serif text-xl sm:text-2xl text-slate-900 dark:text-slate-50 uppercase">{name}</h2>
           {pasif && <Badge>Pasif</Badge>}
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mt-4">
-          <Kpi label="Toplam Süre" value={`${fmtN(toplamKisi)} saat`} sub={`ekibin ${pct1(toplamEkip ? toplamKisi / toplamEkip : 0)}'i`} />
-          <Kpi label="Maksimum Süre" value={`${fmtN(MAKS_SURE)} saat`} sub="22 gün × 8,5 saat / ay" />
-          <Kpi label="Aylık Ortalama" value={`${fmtN(ortalama)} saat`} sub={`maks. sürenin ${pct1(ortalama / MAKS_SURE)}'i`} />
-          <Kpi label="Müşteri" value={`${cl.length} adet`} sub={cl[0] ? `en çok: ${cl[0].name}` : ''} />
-          <Kpi label="Kayıt Oranı" value={pct1(toplamKisi ? grp.faturali / toplamKisi : 0)} sub={`kayıp ${pct1(toplamKisi ? grp.kayip / toplamKisi : 0)} · atanmamış ${pct1(toplamKisi ? grp.atil / toplamKisi : 0)}`} />
+      </div>
+
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center w-full">
+          <button onClick={() => setSecili('Toplam')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${secili === 'Toplam' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100'}`}>Toplam</button>
         </div>
+        <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
+          {months.map((m) => (
+            <button key={m} onClick={() => setSecili(m)} className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${pillClass(m, secili === m)}`}>{m}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
+        {kartlar.map(([label, v, sub, cls]) => (
+          <div key={label} className={`${CARD} p-4`}>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+            <div className={`text-base sm:text-lg lg:text-xl font-semibold tabular-nums mt-1 whitespace-nowrap ${cls || 'text-slate-900 dark:text-slate-50'}`}>{v}</div>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block leading-snug">{sub}</span>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 -mt-3 sm:-mt-1">
+        {kartlar2.map(([label, v, sub]) => (
+          <div key={label} className={`${CARD} p-4`}>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+            <div className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{v}</div>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block leading-snug truncate">{sub}</span>
+          </div>
+        ))}
       </div>
 
       <Yorumlar list={yorumlar} />

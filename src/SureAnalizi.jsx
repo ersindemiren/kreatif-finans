@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { buildSure, buildPersonel, buildDepartman, kisiAySayisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
 import { MarkaDetay, KisiDetay, MAKS_SURE, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { normalizeNameKey } from './lib/parseData.js';
+import { hesaplaMaliyet } from './lib/maliyet.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const fmtN = (n) => Math.round(n).toLocaleString('tr-TR');
@@ -51,6 +52,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   };
 
   const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx }), [sureData, selected, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
+  const maliyetHesap = useMemo(() => hesaplaMaliyet(sureData?.maliyet), [sureData]);
   const pasifSet = useMemo(() => new Set(Object.keys(sureData?.pasif || {})), [sureData]);
   const departmanlar = useMemo(() => buildDepartman({ personel, map: sureData?.departman }), [personel, sureData]);
   const personelToplam = personel.reduce((s, u) => s + u.hours, 0);
@@ -171,7 +173,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   }
   if (sayfa?.t === 'k') {
     return (
-      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
+      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} saatMaliyet={maliyetHesap.rows[sayfa.n]?.saat || 0} maliyetAcik={!!sureData?.maliyet} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
         onBack={geri} backLabel={etiket || 'Tüm personel'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
     );
   }

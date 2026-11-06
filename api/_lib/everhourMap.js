@@ -82,3 +82,43 @@ export async function setPasif(kisi, pasif) {
   await pasifStore.write(map);
   return map;
 }
+
+// Personel maliyeti: { kisi: { AD: aylık toplam maliyet }, dagitim: genel işletme dağıtım gideri }. Yalnızca admin okur/yazar.
+const MAL_PATH = 'kf-auth/personel-maliyet.json';
+let malStore = {
+  async read() {
+    const r = await get(MAL_PATH, { access: 'private', useCache: false });
+    if (!r || r.statusCode !== 200) return {};
+    return JSON.parse(await new Response(r.stream).text());
+  },
+  async write(v) {
+    await put(MAL_PATH, JSON.stringify(v), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
+  },
+};
+export const setMaliyetStore = (s) => { malStore = s; };
+
+export async function readMaliyet() {
+  try {
+    const m = await malStore.read();
+    return { kisi: m && typeof m.kisi === 'object' && !Array.isArray(m.kisi) ? m.kisi : {}, dagitim: Number(m?.dagitim) > 0 ? Number(m.dagitim) : 0 };
+  } catch { return { kisi: {}, dagitim: 0 }; }
+}
+
+const tutar = (v) => { const n = Number(v); if (!Number.isFinite(n) || n < 0 || n > 1e10) throw new Error('Geçersiz tutar'); return Math.round(n * 100) / 100; };
+
+export async function setMaliyetKisi(kisi, deger) {
+  const k = String(kisi || '').trim().slice(0, 120);
+  if (!k) throw new Error('Kişi adı gerekli');
+  const m = await readMaliyet();
+  const n = tutar(deger);
+  if (n > 0) m.kisi[k] = n; else delete m.kisi[k];
+  await malStore.write(m);
+  return m;
+}
+
+export async function setDagitim(deger) {
+  const m = await readMaliyet();
+  m.dagitim = tutar(deger);
+  await malStore.write(m);
+  return m;
+}
