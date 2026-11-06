@@ -167,7 +167,7 @@ function MaliyetHesaplama() {
           </div>
           <div className="flex items-center gap-2 mb-3 text-[11px] text-slate-400 flex-wrap">
             <button type="button" onClick={iceAktar} disabled={busy === '__ice'} className="border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">{busy === '__ice' ? 'Aktarılıyor...' : 'Sheet verisini içe aktar'}</button>
-            {rapor && <span className="text-emerald-600">{rapor.aylar} ay, {rapor.kayit} kayıt aktarıldı; {rapor.eslesmeyen.length} yeni kişi eklendi ({rapor.eslesmeyen.join(', ')}).</span>}
+            {rapor && <span className="text-emerald-600">{rapor.aylar} ay, {rapor.kayit} kayıt aktarıldı; {rapor.eslesmeyen.length} yeni kişi eklendi ({rapor.eslesmeyen.join(', ')}).{rapor.benzer?.length > 0 && ` Benzer ad birleştirildi: ${rapor.benzer.join('; ')}.`}</span>}
             {kisiYukleniyor ? <><Loader2 size={12} className="animate-spin" /> Everhour kişi listesi güncelleniyor...</> : <>Kişi listesi {ozetZamani ? `${new Date(ozetZamani).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} itibarıyla` : ''}</>}
             <button type="button" onClick={canliYukle} disabled={kisiYukleniyor} className="underline decoration-dotted hover:text-slate-600 disabled:opacity-50">Yenile</button>
           </div>

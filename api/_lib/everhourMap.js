@@ -157,6 +157,16 @@ export async function maliyetIceAktar(veri, everhourAdlari = [], haric = []) {
   if (!veri || typeof veri.aylar !== 'object') throw new Error('Aktarılacak veri yok');
   const harita = new Map();
   everhourAdlari.forEach((a) => { const k = adAnahtar(a); if (k && !harita.has(k)) harita.set(k, a); });
+  // Tam eşleşme yoksa: sözcüklerden biri diğerinin alt kümesiyse ve tek aday varsa eşleştir ("MELİH SAKA" ~ "İSMAİL MELİH SAKA")
+  const jetonlar = [...harita.keys()].map((k) => [k, new Set(k.split(' '))]);
+  const bul = (ad) => {
+    const k = adAnahtar(ad);
+    if (harita.has(k)) return { e: harita.get(k) };
+    const t = new Set(k.split(' '));
+    const aday = jetonlar.filter(([, j]) => { const [kucuk, buyuk] = t.size <= j.size ? [t, j] : [j, t]; return [...kucuk].every((x) => buyuk.has(x)); });
+    return aday.length === 1 ? { e: harita.get(aday[0][0]), bulanik: true } : { e: undefined };
+  };
+  const benzer = new Map();
   const m = await readMaliyet();
   const yeni = new Set();
   let eslesen = 0;
@@ -168,14 +178,15 @@ export async function maliyetIceAktar(veri, everhourAdlari = [], haric = []) {
     a.kisi = {}; // içe aktarılan ay, sheet'teki haliyle değiştirilir (dağıtım dışı kişiler dahil eski kayıtlar temizlenir)
     Object.entries(v.kisi || {}).forEach(([ad, t]) => {
       if (hariç.has(adAnahtar(ad))) return;
-      const e = harita.get(adAnahtar(ad));
+      const { e, bulanik } = bul(ad);
+      if (bulanik) benzer.set(String(ad).trim(), e);
       if (e) eslesen += 1; else yeni.add(String(ad).trim().slice(0, 120));
       const n = tutar(t);
       if (n > 0) { a.kisi[e || String(ad).trim().slice(0, 120)] = n; kayit += 1; }
     });
   });
   await malStore.write(m);
-  return { maliyet: m, rapor: { aylar: Object.keys(veri.aylar).length, kayit, eslesen, eslesmeyen: [...yeni] } };
+  return { maliyet: m, rapor: { aylar: Object.keys(veri.aylar).length, kayit, eslesen, eslesmeyen: [...yeni], benzer: [...benzer].map(([x, y]) => `${x} → ${y}`) } };
 }
 
 // Resmi tatiller (Yönetim'den düzenlenir): [{ tarih: 'YYYY-AA-GG', ad, yarim? }]. Kayıt yoksa 2026 varsayılan listesi.
