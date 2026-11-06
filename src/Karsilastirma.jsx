@@ -41,12 +41,11 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
       { l: 'Kayıt Oranı', f: (o) => (o.kayitOrani == null ? VAR : pct1(o.kayitOrani)), num: (o) => o.kayitOrani, yon: 'yuksek', kirmizi: (o) => o.kayitOrani != null && o.kayitOrani < ESIK, not: 'faturası kesilen markalara giden süre payı' },
       { l: 'Ekip Payı', f: (o) => (o.ekipPayi == null ? VAR : pct1(o.ekipPayi)), num: (o) => o.ekipPayi, yon: 'yuksek', not: `Ekibin toplam süresi ${fmtN(olcu[0].ekip)} Saat` },
       { l: 'Dep. Payı', f: (o) => (o.depPayi == null ? VAR : pct1(o.depPayi)), num: (o) => o.depPayi, yon: 'yuksek', not: 'kendi departmanındaki toplam süreye oranı' },
-      ...(maliyetAcik ? [
-        { l: 'Maks. Süre Değer', f: (o) => (o.maliyetVar ? TL(o.maksDeger) : VAR), not: 'maksimum süre × saat maliyeti' },
-        { l: 'Gerçekleşen Maliyet', f: (o) => (o.topDeger > 0 ? TL(o.topDeger) : VAR), alt: (o) => (o.maksDeger ? pct1(o.topDeger / o.maksDeger) : ''), not: 'harcanan süre × saat maliyeti' },
-      ] : []),
       { l: 'Ortalama Aylık Süre', f: (o) => (o.ortAylik == null ? VAR : `${fmtS(o.ortAylik)} Saat`), alt: (o) => (o.sureliAy ? `${o.sureliAy} ay` : ''), not: 'süre girilen aylar üzerinden' },
-      ...(maliyetAcik ? [{ l: 'Ort. Saat Maliyeti', f: (o) => (o.saatMaliyeti ? TL(o.saatMaliyeti) : VAR) }] : []),
+      ...(maliyetAcik ? [
+        { l: 'Ort. Saat Maliyeti', f: (o) => (o.saatMaliyeti ? TL(o.saatMaliyeti) : VAR) },
+        { l: 'Gerçekleşen Maliyet', f: (o) => (o.topDeger > 0 ? TL(o.topDeger) : VAR), not: 'harcanan süre × saat maliyeti' },
+      ] : []),
     ],
     [
       { l: 'Müşteri Sayısı', f: (o) => `${o.musteriSayisi} adet`, num: (o) => o.musteriSayisi, yon: 'yuksek' },
