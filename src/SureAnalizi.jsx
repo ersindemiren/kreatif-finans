@@ -68,7 +68,14 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const maksSaat = (i) => aySaati(tatiller, yil, i);
   const maliyetHesap = useMemo(() => hesaplaMaliyet(sureData?.maliyet, (ym) => aySaati(tatiller, yil, Number(ym.slice(5, 7)) - 1)), [sureData]); // eslint-disable-line react-hooks/exhaustive-deps
   const pasifSet = useMemo(() => new Set(Object.keys(sureData?.pasif || {})), [sureData]);
-  const departmanlar = useMemo(() => buildDepartman({ personel, map: sureData?.departman }), [personel, sureData]);
+  // Personel / Departman tabloları: dönemde maaş maliyeti girilmiş ama süre girmemiş (Everhour'da olmayan) kişiler de 0 süreyle eklenir
+  const personelTablo = useMemo(() => {
+    const var_ = new Set(personel.map((u) => u.name));
+    const ek = new Map();
+    periodIdx.forEach((i) => Object.entries(maliyetHesap[ayAnahtar(i)]?.rows || {}).forEach(([ad, r]) => { if (r.toplam > 0 && !var_.has(ad) && !ek.has(ad)) ek.set(ad, { name: ad, hours: 0, aySet: [], aylar: 0, ayH: {}, clients: [], ek: true }); }));
+    return [...personel, ...ek.values()];
+  }, [personel, maliyetHesap, sel]); // eslint-disable-line react-hooks/exhaustive-deps
+  const departmanlar = useMemo(() => buildDepartman({ personel: personelTablo, map: sureData?.departman }), [personelTablo, sureData]);
   const personelToplam = personel.reduce((s, u) => s + u.hours, 0);
 
   const rows = brands.map((b) => ({ ...b, ...calc(b, periodIdx) })).filter((r) => r.hours > 0 || r.faturali);
@@ -192,7 +199,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const depSaat = new Map(departmanlar.map((d) => [d.name, d.hours]));
   const personelOlcu = useMemo(() => {
     const m = new Map();
-    personel.forEach((u) => {
+    personelTablo.forEach((u) => {
       const maks = u.aySet.reduce((t, i) => t + maksSaat(i), 0);
       const kayip = u.clients.reduce((t, c) => {
         const bm = brandOf(c.name);
@@ -204,16 +211,16 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
       m.set(u.name, { ...maliyetOzet(u.name, u.ayH), maks, kapOran: u.aylar && maks ? u.hours / maks : null, sure: u.hours, sureOran: u.hours ? kayit : null, ekipS: personelToplam, ekipPay: personelToplam ? u.hours / personelToplam : null, depPay: dh ? u.hours / dh : null, skor: skorObj ? skorObj.toplam : null });
     });
     return m;
-  }, [personel, brandMap, sel, maliyetHesap, departmanlar]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [personelTablo, brandMap, sel, maliyetHesap, departmanlar]); // eslint-disable-line react-hooks/exhaustive-deps
   // Sıralama: boş (–) değerler yönden bağımsız hep sonda. Başlık oku anında, liste ertelenmiş değerle güncellenir.
-  const personelMap = useMemo(() => new Map(personel.map((u) => [u.name, u])), [personel]);
+  const personelMap = useMemo(() => new Map(personelTablo.map((u) => [u.name, u])), [personelTablo]);
   const siraDef = useDeferredValue(siralama);
   const siralaDeger = Object.fromEntries(['ort', 'gm', 'maks', 'kapOran', 'sure', 'sureOran', 'ekipS', 'ekipPay', 'depPay', 'skor'].map((k) => [k, (u) => personelOlcu.get(u.name)?.[k] ?? null]));
   const siraliPersonel = useMemo(() => {
     const f = siralaDeger[siraDef.k];
     const m = siraDef.yon === 'asc' ? 1 : -1;
-    return personel.map((u) => ({ u, v: f(u) })).sort((x, y) => (x.v == null) - (y.v == null) || (x.v == null ? 0 : (x.v - y.v) * m)).map((x) => x.u);
-  }, [personel, personelOlcu, siraDef]); // eslint-disable-line react-hooks/exhaustive-deps
+    return personelTablo.map((u) => ({ u, v: f(u) })).sort((x, y) => (x.v == null) - (y.v == null) || (x.v == null ? 0 : (x.v - y.v) * m)).map((x) => x.u);
+  }, [personelTablo, personelOlcu, siraDef]); // eslint-disable-line react-hooks/exhaustive-deps
   const sirala = (k) => setSiralama((s) => (s.k === k ? { k, yon: s.yon === 'desc' ? 'asc' : 'desc' } : { k, yon: 'desc' }));
   const SiraBasligi = ({ k, label, cls }) => (
     <button type="button" onClick={() => sirala(k)} className={`${cls} text-right shrink-0 leading-tight uppercase tracking-wide hover:text-slate-700 dark:hover:text-slate-200 ${siralama.k === k ? 'text-slate-700 dark:text-slate-200 font-semibold' : ''}`}>
@@ -242,13 +249,16 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     const kirmizi = v != null && ((k === 'kapOran' || k === 'sureOran') ? v < ESIK : k === 'skor' ? Math.round(v) < 80 : false);
     return <span key={k} className={`${w} text-right shrink-0 tabular-nums ${kirmizi ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{v == null ? '–' : hucreMetni[k](v)}</span>;
   });
-  const personelSatiri = (u, no) => (
-    <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
+  const personelSatiri = (u, no) => {
+    const Kap = u.ek ? 'div' : 'button';
+    return (
+    <Kap key={u.name} {...(u.ek ? {} : { type: 'button', onClick: () => setSeciliKisi(u.name) })} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
       <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{no}</span>
-      <span className="w-40 sm:w-56 shrink-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
+      <span className="w-40 sm:w-56 shrink-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}{u.ek && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">süre girilmemiş</span>}</span>
       {olcuHucreleri(personelOlcu.get(u.name))}
-    </button>
-  );
+    </Kap>
+    );
+  };
   // Ortalama satırı: listedeki kişilerin ortalaması (boş değerler dışarıda); Ekip Süresi ekibin toplamıdır
   const ortalamaSatiri = (liste, etiket = 'Ortalama') => {
     const ol = liste.map((u) => personelOlcu.get(u.name)).filter(Boolean);
@@ -388,9 +398,9 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
             {olcuBaslik('Personel')}
             <div className="flex flex-col">
               {siraliPersonel.map((u, k) => personelSatiri(u, k + 1))}
-              {personel.length > 0 && ortalamaSatiri(siraliPersonel, 'Ortalama')}
-              {personel.length > 0 && toplamSatiri(siraliPersonel)}
-              {personel.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için personel verisi yok{sureData?.personel ? '' : ' (kişi bazlı veri yalnızca Everhour kaynağından gelir)'}.</div>}
+              {personelTablo.length > 0 && ortalamaSatiri(siraliPersonel, 'Ortalama')}
+              {personelTablo.length > 0 && toplamSatiri(siraliPersonel)}
+              {personelTablo.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için personel verisi yok{sureData?.personel ? '' : ' (kişi bazlı veri yalnızca Everhour kaynağından gelir)'}.</div>}
             </div>
             </div></div>
           </div>
