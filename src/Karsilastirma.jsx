@@ -1,6 +1,6 @@
 // Süre Analiz > Karşılaştırma: iki personeli seçilen dönemde yan yana karşılaştırır.
 import React, { useMemo, useState } from 'react';
-import { kisiOlcu } from './lib/karsilastirma.js';
+import { kisiOlcu, SKOR } from './lib/karsilastirma.js';
 import { ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -8,6 +8,7 @@ const SELECT = 'w-full bg-white dark:bg-slate-900 border border-slate-200 dark:b
 const fmtN = (n) => Math.round(n).toLocaleString('tr-TR');
 const fmtS = (n) => n.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
+const pct0 = (x) => '%' + Math.round(x * 100);
 const TL = (n) => '₺' + fmtN(n);
 const VAR = '–';
 
@@ -27,6 +28,9 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
 
   // yon: 'yuksek' = büyük olan iyi, 'dusuk' = küçük olan iyi; verilmezse vurgu yapılmaz. num: karşılaştırılacak sayı
   const gruplar = olcu && [
+    [
+      { l: 'Verimlilik Skoru', f: (o) => (o.skor ? `${Math.round(o.skor.toplam)} / 100` : 'Veri yetersiz'), alt: (o) => (o.skor ? `Süre ${Math.round(o.skor.sure)}/40 · Kayıt ${Math.round(o.skor.kayit)}/40 · Kayıp ${Math.round(o.skor.kayip)}/20` : ''), num: (o) => o.skor?.toplam ?? null, yon: 'yuksek', buyuk: true, not: 'Süre Oranı %40 · Kayıt Oranı %40 · Kayıp Süre %20 (ters)' },
+    ],
     [
       { l: 'Maksimum Süre', f: (o) => (o.maks ? `${fmtS(o.maks)} Saat` : VAR), alt: (o) => (o.maksAy ? `${o.maksAy} ay` : ''), not: '(hafta içi − resmi tatil) × 8,5 sa' },
       { l: 'Toplam Süre', f: (o) => `${fmtS(o.toplam)} Saat`, num: (o) => o.toplam, yon: 'yuksek' },
@@ -116,7 +120,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
                           {s.not && <span className="block text-[10px] text-slate-400 dark:text-slate-500 leading-snug">{s.not}</span>}
                         </div>
                         {olcu.map((o, j) => (
-                          <div key={j} className={`${zebra} px-2 py-2.5 text-center text-xs sm:text-sm tabular-nums ${j === n - 1 ? 'rounded-r-lg' : ''} ${s.kirmizi?.(o) ? ORAN_KIRMIZI : w.includes(j) ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-100'}`}>
+                          <div key={j} className={`${zebra} px-2 py-2.5 text-center text-xs sm:text-sm tabular-nums ${j === n - 1 ? 'rounded-r-lg' : ''} ${s.buyuk ? 'text-base sm:text-lg ' : ''}${s.kirmizi?.(o) ? ORAN_KIRMIZI : w.includes(j) ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-100'}`}>
                             <span className="break-words">{s.f(o)}</span>
                             {s.alt && s.alt(o) && <span className="block text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-normal">{s.alt(o)}</span>}
                           </div>
@@ -128,6 +132,9 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
               ))}
             </div>
           </div>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4 leading-relaxed">
+            Verimlilik Skoru: Süre Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan). Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
+          </p>
         </div>
       )}
     </div>

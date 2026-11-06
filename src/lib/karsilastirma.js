@@ -3,6 +3,18 @@ import { buildKisiDetay } from './sure.js';
 import { kisiAylari } from './kisiAylar.js';
 import { ayAnahtar } from './maliyet.js';
 
+// Verimlilik Skoru (0-100): Süre Oranı 40 + Kayıt Oranı 40 + Kayıp Süre payı (ters) 20. Süre girilmiş ay yoksa skor üretilmez.
+export const SKOR = { sureTam: 0.95, sureSifir: 0.5, kayipSifir: 0.2, agirlik: { sure: 40, kayit: 40, kayip: 20 } };
+const kisit = (x) => Math.max(0, Math.min(1, x));
+export function verimlilikSkoru({ oran, kayitOrani, kayip, toplam, sureliAy }) {
+  if (!sureliAy || oran == null || !toplam) return null;
+  const w = SKOR.agirlik;
+  const sure = kisit((oran - SKOR.sureSifir) / (SKOR.sureTam - SKOR.sureSifir)) * w.sure;
+  const kayit = kisit(kayitOrani || 0) * w.kayit;
+  const kayipP = kisit(1 - kayip / toplam / SKOR.kayipSifir) * w.kayip;
+  return { toplam: sure + kayit + kayipP, sure, kayit, kayip: kayipP };
+}
+
 const topla = (a, idx) => idx.reduce((s, i) => s + (a[i] || 0), 0);
 
 export function kisiOlcu({ rows, user, departman, pasif, per, maksSaat, brandOf, maliyetAy, aylar }) {
@@ -24,7 +36,10 @@ export function kisiOlcu({ rows, user, departman, pasif, per, maksSaat, brandOf,
   const topDeger = maksAylar.reduce((t, i) => t + d.monthly[i] * saatAy(i), 0);
   const sureli = per.filter((i) => d.monthly[i] > 0);
   const zirve = sureli.length ? sureli.reduce((a, i) => (d.monthly[i] > d.monthly[a] ? i : a), sureli[0]) : -1;
+  const oran = maks ? toplam / maks : null;
+  const kayitOrani = toplam ? g.faturali / toplam : null;
   return {
+    skor: verimlilikSkoru({ oran, kayitOrani, kayip: g.kayip, toplam, sureliAy: sureli.length }),
     departman: departman?.[user] || null,
     pasif: !!pasif,
     toplam, maks, maksAy: maksAylar.length, oran: maks ? toplam / maks : null,
