@@ -407,10 +407,10 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   });
   const payP = (v) => pct1(toplamP ? v / toplamP : 0);
   const kartlar = [
-    ['Maksimum Süre', maksP ? `${fmtN(maksP)} Saat` : '–', maksP ? `${maksAyP} ay · iş günü × 8,5 sa` : 'süre girilmemiş', ''],
-    ['Toplam Süre', `${fmtN(toplamP)} Saat`, `ekibin ${pct1(ekipP ? toplamP / ekipP : 0)}'i ${donem}`, ''],
+    ['Maksimum Kapasite', maksP ? `${fmtN(maksP)} Saat` : '–', maksP ? `${maksAyP} ay · iş günü × 8,5 sa` : 'süre girilmemiş', ''],
+    ['Gerçekleşen Süre', `${fmtN(toplamP)} Saat`, `ekibin ${pct1(ekipP ? toplamP / ekipP : 0)}'i ${donem}`, ''],
     ['Süre Oranı', oranP == null ? '–' : pct1(oranP), 'toplam süre / maksimum süre', oranP != null && oranP < ESIK ? ORAN_KIRMIZI : ''],
-    ['Aktif Süre', `${fmtN(grpP.faturali)} Saat`, `${payP(grpP.faturali)} · ${donem}`, ''],
+    ['Girilen Süre', `${fmtN(grpP.faturali)} Saat`, `${payP(grpP.faturali)} · ${donem}`, ''],
     ['Atanmamış Süre', `${fmtN(grpP.atil)} Saat`, `${payP(grpP.atil)} · ${donem}`, ''],
     ['Kayıp Süre', `${fmtN(grpP.kayip)} Saat`, `${payP(grpP.kayip)} · ${donem}`, ''],
   ];
@@ -441,8 +441,8 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const skorToplam = skorHesap(aktif);
   const kartlar2 = [
     ...(maliyetAcik ? [
-      ['Maks. Süre Değer', maliyetVar ? fmtT(maksDeger) : '–', maliyetNot || (eksikAy ? `${eksikAy} ayın maliyeti girilmemiş` : `ort. saat maliyeti ${fmtT(ortSaat)}/sa`)],
-      ['Top. Süre Değer', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || `maks. değerin ${pct1(maksDeger ? topDeger / maksDeger : 0)}'i`],
+      ['Ort. Saat Maliyeti', ortSaat > 0 ? `${fmtT(ortSaat)}/sa` : '–', maliyetNot || (eksikAy ? `${eksikAy} ayın maliyeti girilmemiş` : 'gerçekleşen maliyet / gerçekleşen süre')],
+      ['Gerçekleşen Maliyet', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || `gerçekleşen süre × saat maliyeti`],
     ] : []),
     ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
     ['Verimlilik Skoru', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Süre ${Math.round(skorP.sure)}/40 · Kayıt ${Math.round(skorP.kayit)}/40 · Kayıp ${Math.round(skorP.kayip)}/20` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : ''],

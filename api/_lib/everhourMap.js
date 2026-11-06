@@ -107,7 +107,7 @@ export async function readMaliyet() {
     Object.entries(m && typeof m.aylar === 'object' && m.aylar ? m.aylar : {}).forEach(([ym, v]) => {
       if (YM.test(ym)) aylar[ym] = { kisi: v && typeof v.kisi === 'object' && !Array.isArray(v.kisi) ? v.kisi : {}, dagitim: Number(v?.dagitim) > 0 ? Number(v.dagitim) : 0 };
     });
-    return m?.tohum ? { aylar, tohum: m.tohum } : { aylar };
+    return m?.tohum ? { aylar, tohum: m.tohum, tohumSurum: m.tohumSurum } : { aylar };
   } catch { return { aylar: {} }; }
 }
 
@@ -158,7 +158,8 @@ export async function maliyetTohumla() {
   try { veri = JSON.parse(process.env.MALIYET_ICE_AKTAR); adlar = JSON.parse(process.env.MALIYET_ICE_ADLAR || '{}'); haric = JSON.parse(process.env.MALIYET_ICE_HARIC || '[]'); } catch { return; }
   if (!veri || typeof veri.aylar !== 'object') return;
   const m = await readMaliyet();
-  if (m.tohum) return;
+  const surum = process.env.MALIYET_ICE_SURUM || '1';
+  if (m.tohum && m.tohumSurum === surum) return;
   const oz = await readKisiOzet();
   const ev = new Map((oz?.kisiler || []).map((k) => [adAnahtar(k.name), k.name])); // Everhour'daki yazılışı kullan
   Object.entries(veri.aylar).forEach(([ay, v]) => {
@@ -173,7 +174,15 @@ export async function maliyetTohumla() {
     });
   });
   m.tohum = new Date().toISOString();
+  m.tohumSurum = surum;
   await malStore.write(m);
+  // Silinecek (artık olmayan) adların departman / pasif kayıtları da temizlenir
+  let sil = []; try { sil = JSON.parse(process.env.MALIYET_ICE_SIL || '[]'); } catch { /* yok say */ }
+  const dep = await readDepartman(); const pas = await readPasif();
+  for (const ad of sil) {
+    for (const k of Object.keys(dep)) if (adAnahtar(k) === adAnahtar(ad)) await setDepartman(k, '');
+    for (const k of Object.keys(pas)) if (adAnahtar(k) === adAnahtar(ad)) await setPasif(k, false);
+  }
 }
 
 // Maliyet verisinde olup Everhour listesinde olmayan kişiler (süre girmemiş / henüz eşleşmemiş)

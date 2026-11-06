@@ -100,10 +100,10 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const sureOrani = maksToplam ? toplam / maksToplam : null;
   const donem = `(${sel === 'Toplam' ? rangeLabel : sel})`;
   const kartlar = [
-    ['Maksimum Süre', maksToplam ? `${fmtN(maksToplam)} Saat` : '–', maksToplam ? `${kisiAy} kişi-ay · iş günü × 8,5 sa` : 'kişi bazlı veri yok', ''],
-    ['Toplam Süre', `${fmtN(toplam)} Saat`, donem, ''],
+    ['Maksimum Kapasite', maksToplam ? `${fmtN(maksToplam)} Saat` : '–', maksToplam ? `${kisiAy} kişi-ay · iş günü × 8,5 sa` : 'kişi bazlı veri yok', ''],
+    ['Gerçekleşen Süre', `${fmtN(toplam)} Saat`, donem, ''],
     ['Süre Oranı', sureOrani == null ? '–' : pct1(sureOrani), 'toplam süre / maksimum süre', sureOrani != null && sureOrani < ESIK ? ORAN_KIRMIZI : ''],
-    ['Aktif Süre', `${fmtN(aktif)} Saat`, `${pct1(toplam ? aktif / toplam : 0)} · ${donem}`, ''],
+    ['Girilen Süre', `${fmtN(aktif)} Saat`, `${pct1(toplam ? aktif / toplam : 0)} · ${donem}`, ''],
     ['Atanmamış Süre', `${fmtN(atil)} Saat`, `${pct1(toplam ? atil / toplam : 0)} · ${donem}`, ''],
     ['Kayıp Süre', `${fmtN(kayip)} Saat`, `${pct1(toplam ? kayip / toplam : 0)} · ${donem}`, ''],
   ];
