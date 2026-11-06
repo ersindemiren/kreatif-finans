@@ -3,7 +3,7 @@ import { Trash2, UserPlus, ShieldCheck, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { autoBrand, DEPARTMANLAR } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
-import { hesaplaMaliyet, parseTR, AYLIK_SAAT } from './lib/maliyet.js';
+import { hesaplaAy, parseTR, ayAnahtar, AYLIK_SAAT } from './lib/maliyet.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 
@@ -67,19 +67,26 @@ function DepartmanEslestirme() {
 const tl = (n) => '₺' + Math.round(n).toLocaleString('tr-TR');
 const tl2 = (n) => '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Personel maliyeti: kişi başı aylık toplam ajans maliyeti + genel işletme dağıtım gideri. Dağıtım, kişilerin kendi maliyetine oranla paylaştırılır.
+const AY_ADLARI = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+
+// Personel maliyeti (aylık): seçilen ay için kişi başı aylık toplam ajans maliyeti + o ayın genel işletme dağıtım gideri.
+// Dağıtım, o ay maliyeti girilmiş kişilere kendi maliyetleri oranında paylaştırılır; maliyeti girilmeyen (ayrılan) kişi dağıtımdan çıkar.
 function MaliyetHesaplama() {
-  const [st, setSt] = useState({ loading: true, kisiler: [], pasif: {}, maliyet: { kisi: {}, dagitim: 0 }, error: '' });
-  const [girdi, setGirdi] = useState({}); // yazılırken anlık değerler (metin)
+  const [st, setSt] = useState({ loading: true, kisiler: [], pasif: {}, aylikSaat: {}, maliyet: { aylar: {} }, error: '' });
+  const [ay, setAy] = useState(new Date().getMonth()); // 0-11
+  const [girdi, setGirdi] = useState({});
   const [dagitimGirdi, setDagitimGirdi] = useState(null);
   const [busy, setBusy] = useState('');
   useEffect(() => {
     (async () => {
       const r = await api('/api/everhour');
-      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], pasif: r.data.pasif || {}, maliyet: r.data.maliyet || { kisi: {}, dagitim: 0 }, error: '' });
+      if (r.ok) setSt({ loading: false, kisiler: r.data.kisiler || [], pasif: r.data.pasif || {}, aylikSaat: r.data.aylikSaat || {}, maliyet: r.data.maliyet || { aylar: {} }, error: '' });
       else setSt((x) => ({ ...x, loading: false, error: r.data.error || 'Everhour verisi alınamadı' }));
     })();
   }, []);
+  const ym = ayAnahtar(ay);
+  const veri = st.maliyet.aylar[ym] || { kisi: {}, dagitim: 0 };
+  const oncekiVar = ay > 0 && !!st.maliyet.aylar[ayAnahtar(ay - 1)];
   const kaydet = async (govde, anahtar) => {
     setBusy(anahtar);
     const r = await api('/api/everhour', { method: 'PUT', body: govde });
@@ -87,38 +94,46 @@ function MaliyetHesaplama() {
     else setSt((x) => ({ ...x, error: r.data.error || 'Kaydedilemedi' }));
     setBusy('');
   };
+  const ayDegis = (i) => { setAy(i); setGirdi({}); setDagitimGirdi(null); };
   const kisiKaydet = (name) => {
     if (girdi[name] === undefined) return;
     const n = parseTR(girdi[name]);
     setGirdi((g) => { const c = { ...g }; delete c[name]; return c; });
-    if (n !== (Number(st.maliyet.kisi[name]) || 0)) kaydet({ maliyetKisi: name, tutar: n }, name);
+    if (n !== (Number(veri.kisi[name]) || 0)) kaydet({ ay: ym, maliyetKisi: name, tutar: n }, name);
   };
   const dagitimKaydet = () => {
     if (dagitimGirdi === null) return;
     const n = parseTR(dagitimGirdi);
     setDagitimGirdi(null);
-    if (n !== (Number(st.maliyet.dagitim) || 0)) kaydet({ dagitim: n }, '__dagitim');
+    if (n !== (Number(veri.dagitim) || 0)) kaydet({ ay: ym, dagitim: n }, '__dagitim');
   };
-  // Anlık hesap: kaydedilmiş değerlerin üzerine yazılmakta olanlar uygulanır
-  const canli = { kisi: { ...st.maliyet.kisi }, dagitim: dagitimGirdi !== null ? parseTR(dagitimGirdi) : st.maliyet.dagitim };
+  const canli = { kisi: { ...veri.kisi }, dagitim: dagitimGirdi !== null ? parseTR(dagitimGirdi) : veri.dagitim };
   Object.keys(girdi).forEach((k) => { canli.kisi[k] = parseTR(girdi[k]); });
-  const hs = hesaplaMaliyet(canli);
+  const hs = hesaplaAy(canli);
   const gosterim = (v) => (v ? Number(v).toLocaleString('tr-TR') : '');
-  const sirali = [...st.kisiler].sort((a, b) => (!!st.pasif[a.name] - !!st.pasif[b.name]) || (!!hs.rows[b.name] - !!hs.rows[a.name]) || b.hours - a.hours);
-  const girilmemis = st.kisiler.filter((k) => !st.pasif[k.name] && !hs.rows[k.name]).length;
+  const saatAy = (k) => st.aylikSaat[k.name]?.[ym] || 0;
+  const sirali = [...st.kisiler].sort((a, b) => (!!hs.rows[b.name] - !!hs.rows[a.name]) || (saatAy(b) - saatAy(a)));
+  const eksik = st.kisiler.filter((k) => saatAy(k) > 0 && !hs.rows[k.name]);
   const input = 'w-full border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm text-right tabular-nums outline-none focus:border-slate-400';
   return (
     <div className={`${CARD} p-4 sm:p-5`}>
       <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Personel Maliyet Hesaplama</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Her personel için aylık toplam ajans maliyetini (maaş + işveren yükü vb.) girin. Genel işletme dağıtım gideri, kişilerin kendi maliyetine oranla herkese paylaştırılır. Saat maliyeti = toplam maliyet / {AYLIK_SAAT.toLocaleString('tr-TR')} saat (22 gün × 8,5). Değer, alandan çıkınca kaydedilir.</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Ay seçin; o ay için her personelin aylık toplam ajans maliyetini (maaş + işveren yükü vb.) ve genel işletme dağıtım giderini girin. Dağıtım gideri, o ay maliyeti girilen kişilere kendi maliyetleri oranında paylaştırılır; maliyeti boş bırakılan (ayrılan) kişi dağıtımdan çıkar. Saat maliyeti = toplam maliyet / {AYLIK_SAAT.toLocaleString('tr-TR')} saat (22 gün × 8,5). Değer, alandan çıkınca kaydedilir.</p>
+      <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5 mb-4">
+        {AY_ADLARI.map((m, i) => {
+          const dolu = !!st.maliyet.aylar[ayAnahtar(i)] && Object.keys(st.maliyet.aylar[ayAnahtar(i)].kisi).length > 0;
+          return <button key={m} onClick={() => ayDegis(i)} className={`px-2 py-1.5 rounded-lg text-sm font-medium text-center transition-colors ${ay === i ? 'bg-slate-900 text-white' : dolu ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{m}</button>;
+        })}
+      </div>
       {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Everhour kişileri okunuyor...</div>}
       {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
       {!st.loading && (
         <>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex-1 text-sm font-medium text-slate-800 dark:text-slate-200">Genel işletme dağıtım gideri <span className="text-[11px] font-normal text-slate-400">(aylık, ₺)</span></div>
+            <div className="flex-1 text-sm font-medium text-slate-800 dark:text-slate-200">Genel işletme dağıtım gideri <span className="text-[11px] font-normal text-slate-400">({AY_ADLARI[ay]} ayı, ₺)</span></div>
+            {oncekiVar && <button onClick={() => kaydet({ kopyala: { kaynak: ayAnahtar(ay - 1), hedef: ym } }, '__kopya')} disabled={busy === '__kopya'} className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">{AY_ADLARI[ay - 1]} ayından boşları doldur</button>}
             <div className="sm:w-48">
-              <input inputMode="decimal" value={dagitimGirdi ?? gosterim(st.maliyet.dagitim)} disabled={busy === '__dagitim'} placeholder="0" onChange={(e) => setDagitimGirdi(e.target.value)} onBlur={dagitimKaydet} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label="Genel işletme dağıtım gideri" className={input} />
+              <input inputMode="decimal" value={dagitimGirdi ?? gosterim(veri.dagitim)} disabled={busy === '__dagitim'} placeholder="0" onChange={(e) => setDagitimGirdi(e.target.value)} onBlur={dagitimKaydet} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label="Genel işletme dağıtım gideri" className={input} />
             </div>
           </div>
           <div className="hidden sm:flex items-center gap-3 pb-2 text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
@@ -131,11 +146,12 @@ function MaliyetHesaplama() {
           <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
             {sirali.map((k) => {
               const h = hs.rows[k.name];
+              const sa = saatAy(k);
               return (
-                <div key={k.name} className={`py-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 ${st.pasif[k.name] ? 'opacity-60' : ''}`}>
-                  <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200 uppercase">{k.name}{st.pasif[k.name] && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</div>
+                <div key={k.name} className={`py-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 ${!h && !sa ? 'opacity-55' : ''}`}>
+                  <div className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-200 uppercase">{k.name}{st.pasif[k.name] && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}<span className="ml-2 text-[11px] text-slate-400 tabular-nums normal-case">{sa ? `${sa.toLocaleString('tr-TR', { maximumFractionDigits: 1 })} sa` : 'süre yok'}</span></div>
                   <div className="sm:w-36">
-                    <input inputMode="decimal" value={girdi[k.name] ?? gosterim(st.maliyet.kisi[k.name])} disabled={busy === k.name} placeholder="0" onChange={(e) => setGirdi((g) => ({ ...g, [k.name]: e.target.value }))} onBlur={() => kisiKaydet(k.name)} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label={`${k.name} aylık maliyet`} className={input} />
+                    <input inputMode="decimal" value={girdi[k.name] ?? gosterim(veri.kisi[k.name])} disabled={busy === k.name} placeholder="0" onChange={(e) => setGirdi((g) => ({ ...g, [k.name]: e.target.value }))} onBlur={() => kisiKaydet(k.name)} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label={`${k.name} ${AY_ADLARI[ay]} maliyeti`} className={input} />
                   </div>
                   <div className="flex sm:contents gap-3 text-xs sm:text-sm tabular-nums text-slate-600 dark:text-slate-300">
                     <span className="sm:w-28 sm:text-right">{h ? tl(h.pay) : '–'}</span>
@@ -147,14 +163,14 @@ function MaliyetHesaplama() {
             })}
           </div>
           <div className="mt-3 pt-3 border-t-2 border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-sm font-semibold text-slate-900 dark:text-slate-50 tabular-nums">
-            <span className="flex-1">Toplam</span>
+            <span className="flex-1">Toplam ({AY_ADLARI[ay]})</span>
             <span className="sm:w-36 sm:text-right">{tl(hs.toplamKisi)}</span>
             <span className="sm:w-28 sm:text-right">{tl(hs.toplamKisi ? hs.dagitim : 0)}</span>
             <span className="sm:w-28 sm:text-right">{tl(hs.toplamKisi + (hs.toplamKisi ? hs.dagitim : 0))}</span>
             <span className="sm:w-24" />
           </div>
-          {girilmemis > 0 && <p className="text-[11px] text-amber-600 mt-3">{girilmemis} aktif kişi için maliyet girilmemiş; bu kişilerin sayfasında maliyet kartları "–" görünür ve dağıtımdan pay almazlar.</p>}
-          {hs.toplamKisi === 0 && st.maliyet.dagitim > 0 && <p className="text-[11px] text-amber-600 mt-2">Dağıtım gideri, kişi maliyeti girilmeden paylaştırılamaz.</p>}
+          {eksik.length > 0 && <p className="text-[11px] text-amber-600 mt-3">{AY_ADLARI[ay]} ayında süre girmiş ama maliyeti girilmemiş {eksik.length} kişi var ({eksik.slice(0, 4).map((k) => k.name).join(', ')}{eksik.length > 4 ? '…' : ''}). Bu kişiler dağıtımdan pay almaz, sayfalarında o ayın maliyet değeri hesaplanmaz.</p>}
+          {hs.toplamKisi === 0 && veri.dagitim > 0 && <p className="text-[11px] text-amber-600 mt-2">Dağıtım gideri, kişi maliyeti girilmeden paylaştırılamaz.</p>}
         </>
       )}
     </div>

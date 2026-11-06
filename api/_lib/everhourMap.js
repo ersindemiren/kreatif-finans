@@ -97,28 +97,52 @@ let malStore = {
 };
 export const setMaliyetStore = (s) => { malStore = s; };
 
+const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
+const ayKontrol = (ay) => { if (!YM.test(String(ay || ''))) throw new Error('Geçersiz ay'); return ay; };
+
 export async function readMaliyet() {
   try {
     const m = await malStore.read();
-    return { kisi: m && typeof m.kisi === 'object' && !Array.isArray(m.kisi) ? m.kisi : {}, dagitim: Number(m?.dagitim) > 0 ? Number(m.dagitim) : 0 };
-  } catch { return { kisi: {}, dagitim: 0 }; }
+    const aylar = {};
+    Object.entries(m && typeof m.aylar === 'object' && m.aylar ? m.aylar : {}).forEach(([ym, v]) => {
+      if (YM.test(ym)) aylar[ym] = { kisi: v && typeof v.kisi === 'object' && !Array.isArray(v.kisi) ? v.kisi : {}, dagitim: Number(v?.dagitim) > 0 ? Number(v.dagitim) : 0 };
+    });
+    return { aylar };
+  } catch { return { aylar: {} }; }
 }
 
 const tutar = (v) => { const n = Number(v); if (!Number.isFinite(n) || n < 0 || n > 1e10) throw new Error('Geçersiz tutar'); return Math.round(n * 100) / 100; };
+const ayAl = (m, ay) => (m.aylar[ay] ||= { kisi: {}, dagitim: 0 });
 
-export async function setMaliyetKisi(kisi, deger) {
+export async function setMaliyetKisi(ay, kisi, deger) {
+  ayKontrol(ay);
   const k = String(kisi || '').trim().slice(0, 120);
   if (!k) throw new Error('Kişi adı gerekli');
   const m = await readMaliyet();
   const n = tutar(deger);
-  if (n > 0) m.kisi[k] = n; else delete m.kisi[k];
+  const a = ayAl(m, ay);
+  if (n > 0) a.kisi[k] = n; else delete a.kisi[k];
   await malStore.write(m);
   return m;
 }
 
-export async function setDagitim(deger) {
+export async function setDagitim(ay, deger) {
+  ayKontrol(ay);
   const m = await readMaliyet();
-  m.dagitim = tutar(deger);
+  ayAl(m, ay).dagitim = tutar(deger);
+  await malStore.write(m);
+  return m;
+}
+
+// Önceki aydaki girişleri bu aya kopyalar; bu ayda zaten girilmiş olanlara dokunmaz.
+export async function kopyalaAy(kaynak, hedef) {
+  ayKontrol(kaynak); ayKontrol(hedef);
+  const m = await readMaliyet();
+  const src = m.aylar[kaynak];
+  if (!src) throw new Error('Kaynak ayda kayıt yok');
+  const h = ayAl(m, hedef);
+  Object.entries(src.kisi).forEach(([k, v]) => { if (!(h.kisi[k] > 0)) h.kisi[k] = v; });
+  if (!(h.dagitim > 0)) h.dagitim = src.dagitim;
   await malStore.write(m);
   return m;
 }

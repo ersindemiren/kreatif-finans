@@ -173,7 +173,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   }
   if (sayfa?.t === 'k') {
     return (
-      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} saatMaliyet={maliyetHesap.rows[sayfa.n]?.saat || 0} maliyetAcik={!!sureData?.maliyet} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
+      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} maliyetAy={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.saat || 0]))} maliyetAcik={!!sureData?.maliyet} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
         onBack={geri} backLabel={etiket || 'Tüm personel'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
     );
   }

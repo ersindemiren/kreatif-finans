@@ -4,7 +4,7 @@ import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
-import { AYLIK_SAAT } from './lib/maliyet.js';
+import { AYLIK_SAAT, ayAnahtar } from './lib/maliyet.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
 const TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', warn: 'bg-amber-500', info: 'bg-slate-400' };
@@ -346,7 +346,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 }
 
 /* =============================== PERSONEL DETAYI =============================== */
-export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, saatMaliyet, maliyetAcik, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
+export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, maliyetAy, maliyetAcik, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
   useTop();
   const [gorev, setGorev] = useState(null);
   const [secili, setSecili] = useState('Toplam');
@@ -392,11 +392,19 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
     ['Atanmamış Süre', `${fmtN(grpP.atil)} Saat`, `${payP(grpP.atil)} · ${donem}`, ''],
     ['Kayıp Süre', `${fmtN(grpP.kayip)} Saat`, `${payP(grpP.kayip)} · ${donem}`, ''],
   ];
-  const maliyetVar = saatMaliyet > 0;
+  // Maliyet değerleri ay ay hesaplanır: o ayın saat maliyeti x süre
+  const saatAy = (i) => maliyetAy?.[ayAnahtar(i)] || 0;
+  const sureliP = per.filter((i) => d.monthly[i] > 0);
+  const maksDeger = sureliP.reduce((t, i) => t + MAKS_SURE * saatAy(i), 0);
+  const topDeger = sureliP.reduce((t, i) => t + d.monthly[i] * saatAy(i), 0);
+  const eksikAy = sureliP.filter((i) => !saatAy(i)).length;
+  const maliyetVar = maksDeger > 0;
+  const maliyetNot = !sureliP.length ? 'süre girilmemiş' : eksikAy === sureliP.length ? 'maliyet girilmemiş (Yönetim)' : null;
+  const ortSaat = toplamP && topDeger ? topDeger / sum(d.monthly, sureliP.filter((i) => saatAy(i))) : 0;
   const kartlar2 = [
     ...(maliyetAcik ? [
-      ['Maks. Süre Değer', maliyetVar && maksP ? fmtT(maksP * saatMaliyet) : '–', maliyetVar ? `saat maliyeti ${fmtT(saatMaliyet)}/sa` : 'maliyet girilmemiş (Yönetim)'],
-      ['Top. Süre Değer', maliyetVar && toplamP ? fmtT(toplamP * saatMaliyet) : '–', maliyetVar ? `maks. değerin ${pct1(maksP ? toplamP / maksP : 0)}'i` : 'maliyet girilmemiş (Yönetim)'],
+      ['Maks. Süre Değer', maliyetVar ? fmtT(maksDeger) : '–', maliyetNot || (eksikAy ? `${eksikAy} ayın maliyeti girilmemiş` : `ort. saat maliyeti ${fmtT(ortSaat)}/sa`)],
+      ['Top. Süre Değer', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || `maks. değerin ${pct1(maksDeger ? topDeger / maksDeger : 0)}'i`],
     ] : []),
     ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
   ];

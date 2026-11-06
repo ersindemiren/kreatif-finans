@@ -1,11 +1,13 @@
-// Personel maliyeti: kişi başı aylık toplam maliyet + genel işletme dağıtım gideri.
-// Dağıtım gideri, kişilerin kendi maliyetlerine oranla paylaştırılır; saat maliyeti = toplam / aylık azami saat (22 gün x 8,5).
+// Personel maliyeti (aylık): her ay için kişi başı toplam ajans maliyeti + o ayın genel işletme dağıtım gideri.
+// Dağıtım gideri, o ay maliyeti girilmiş kişilere kendi maliyetleri oranında paylaştırılır (maliyeti girilmeyen = dağıtımdan çıkar).
+// Saat maliyeti = (maliyet + dağıtım payı) / aylık azami saat (şimdilik 22 gün x 8,5; izin/tatil listesi gelince kişiye göre değişecek).
 export const AYLIK_SAAT = 22 * 8.5;
+export const ayAnahtar = (i, yil = new Date().getFullYear()) => `${yil}-${String(i + 1).padStart(2, '0')}`;
 
-// maliyet: { kisi: { AD: aylık maliyet }, dagitim: sayı } -> { toplamKisi, rows: { AD: { own, pay, toplam, saat } } }
-export function hesaplaMaliyet(maliyet) {
-  const kisi = maliyet?.kisi || {};
-  const dagitim = Number(maliyet?.dagitim) || 0;
+// ayVeri: { kisi: { AD: tutar }, dagitim } -> { toplamKisi, dagitim, rows: { AD: { own, pay, toplam, saat } } }
+export function hesaplaAy(ayVeri) {
+  const kisi = ayVeri?.kisi || {};
+  const dagitim = Number(ayVeri?.dagitim) || 0;
   const ad = Object.keys(kisi).filter((k) => Number(kisi[k]) > 0);
   const toplamKisi = ad.reduce((t, k) => t + Number(kisi[k]), 0);
   const rows = {};
@@ -15,6 +17,13 @@ export function hesaplaMaliyet(maliyet) {
     rows[k] = { own, pay, toplam: own + pay, saat: (own + pay) / AYLIK_SAAT };
   });
   return { toplamKisi, dagitim, rows };
+}
+
+// maliyet: { aylar: { 'YYYY-AA': ayVeri } } -> { 'YYYY-AA': hesaplaAy(...) }
+export function hesaplaMaliyet(maliyet) {
+  const out = {};
+  Object.entries(maliyet?.aylar || {}).forEach(([ym, v]) => { out[ym] = hesaplaAy(v); });
+  return out;
 }
 
 // "1.100.000" / "1100000,50" -> sayı
