@@ -1,7 +1,7 @@
 // Süre Analizi: markalara harcanan süre, saatlik baza göre tüketilen bütçe ve fee ile farkı.
 // Süre: zaman takip raporu (sunucuda api/_data/sureler.js; yalnızca yetkili kullanıcıya gelir). Fee + Proje: SATIŞ TABLOSU 2026 faturaları (KDV hariç).
 // Fatura durumu: Satış Tablosu. Satış Tablosu'nda olup süre girilmemiş markalar 0 süreyle listelenir.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { buildSure, buildPersonel, buildDepartman, kisiAyDizisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
 import { MarkaDetay, KisiDetay, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { aySaati, VARSAYILAN_TATILLER } from './lib/takvim.js';
@@ -19,9 +19,12 @@ const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-
 
 export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData, sureError, gorunumler }) {
   const [selected, setSelected] = useState('Toplam');
+  // Düğme tepkisi anında (selected), ağır tablolar hemen ardından (sel) çizilir: tıklama sırasında arayüz kilitlenmez
+  const sel = useDeferredValue(selected);
   const izinliGorunum = gorunumler?.length ? gorunumler : ['musteri'];
   const personelAcik = izinliGorunum.includes('personel') || izinliGorunum.includes('departman');
   const [gorunum, setGorunum] = useState(izinliGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
+  const gor = useDeferredValue(gorunum);
   const [acikDep, setAcikDep] = useState(null);
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
   const setSeciliMarka = (n) => setYigin([{ t: 'm', n }]);
@@ -36,7 +39,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   );
 
   const guncelIdx = months.map((_, i) => i).filter((i) => ayDurumu?.[i] === 'güncel');
-  const periodIdx = selected === 'Toplam' ? guncelIdx : [months.indexOf(selected)];
+  const periodIdx = sel === 'Toplam' ? guncelIdx : [months.indexOf(sel)];
   const rangeLabel = guncelIdx.length ? `${months[guncelIdx[0]]}-${months[guncelIdx[guncelIdx.length - 1]]}` : '';
 
   // Fark yalnızca süre girilmiş aylar için hesaplanır; süre girilmemiş ayın fee'si farka katılmaz
@@ -54,7 +57,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     return { hours, saatBaz, fee, fark, faturali: idxs.some((i) => b.faturali[i]) };
   };
 
-  const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx, pasif: sureData?.pasif }), [sureData, selected, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
+  const personel = useMemo(() => buildPersonel({ rows: sureData?.personel || [], idxs: periodIdx, pasif: sureData?.pasif }), [sureData, sel, ayDurumu]); // eslint-disable-line react-hooks/exhaustive-deps
   // Azami süre: her ayın hafta içi sayısı - resmi tatiller (Yönetim > Resmi Tatiller), x 8,5 saat
   const yil = new Date().getFullYear();
   const tatiller = sureData?.tatiller || VARSAYILAN_TATILLER;
@@ -90,7 +93,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const kisiAy = periodIdx.reduce((t, i) => t + (kisiAyD[i] || 0), 0);
   const maksToplam = periodIdx.reduce((t, i) => t + (kisiAyD[i] || 0) * maksSaat(i), 0);
   const sureOrani = maksToplam ? toplam / maksToplam : null;
-  const donem = `(${selected === 'Toplam' ? rangeLabel : selected})`;
+  const donem = `(${sel === 'Toplam' ? rangeLabel : sel})`;
   const kartlar = [
     ['Maksimum Süre', maksToplam ? `${fmtN(maksToplam)} Saat` : '–', maksToplam ? `${kisiAy} kişi-ay · iş günü × 8,5 sa` : 'kişi bazlı veri yok', ''],
     ['Toplam Süre', `${fmtN(toplam)} Saat`, donem, ''],
@@ -232,7 +235,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         </div>
       </div>
 
-      {gorunum === 'departman' ? (
+      {gor === 'departman' ? (
         <>
           {UstKartlar}
           <div className={`${CARD} p-5`}>
@@ -275,7 +278,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           </div>
 
         </>
-      ) : gorunum === 'personel' ? (
+      ) : gor === 'personel' ? (
         <>
           {UstKartlar}
           <div className={`${CARD} p-5`}>
