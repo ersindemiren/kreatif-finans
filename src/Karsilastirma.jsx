@@ -43,7 +43,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
       { l: 'Dep. Payı', f: (o) => (o.depPayi == null ? VAR : pct1(o.depPayi)), num: (o) => o.depPayi, yon: 'yuksek', not: 'kendi departmanındaki toplam süreye oranı' },
       { l: 'Ortalama Aylık Süre', f: (o) => (o.ortAylik == null ? VAR : `${fmtS(o.ortAylik)} Saat`), alt: (o) => (o.sureliAy ? `${o.sureliAy} ay` : ''), not: 'süre girilen aylar üzerinden' },
       ...(maliyetAcik ? [
-        { l: 'Ort. Saat Maliyeti', f: (o) => (o.saatMaliyeti ? TL(o.saatMaliyeti) : VAR) },
+        { l: 'Ort. Saat Maliyeti', f: (o) => (o.saatMaliyeti ? TL(Math.ceil(o.saatMaliyeti)) : VAR) },
         { l: 'Gerçekleşen Maliyet', f: (o) => (o.topDeger > 0 ? TL(o.topDeger) : VAR), not: 'harcanan süre × saat maliyeti' },
       ] : []),
     ],
