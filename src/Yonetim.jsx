@@ -187,7 +187,7 @@ function ResmiTatiller() {
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     (async () => {
-      const r = await api('/api/everhour');
+      const r = await api('/api/everhour?bolum=tatil');
       if (r.ok) setSt({ loading: false, liste: r.data.tatiller || VARSAYILAN_TATILLER, error: '', not: '' });
       else setSt((x) => ({ ...x, loading: false, error: r.data.error || 'Liste okunamadı' }));
     })();

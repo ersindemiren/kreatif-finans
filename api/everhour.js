@@ -17,6 +17,8 @@ export default async function handler(req, res) {
       if (q.get('teshis') === '2') return json(res, 200, await teshis2({ key: process.env.EVERHOUR_API_KEY, ym }));
       return json(res, 200, await teshis({ key: process.env.EVERHOUR_API_KEY, user: q.get('user') || '', ym, task: q.get('task') || '' }));
     }
+    // Hafif okuma: yalnızca resmi tatil listesi (Everhour'a gitmez)
+    if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('bolum') === 'tatil') return json(res, 200, { tatiller: await readTatil() });
     if (req.method === 'GET') {
       const ev = await getEverhour({ key: process.env.EVERHOUR_API_KEY, year: new Date().getFullYear(), upToMonth: new Date().getMonth() + 1 });
       const saat = new Map();
