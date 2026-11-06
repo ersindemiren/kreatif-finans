@@ -97,20 +97,37 @@ export function buildPersonel({ rows, idxs }) {
   (rows || []).forEach(([user, ym, client, hours]) => {
     const i = Number(String(ym).slice(5, 7)) - 1;
     if (!idxs.includes(i) || SIFIRLANAN_AYLAR.includes(i)) return;
-    if (!map.has(user)) map.set(user, { name: user, hours: 0, clients: new Map() });
+    if (!map.has(user)) map.set(user, { name: user, hours: 0, clients: new Map(), ay: new Map() });
     const u = map.get(user);
     u.hours += hours;
+    u.ay.set(i, (u.ay.get(i) || 0) + hours);
     const c = kanonikMusteri(client);
     u.clients.set(c, (u.clients.get(c) || 0) + hours);
   });
   return [...map.values()]
-    .map((u) => ({ name: u.name, hours: u.hours, clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
+    .map((u) => ({ name: u.name, hours: u.hours, aylar: [...u.ay.values()].filter((h) => h > 0).length, clients: [...u.clients].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours) }))
     .filter((u) => u.hours > 0)
     .sort((a, b) => b.hours - a.hours);
 }
 
+// Dönemde süre girmiş kişi-ay sayısı (azami süre = bu sayı x aylık azami süre)
+export function kisiAySayisi({ rows, idxs }) {
+  const set = new Set();
+  const top = new Map();
+  (rows || []).forEach(([user, ym, , hours]) => {
+    const i = Number(String(ym).slice(5, 7)) - 1;
+    if (!idxs.includes(i) || SIFIRLANAN_AYLAR.includes(i)) return;
+    const k = `${user}|${i}`;
+    top.set(k, (top.get(k) || 0) + hours);
+  });
+  top.forEach((h, k) => { if (h > 0) set.add(k); });
+  return set.size;
+}
+
 // Tek kişinin ayrıntısı: aylık süre, o ayda ekibin toplam süresi, müşteri kırılımı (müşteri x ay). rows: [kişi, 'YYYY-MM', müşteri, saat]
-export function buildKisiDetay({ rows, user }) {
+export function buildKisiDetay({ rows, user, departman }) {
+  const benimDep = departman?.[user];
+  const dep = new Array(12).fill(0);
   const monthly = new Array(12).fill(0);
   const team = new Array(12).fill(0);
   const clients = new Map();
@@ -119,6 +136,7 @@ export function buildKisiDetay({ rows, user }) {
     const i = Number(String(ym).slice(5, 7)) - 1;
     if (i < 0 || i > 11 || SIFIRLANAN_AYLAR.includes(i)) return;
     team[i] += hours;
+    if (benimDep && departman[u] === benimDep) dep[i] += hours;
     if (hours > 0) aktifKisi[i].add(u);
     if (u !== user) return;
     monthly[i] += hours;
@@ -126,7 +144,7 @@ export function buildKisiDetay({ rows, user }) {
     if (!clients.has(c)) clients.set(c, new Array(12).fill(0));
     clients.get(c)[i] += hours;
   });
-  return { monthly, team, kisiSayisi: aktifKisi.map((x) => x.size), clients: [...clients].map(([name, hours]) => ({ name, hours })) };
+  return { monthly, team, kisiSayisi: aktifKisi.map((x) => x.size), dep, clients: [...clients].map(([name, hours]) => ({ name, hours })) };
 }
 
 export function buildSure({ rows, months, ayDurumu, revenueRaw, satisRows }) {

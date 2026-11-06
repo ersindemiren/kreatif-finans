@@ -2,8 +2,8 @@
 // Süre: zaman takip raporu (sunucuda api/_data/sureler.js; yalnızca yetkili kullanıcıya gelir). Fee + Proje: SATIŞ TABLOSU 2026 faturaları (KDV hariç).
 // Fatura durumu: Satış Tablosu. Satış Tablosu'nda olup süre girilmemiş markalar 0 süreyle listelenir.
 import React, { useEffect, useMemo, useState } from 'react';
-import { buildSure, buildPersonel, buildDepartman, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
-import { MarkaDetay, KisiDetay } from './SureDetay.jsx';
+import { buildSure, buildPersonel, buildDepartman, kisiAySayisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
+import { MarkaDetay, KisiDetay, MAKS_SURE, ESIK, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { normalizeNameKey } from './lib/parseData.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -76,6 +76,31 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const kayip = gFaturasiz.hours;
   const atil = gIc.hours + gAtanmamis.hours; // Atanmamış Süre kartı: iç süre + markaya atanmamış
 
+  // Üst kartlar (Müşteri / Personel / Departman görünümünde aynı): azami süre = 22 gün x 8,5 saat x dönemdeki kişi-ay sayısı
+  const kisiAy = kisiAySayisi({ rows: sureData?.personel || [], idxs: periodIdx });
+  const maksToplam = kisiAy * MAKS_SURE;
+  const sureOrani = maksToplam ? toplam / maksToplam : null;
+  const donem = `(${selected === 'Toplam' ? rangeLabel : selected})`;
+  const kartlar = [
+    ['Maksimum Süre', maksToplam ? `${fmtN(maksToplam)} Saat` : '–', maksToplam ? `8,5 sa × 22 gün × ${kisiAy} kişi-ay` : 'kişi bazlı veri yok', ''],
+    ['Toplam Süre', `${fmtN(toplam)} Saat`, donem, ''],
+    ['Süre Oranı', sureOrani == null ? '–' : pct1(sureOrani), 'toplam süre / maksimum süre', sureOrani != null && sureOrani < ESIK ? ORAN_KIRMIZI : ''],
+    ['Aktif Süre', `${fmtN(aktif)} Saat`, `${pct1(toplam ? aktif / toplam : 0)} · ${donem}`, ''],
+    ['Atanmamış Süre', `${fmtN(atil)} Saat`, `${pct1(toplam ? atil / toplam : 0)} · ${donem}`, ''],
+    ['Kayıp Süre', `${fmtN(kayip)} Saat`, `${pct1(toplam ? kayip / toplam : 0)} · ${donem}`, ''],
+  ];
+  const UstKartlar = (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
+      {kartlar.map(([label, v, sub, cls]) => (
+        <div key={label} className={`${CARD} p-4`}>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+          <div className={`text-base sm:text-lg lg:text-xl font-semibold tabular-nums mt-1 whitespace-nowrap ${cls || 'text-slate-900 dark:text-slate-50'}`}>{v}</div>
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block leading-snug">{sub}</span>
+        </div>
+      ))}
+    </div>
+  );
+
   const pillClass = (m, active) => {
     const durum = ayDurumu?.[months.indexOf(m)];
     if (durum === 'güncel') return active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
@@ -146,7 +171,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   }
   if (sayfa?.t === 'k') {
     return (
-      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
+      <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
         onBack={geri} backLabel={etiket || 'Tüm personel'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
     );
   }
@@ -199,18 +224,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
 
       {gorunum === 'departman' ? (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:gap-4">
-            <div className={`${CARD} p-4`}>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Toplam Süre</span>
-              <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{fmtN(personelToplam)} Saat</div>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({selected === 'Toplam' ? rangeLabel : selected})</span>
-            </div>
-            <div className={`${CARD} p-4`}>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Departman</span>
-              <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{departmanlar.filter((d) => d.name !== DEPARTMAN_YOK).length} Departman</div>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">{personel.filter((u) => !pasifSet.has(u.name)).length} aktif kişi</span>
-            </div>
-          </div>
+          {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Departman Bazlı Süre Dağılımı</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Personelin Everhour'a girdiği süreler, Yönetim'deki departman eşleştirmesine göre toplanır. Departmana tıklayınca kişi dağılımı açılır. Kayıt Oranı: sürenin faturası kesilmiş markalara giden payı.</p>
@@ -253,25 +267,16 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         </>
       ) : gorunum === 'personel' ? (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:gap-4">
-            <div className={`${CARD} p-4`}>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Toplam Süre</span>
-              <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{fmtN(personelToplam)} Saat</div>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({selected === 'Toplam' ? rangeLabel : selected})</span>
-            </div>
-            <div className={`${CARD} p-4`}>
-              <span className="text-xs text-slate-500 dark:text-slate-400">Personel</span>
-              <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">{personel.length} Kişi</div>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">Süre girmiş</span>
-            </div>
-          </div>
+          {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Süre = süre girdiği ay sayısı × 22 gün × 8,5 saat; Kayıt Oranı ve Maks Süre Oranı %85'in altındaysa kırmızı.</p>
             <div className="flex items-center gap-2 sm:gap-3 pb-2 text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
               <span className="w-5 sm:w-6 shrink-0" />
               <span className="flex-1 min-w-0">Personel</span>
-              <span className="w-16 sm:w-24 text-right shrink-0">Kayıt Oranı</span>
+              <span className="w-14 sm:w-20 text-right shrink-0 leading-tight">Kayıt Oranı</span>
+              <span className="w-14 sm:w-20 text-right shrink-0 leading-tight">Maks. Süre</span>
+              <span className="w-14 sm:w-24 text-right shrink-0 leading-tight">Maks Süre Oranı</span>
               <span className={`${COL_SURE} text-right shrink-0`}>Süre</span>
             </div>
             <div className="flex flex-col">
@@ -279,7 +284,9 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
                 <button key={u.name} type="button" onClick={() => setSeciliKisi(u.name)} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 text-left hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
                   <span className="text-slate-400 dark:text-slate-500 w-5 sm:w-6 text-right tabular-nums shrink-0">{k + 1}</span>
                   <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 uppercase">{u.name}{pasifSet.has(u.name) && <span className="ml-2 normal-case text-[10px] font-medium border border-slate-300 dark:border-slate-600 text-slate-500 rounded-full px-1.5 py-0.5">Pasif</span>}</span>
-                  <span className="w-16 sm:w-24 text-right shrink-0 tabular-nums text-slate-700 dark:text-slate-300">{pct1(kayitOrani(u))}</span>
+                  <span className={`w-14 sm:w-20 text-right shrink-0 tabular-nums ${kayitOrani(u) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{pct1(kayitOrani(u))}</span>
+                  <span className="w-14 sm:w-20 text-right shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{fmtN(u.aylar * MAKS_SURE)} sa</span>
+                  <span className={`w-14 sm:w-24 text-right shrink-0 tabular-nums ${u.aylar && u.hours / (u.aylar * MAKS_SURE) < ESIK ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{u.aylar ? pct1(u.hours / (u.aylar * MAKS_SURE)) : '–'}</span>
                   <span className={`tabular-nums ${COL_SURE} text-right shrink-0 leading-tight whitespace-nowrap text-slate-700 dark:text-slate-300`}>
                     {fmtN(u.hours)} sa
                     <span className="block text-[10px] sm:text-[11px] leading-4 text-slate-400 dark:text-slate-500">{pct1(personelToplam ? u.hours / personelToplam : 0)}</span>
@@ -292,23 +299,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         </>
       ) : (
         <>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        {[
-          ['Toplam Süre', toplam, false],
-          ['Aktif Süre', aktif, true],
-          ['Atanmamış Süre', atil, true],
-          ['Kayıp Süre', kayip, true],
-        ].map(([label, v, showPct]) => (
-          <div key={label} className={`${CARD} p-4`}>
-            <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
-            <div className="text-base sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50 tabular-nums mt-1 whitespace-nowrap">
-              {fmtN(v)} Saat
-              {showPct && <span className="ml-1.5 text-[11px] sm:text-xs font-medium text-slate-400 dark:text-slate-500">{pct1(toplam ? v / toplam : 0)}</span>}
-            </div>
-            <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">({selected === 'Toplam' ? rangeLabel : selected})</span>
-          </div>
-        ))}
-      </div>
+      {UstKartlar}
 
       <div className={`${CARD} p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Marka Bazlı Süre Dağılımı</h2>

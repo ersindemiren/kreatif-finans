@@ -9,11 +9,15 @@ const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dar
 const TONE = { good: 'bg-emerald-500', bad: 'bg-rose-500', warn: 'bg-amber-500', info: 'bg-slate-400' };
 // Aylık azami çalışma süresi: 22 gün x 8,5 saat
 export const MAKS_SURE = 22 * 8.5;
+export const ESIK = 0.85; // süre / kayıt oranı bu değerin altındaysa kırmızı
+export const ORAN_KIRMIZI = 'text-rose-600 dark:text-rose-400 font-semibold';
 const up = (x) => String(x).toLocaleUpperCase('tr-TR');
 const fmtN = (n) => Math.round(n).toLocaleString('tr-TR');
-const fmtO = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 1 });
+// Matris: her zaman 1 ondalık (17,0); 0,1'in altındaki küçük süreler 2 ondalık (0,05)
+const fmtO = (n) => (n > 0 && Math.round(n * 10) === 0 ? n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : n.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
 const fmtSaat = (n) => n.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmtTL = (n) => '₺' + fmtN(Math.abs(n));
+const fmtT = (n) => '₺' + fmtN(n);
 const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
 const sum = (a, idx) => idx.reduce((s, i) => s + (a[i] || 0), 0);
 const farkText = (v) => (Math.round(v) > 0 ? 'text-rose-600 dark:text-rose-400' : Math.round(v) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400');
@@ -309,22 +313,25 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
               <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
                 <span className={`${cellA} text-left`}>{months[i]}</span>
                 <span className={cellA}>{on[i] ? fmtSaat(h) : '–'}</span>
-                <span className={cellA}>{fmtN(FEE_BAZI[i])}</span>
-                <span className={cellA}>{on[i] ? fmtN(saatBaz) : '–'}</span>
-                <span className={cellA}>{on[i] && fee ? fmtN(fee) : '–'}</span>
-                <span className={`${cellA} font-medium ${farkVar ? farkCell(saatBaz - fee) : ''}`}>{farkVar ? fmtN(Math.abs(saatBaz - fee)) : '–'}</span>
+                <span className={cellA}>{fmtT(FEE_BAZI[i])}</span>
+                <span className={cellA}>{on[i] ? fmtT(saatBaz) : '–'}</span>
+                <span className={cellA}>{on[i] && fee ? fmtT(fee) : '–'}</span>
+                <span className={`${cellA} font-medium ${farkVar ? farkCell(saatBaz - fee) : ''}`}>{farkVar ? fmtT(Math.abs(saatBaz - fee)) : '–'}</span>
               </div>
             );
           })}
           <div className={`${gridA} border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-900 dark:text-slate-50`}>
-            <span className={`${cellA} text-left`}>Toplam</span><span className={cellA}>{fmtSaat(t.hours)}</span><span className={cellA}>{fmtN(bazOrt)}</span><span className={cellA}>{fmtN(t.saatBaz)}</span><span className={cellA}>{fmtN(t.fee)}</span><span className={`${cellA} ${farkCell(t.fark)}`}>{fmtN(Math.abs(t.fark))}</span>
+            <span className={`${cellA} text-left`}>Toplam</span><span className={cellA}>{fmtSaat(t.hours)}</span><span className={cellA}>{fmtT(bazOrt)}</span><span className={cellA}>{fmtT(t.saatBaz)}</span><span className={cellA}>{fmtT(t.fee)}</span><span className={`${cellA} ${farkCell(t.fark)}`}>{fmtT(Math.abs(t.fark))}</span>
           </div>
         </div>
         <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-3">Tutarlar ₺ ve KDV hariçtir. Toplamdaki Baz, güncel ayların ortalamasıdır.</p>
+        <p className="text-[11px] sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mt-4 text-center leading-relaxed">
+          <span className="text-rose-600 dark:text-rose-400">KIRMIZI</span>, Bütçe'den fazla zaman harcandığını, <span className="text-emerald-600 dark:text-emerald-400">YEŞİL</span>, Bütçe içinde kalındığını gösterir.
+        </p>
       </div>
 
       <div className={`${CARD} p-5`}>
-        <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel × Ay</h3>
+        <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel × Ay Matrisi</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Bu markada kim, hangi ay kaç saat çalışmış (saat). Kişi adına tıklayınca personel sayfası açılır.</p>
         {kisiler.length ? (
           <Matris months={months} on={on} rows={kisiler.map((k) => ({ name: k.name, values: k.hours }))} firstLabel="Personel" onPick={onKisi} pasifSet={pasifKisiler} onCell={(kisi, i) => setGorev({ user: kisi, client: brand.name, i })} />
@@ -338,13 +345,13 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 }
 
 /* =============================== PERSONEL DETAYI =============================== */
-export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
+export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, pasif, pasifMarkaKeys, onBack, backLabel, onMarka }) {
   useTop();
   const [gorev, setGorev] = useState(null);
   const idx = months.map((_, i) => i);
   const aktif = idx.filter((i) => ayDurumu?.[i] === 'güncel');
   const on = idx.map((i) => ayDurumu?.[i] === 'güncel');
-  const d = useMemo(() => buildKisiDetay({ rows: personelRows, user: name }), [personelRows, name]);
+  const d = useMemo(() => buildKisiDetay({ rows: personelRows, user: name, departman }), [personelRows, name, departman]);
 
   const toplamKisi = sum(d.monthly, aktif);
   const toplamEkip = sum(d.team, aktif);
@@ -377,7 +384,11 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif
   }
   if (toplamEkip > 0) yorumlar.push({ tone: 'info', text: `Ekibin toplam süresinin ${pct1(toplamKisi / toplamEkip)}'ini üstlendi.` });
 
-  const gridA = 'grid grid-cols-4';
+  const gridA = 'grid grid-cols-7';
+  const maksAy = (i) => (d.monthly[i] > 0 ? MAKS_SURE : 0);
+  const toplamMaks = aktif.reduce((t, i) => t + maksAy(i), 0);
+  const toplamDep = sum(d.dep, aktif);
+  const oranCls = (r) => (r < ESIK ? ORAN_KIRMIZI : '');
   const cellA = 'px-2 sm:px-3 py-1.5 sm:py-2 text-center tabular-nums whitespace-nowrap';
 
   return (
@@ -420,21 +431,24 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, pasif
 
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ekip Payı = kişinin o ayki süresi / ekibin o ayki toplam süresi.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Maks. Süre = 22 gün × 8,5 saat. Süre Oranı = Süre / Maks. Süre (%85 altı kırmızı). Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre.</p>
         <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm">
           <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
-            <span className={`${cellA} text-left`}>Ay</span><span className={cellA}>Süre</span><span className={cellA}>Ekip Süresi</span><span className={cellA}>Ekip Payı</span>
+            <span className={`${cellA} text-left`}>Ay</span><span className={cellA}>Maks. Süre</span><span className={cellA}>Süre</span><span className={cellA}>Süre Oranı</span><span className={cellA}>Ekip Süresi</span><span className={cellA}>Ekip Payı</span><span className={cellA}>Dep. Payı</span>
           </div>
           {idx.map((i) => (
             <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
               <span className={`${cellA} text-left`}>{months[i]}</span>
+              <span className={cellA}>{on[i] && maksAy(i) ? fmtSaat(maksAy(i)) : '–'}</span>
               <span className={cellA}>{on[i] ? fmtSaat(d.monthly[i]) : '–'}</span>
+              <span className={`${cellA} ${on[i] && maksAy(i) ? oranCls(d.monthly[i] / maksAy(i)) : ''}`}>{on[i] && maksAy(i) ? pct1(d.monthly[i] / maksAy(i)) : '–'}</span>
               <span className={cellA}>{on[i] ? fmtN(d.team[i]) : '–'}</span>
               <span className={cellA}>{on[i] && d.team[i] ? pct1(d.monthly[i] / d.team[i]) : '–'}</span>
+              <span className={cellA}>{on[i] && d.dep[i] ? pct1(d.monthly[i] / d.dep[i]) : '–'}</span>
             </div>
           ))}
           <div className={`${gridA} border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-900 dark:text-slate-50`}>
-            <span className={`${cellA} text-left`}>Toplam</span><span className={cellA}>{fmtSaat(toplamKisi)}</span><span className={cellA}>{fmtN(toplamEkip)}</span><span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span>
+            <span className={`${cellA} text-left`}>Toplam</span><span className={cellA}>{toplamMaks ? fmtSaat(toplamMaks) : '–'}</span><span className={cellA}>{fmtSaat(toplamKisi)}</span><span className={`${cellA} ${toplamMaks ? oranCls(toplamKisi / toplamMaks) : ''}`}>{toplamMaks ? pct1(toplamKisi / toplamMaks) : '–'}</span><span className={cellA}>{fmtN(toplamEkip)}</span><span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span><span className={cellA}>{toplamDep ? pct1(toplamKisi / toplamDep) : '–'}</span>
           </div>
         </div>
       </div>
