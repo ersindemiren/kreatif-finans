@@ -97,7 +97,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
   // Kullanıcının izinli sayfaları (sunucu zaten yalnızca bu sayfaların verisini gönderir); admin ayrıca Yönetim sayfasını görür
   const izinli = user?.pages || [];
   // Süre Analiz üç ayrı yetkidir (müşteri / personel / departman); menüde tek sayfa olarak görünür
-  const sureGorunumler = [['sureAnalizi', 'musteri'], ['sureAnalizPersonel', 'personel'], ['sureAnalizDepartman', 'departman']].filter(([k]) => izinli.includes(k)).map(([, g]) => g);
+  const sureGorunumler = [['sureAnalizi', 'musteri'], ['sureAnalizPersonel', 'personel'], ['sureAnalizDepartman', 'departman'], ['sureAnalizKarsilastirma', 'karsilastirma']].filter(([k]) => izinli.includes(k)).map(([, g]) => g);
   const menuIzinli = [...izinli.filter((p) => !p.startsWith('sureAnaliz')), ...(sureGorunumler.length ? ['sureAnalizi'] : [])];
   const [page, setPage] = useState(baslangicSayfa || menuIzinli[0] || (user?.role === 'admin' ? 'yonetim' : 'dashboard'));
   const { genelDegerlendirme = [], giderYorumlari = [], gelirYorumlari = [], aksiyonlar = [] } = data.yorumlar || {};
@@ -307,7 +307,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
   ];
   // Yönetim'deki yetki düğmeleri: Süre Analiz üç ayrı düğmedir
   const yetkiSayfalari = tumSayfalar.flatMap((p) => (p.id === 'sureAnalizi'
-    ? [{ ...p, label: 'Süre Analiz · Müşteri' }, { id: 'sureAnalizPersonel', label: 'Süre Analiz · Personel', icon: Clock }, { id: 'sureAnalizDepartman', label: 'Süre Analiz · Departman', icon: Clock }]
+    ? [{ ...p, label: 'Süre Analiz · Müşteri' }, { id: 'sureAnalizPersonel', label: 'Süre Analiz · Personel', icon: Clock }, { id: 'sureAnalizDepartman', label: 'Süre Analiz · Departman', icon: Clock }, { id: 'sureAnalizKarsilastirma', label: 'Süre Analiz · Karşılaştırma', icon: Clock }]
     : [p]));
   const pages = [
     ...tumSayfalar.filter((p) => menuIzinli.includes(p.id)),

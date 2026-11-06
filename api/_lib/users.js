@@ -24,7 +24,7 @@ export function sanitizeUser(u) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Geçersiz e-posta');
   const role = u.role === 'admin' ? 'admin' : 'member';
   const pages = role === 'admin' ? PAGES : PAGES.filter((p) => (u.pages || []).includes(p));
-  return { email, name: String(u.name || '').trim().slice(0, 80), title: String(u.title || '').trim().slice(0, 80), role, pages, v: 2 };
+  return { email, name: String(u.name || '').trim().slice(0, 80), title: String(u.title || '').trim().slice(0, 80), role, pages, v: 3 };
 }
 
 export async function listUsers() {
@@ -36,10 +36,12 @@ export async function listUsers() {
   }
   // Tek seferlik geçiş (v2): Süre Analiz personel/departman yetkileri ayrıldı. Eski tüm sayfalara yetkisi olan üyeler yenilerini de alır;
   // kısıtlı üyelerde "Süre Analiz" yalnızca müşteri görünümü olarak kalır.
-  if (users.some((u) => u.v !== 2)) {
-    const eski = PAGES.filter((p) => p !== 'sureAnalizPersonel' && p !== 'sureAnalizDepartman');
+  // v3: Süre Analiz Karşılaştırma yetkisi eklendi; tüm sayfalara yetkisi olan üyeler onu da alır, kısıtlı üyeler almaz.
+  if (users.some((u) => u.v !== 3)) {
+    const YENILER = ['sureAnalizPersonel', 'sureAnalizDepartman', 'sureAnalizKarsilastirma'];
     users = users.map((u) => {
-      if (u.v === 2) return u;
+      if (u.v === 3) return u;
+      const eski = PAGES.filter((p) => (u.v === 2 ? p !== 'sureAnalizKarsilastirma' : !YENILER.includes(p)));
       const tam = u.role === 'admin' || eski.every((p) => (u.pages || []).includes(p));
       return sanitizeUser({ ...u, pages: tam ? PAGES : u.pages });
     });

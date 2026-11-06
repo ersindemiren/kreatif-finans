@@ -11,6 +11,7 @@ export const PAGE_GROUPS = {
   sureAnalizi: ['CIRO', 'GELIR', 'SATIS', 'SURE'], // müşteri görünümü
   sureAnalizPersonel: ['CIRO', 'GELIR', 'SATIS', 'SURE', 'PERSONEL'],
   sureAnalizDepartman: ['CIRO', 'GELIR', 'SATIS', 'SURE', 'PERSONEL'],
+  sureAnalizKarsilastirma: ['CIRO', 'GELIR', 'SATIS', 'SURE', 'PERSONEL'],
   feeTakip: ['CIRO', 'SATIS', 'FEETAKIP'],
   yorumlar: ['YORUM'],
 };

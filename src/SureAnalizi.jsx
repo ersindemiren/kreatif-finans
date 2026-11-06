@@ -23,8 +23,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   // Düğme tepkisi anında (selected), ağır tablolar hemen ardından (sel) çizilir: tıklama sırasında arayüz kilitlenmez
   const sel = useDeferredValue(selected);
   const temelGorunum = gorunumler?.length ? gorunumler : ['musteri'];
-  const izinliGorunum = temelGorunum.includes('personel') ? [...temelGorunum, 'karsilastirma'] : temelGorunum; // Karşılaştırma, personel yetkisine bağlıdır
-  const personelAcik = izinliGorunum.includes('personel') || izinliGorunum.includes('departman');
+  const izinliGorunum = temelGorunum;
+  const personelAcik = izinliGorunum.some((g) => g !== 'musteri');
   const [gorunum, setGorunum] = useState(temelGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
   const gor = useDeferredValue(gorunum);
   const [acikDep, setAcikDep] = useState(null);
