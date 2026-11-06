@@ -1,7 +1,7 @@
 // Everhour müşteri adı eşleştirme: yalnızca admin. GET liste + mevcut eşleşmeler, PUT eşleştir/kaldır.
 import { json, sameOriginJson, readBody, currentUser } from './_lib/http.js';
 import { getEverhour, clearEverhourCache, teshis, teshis2, teshis3, teshis4 } from './_lib/everhour.js';
-import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, maliyetIceAktar, readTatil, setTatiller, kisiOzet, kaydetKisiOzet, readKisiOzet } from './_lib/everhourMap.js';
+import { readMap, setMapping, readDepartman, setDepartman, readPasif, setPasif, readMaliyet, setMaliyetKisi, setDagitim, kopyalaAy, maliyetTohumla, maliyetKisileri, readTatil, setTatiller, kisiOzet, kaydetKisiOzet, readKisiOzet } from './_lib/everhourMap.js';
 
 export default async function handler(req, res) {
   try {
@@ -19,6 +19,7 @@ export default async function handler(req, res) {
     }
     // Hafif okuma: yalnızca resmi tatil listesi (Everhour'a gitmez)
     // Hafif okuma (maliyet bölümü): Everhour'a gitmeden; kişi listesi son kaydedilen özetten gelir (yoksa kisiler: null)
+    if (req.method === 'GET') { try { await maliyetTohumla(); } catch { /* tohumlama başarısızsa sayfa yine açılır */ } }
     if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('bolum') === 'maliyet') {
       const oz = await readKisiOzet();
       return json(res, 200, { kisiler: oz ? oz.kisiler : null, aylikSaat: oz ? oz.aylikSaat : {}, ozetZamani: oz?.at || null, pasif: await readPasif(), maliyet: await readMaliyet(), tatiller: await readTatil() });
@@ -28,19 +29,13 @@ export default async function handler(req, res) {
       const ev = await getEverhour({ key: process.env.EVERHOUR_API_KEY, year: new Date().getFullYear(), upToMonth: new Date().getMonth() + 1 });
       const { kisiler, aylikSaat } = kisiOzet(ev.personel);
       await kaydetKisiOzet(ev.personel);
-      return json(res, 200, { musteriler: ev.musteriler, map: await readMap(), kisiler, departman: await readDepartman(), pasif: await readPasif(), maliyet: await readMaliyet(), aylikSaat, tatiller: await readTatil(), ozetZamani: new Date().toISOString() });
+      const mal = await readMaliyet();
+      const bilinen = new Set(kisiler.map((k) => k.name));
+      return json(res, 200, { musteriler: ev.musteriler, map: await readMap(), kisiler, ekKisiler: maliyetKisileri(mal).filter((n) => !bilinen.has(n)), departman: await readDepartman(), pasif: await readPasif(), maliyet: mal, aylikSaat, tatiller: await readTatil(), ozetZamani: new Date().toISOString() });
     }
     if (req.method === 'PUT') {
       if (!sameOriginJson(req)) return json(res, 403, { error: 'İstek reddedildi' });
       const body = await readBody(req);
-      if (body.iceAktar) {
-        // Bir seferlik: veri, sunucu ortam değişkeninden (MALIYET_ICE_AKTAR, JSON) okunur; depoda tutulmaz.
-        let veri = null;
-        try { veri = JSON.parse(process.env.MALIYET_ICE_AKTAR || ''); } catch { /* aşağıda hata */ }
-        if (!veri) return json(res, 400, { error: 'Aktarılacak veri tanımlı değil' });
-        const oz = await readKisiOzet();
-        return json(res, 200, await maliyetIceAktar(veri, (oz?.kisiler || []).map((k) => k.name), JSON.parse(process.env.MALIYET_ICE_HARIC || '[]')));
-      }
       if (body.maliyetKisi !== undefined) return json(res, 200, { maliyet: await setMaliyetKisi(body.ay, body.maliyetKisi, body.tutar) });
       if (body.dagitim !== undefined) return json(res, 200, { maliyet: await setDagitim(body.ay, body.dagitim) });
       if (body.tatiller !== undefined) return json(res, 200, { tatiller: await setTatiller(body.tatiller) });

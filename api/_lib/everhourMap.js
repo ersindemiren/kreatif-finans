@@ -107,7 +107,7 @@ export async function readMaliyet() {
     Object.entries(m && typeof m.aylar === 'object' && m.aylar ? m.aylar : {}).forEach(([ym, v]) => {
       if (YM.test(ym)) aylar[ym] = { kisi: v && typeof v.kisi === 'object' && !Array.isArray(v.kisi) ? v.kisi : {}, dagitim: Number(v?.dagitim) > 0 ? Number(v.dagitim) : 0 };
     });
-    return { aylar };
+    return m?.tohum ? { aylar, tohum: m.tohum } : { aylar };
   } catch { return { aylar: {} }; }
 }
 
@@ -147,46 +147,38 @@ export async function kopyalaAy(kaynak, hedef) {
   return m;
 }
 
-// Ad eşleştirme anahtarı: büyük harf (tr), Türkçe karakterler sadeleştirilir, sözcükler sıralanır ("Cem Eyrenci" = "EYRENCİ CEM").
-const adAnahtar = (s) => String(s || '').toLocaleUpperCase('tr-TR').replace(/[ÇĞİIŞÖÜÂÎÛ]/g, (c) => ({ Ç: 'C', Ğ: 'G', İ: 'I', I: 'I', Ş: 'S', Ö: 'O', Ü: 'U', Â: 'A', Î: 'I', Û: 'U' }[c])).replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
+// Ad eşleştirme anahtarı: büyük harf (tr), aksanlar sadeleştirilir, boşluklar tekilleştirilir
+const adAnahtar = (x) => String(x || '').toLocaleUpperCase('tr-TR').replace(/[ÇĞİIŞÖÜÂÎÛ]/g, (c) => ({ Ç: 'C', Ğ: 'G', İ: 'I', I: 'I', Ş: 'S', Ö: 'O', Ü: 'U', Â: 'A', Î: 'I', Û: 'U' }[c])).replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
 
-// Toplu içe aktarma: veri = { aylar: { 'YYYY-AA': { dagitim, kisi: { AD: tutar } } } }. Adlar Everhour'daki kişilerle eşleştirilir;
-// eşleşmeyen (süre girmeyen) kişiler olduğu gibi eklenir. Verilen kişi/ay değerleri üzerine yazılır, diğerlerine dokunulmaz.
-export async function maliyetIceAktar(veri, everhourAdlari = [], haric = []) {
-  const hariç = new Set(haric.map(adAnahtar));
-  if (!veri || typeof veri.aylar !== 'object') throw new Error('Aktarılacak veri yok');
-  const harita = new Map();
-  everhourAdlari.forEach((a) => { const k = adAnahtar(a); if (k && !harita.has(k)) harita.set(k, a); });
-  // Tam eşleşme yoksa: sözcüklerden biri diğerinin alt kümesiyse ve tek aday varsa eşleştir ("MELİH SAKA" ~ "İSMAİL MELİH SAKA")
-  const jetonlar = [...harita.keys()].map((k) => [k, new Set(k.split(' '))]);
-  const bul = (ad) => {
-    const k = adAnahtar(ad);
-    if (harita.has(k)) return { e: harita.get(k) };
-    const t = new Set(k.split(' '));
-    const aday = jetonlar.filter(([, j]) => { const [kucuk, buyuk] = t.size <= j.size ? [t, j] : [j, t]; return [...kucuk].every((x) => buyuk.has(x)); });
-    return aday.length === 1 ? { e: harita.get(aday[0][0]), bulanik: true } : { e: undefined };
-  };
-  const benzer = new Map();
+// Bir seferlik tohumlama: MALIYET_ICE_AKTAR (JSON, sunucu ortam değişkeni) bir kez yazılır; veri depoda tutulmaz.
+// MALIYET_ICE_ADLAR: eski ad -> doğru ad, MALIYET_ICE_HARIC: dağıtım dışı kişiler. Yazılan aylar sheet'teki haliyle değiştirilir.
+export async function maliyetTohumla() {
+  if (!process.env.MALIYET_ICE_AKTAR) return;
+  let veri; let adlar = {}; let haric = [];
+  try { veri = JSON.parse(process.env.MALIYET_ICE_AKTAR); adlar = JSON.parse(process.env.MALIYET_ICE_ADLAR || '{}'); haric = JSON.parse(process.env.MALIYET_ICE_HARIC || '[]'); } catch { return; }
+  if (!veri || typeof veri.aylar !== 'object') return;
   const m = await readMaliyet();
-  const yeni = new Set();
-  let eslesen = 0;
-  let kayit = 0;
+  if (m.tohum) return;
+  const oz = await readKisiOzet();
+  const ev = new Map((oz?.kisiler || []).map((k) => [adAnahtar(k.name), k.name])); // Everhour'daki yazılışı kullan
   Object.entries(veri.aylar).forEach(([ay, v]) => {
     ayKontrol(ay);
     const a = ayAl(m, ay);
-    if (v.dagitim !== undefined) a.dagitim = tutar(v.dagitim);
-    a.kisi = {}; // içe aktarılan ay, sheet'teki haliyle değiştirilir (dağıtım dışı kişiler dahil eski kayıtlar temizlenir)
+    a.dagitim = tutar(v.dagitim);
+    a.kisi = {};
     Object.entries(v.kisi || {}).forEach(([ad, t]) => {
-      if (hariç.has(adAnahtar(ad))) return;
-      const { e, bulanik } = bul(ad);
-      if (bulanik) benzer.set(String(ad).trim(), e);
-      if (e) eslesen += 1; else yeni.add(String(ad).trim().slice(0, 120));
+      if (haric.includes(ad)) return;
       const n = tutar(t);
-      if (n > 0) { a.kisi[e || String(ad).trim().slice(0, 120)] = n; kayit += 1; }
+      if (n > 0) { const d = adlar[ad] || ad; a.kisi[ev.get(adAnahtar(d)) || d.toLocaleUpperCase('tr-TR')] = n; }
     });
   });
+  m.tohum = new Date().toISOString();
   await malStore.write(m);
-  return { maliyet: m, rapor: { aylar: Object.keys(veri.aylar).length, kayit, eslesen, eslesmeyen: [...yeni], benzer: [...benzer].map(([x, y]) => `${x} → ${y}`) } };
+}
+
+// Maliyet verisinde olup Everhour listesinde olmayan kişiler (süre girmemiş / henüz eşleşmemiş)
+export function maliyetKisileri(m) {
+  return [...new Set(Object.values(m?.aylar || {}).flatMap((a) => Object.keys(a.kisi || {})))];
 }
 
 // Resmi tatiller (Yönetim'den düzenlenir): [{ tarih: 'YYYY-AA-GG', ad, yarim? }]. Kayıt yoksa 2026 varsayılan listesi.
