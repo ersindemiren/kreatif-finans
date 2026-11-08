@@ -237,7 +237,7 @@ function govde(v) {
       onizleme: `${eksikGun.ad} için çıkış kaydın düşmemiş görünüyor. Muhasebe'ye bildirerek manuel kayıt talep edebilirsin.`,
       baslik: `${gunBas} Mobofis'te çıkış kaydın yok`,
       html: `
-      ${hero('warn', 'Merhaba Ayşe,', `${gunBas} Mobofis'te çıkış kaydın yok`, `${eksikGun.ad} saat 18:30 itibarıyla çıkış kaydın düşmemiş görünüyor. Kayıt için adımları takip et.`)}
+      ${hero('warn', 'Merhaba İsim Soyisim,', `${gunBas} Mobofis'te çıkış kaydın yok`, `${eksikGun.ad} saat 18:30 itibarıyla çıkış kaydın düşmemiş görünüyor. Kayıt için adımları takip et.`)}
       ${blok(`
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           ${adim(1, 'Çıkış kaydını düzenle', `Mobofis üzerinden geçmiş kayıt düzenleme yapılamaz.<br>Muhasebe'ye ${eksikGun.ad} günü çıkış saatini bildirerek manuel giriş yapılması için talepte bulunabilirsin.`, '')}
@@ -252,7 +252,7 @@ function govde(v) {
       onizleme: 'Mobofis\'te bugün için giriş kaydı yok.',
       baslik: 'Giriş kaydın görünmüyor',
       html: `
-      ${hero('warn', 'Merhaba Ayşe,', 'Bugün Mobofis\'te giriş kaydın yok', 'Saat 10:30 itibarıyla kaydın düşmemiş görünüyor. Ofisteysen kaydını şimdi tamamlayabilirsin.')}
+      ${hero('warn', 'Merhaba İsim Soyisim,', 'Bugün Mobofis\'te giriş kaydın yok', 'Saat 10:30 itibarıyla kaydın düşmemiş görünüyor. Ofisteysen kaydını şimdi tamamlayabilirsin.')}
       ${blok(`
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           ${adim(1, 'Ofisteysen giriş kaydını oluştur', 'Mobofis üzerinden kaydı eklemeyi unutmuş olabilirsin.', '')}
@@ -268,7 +268,7 @@ function govde(v) {
       onizleme: 'Tamamlanmayan task\'in ve tarihinde tamamlanmayan geçmiş işin yok. Eline sağlık!',
       baslik: 'Gün sonuna yaklaştık',
       html: `
-      ${hero('ok', 'Merhaba Ayşe,', 'Gün sonuna yaklaştık, bugün harika görünüyor', 'Tamamlanmayan task\'in ve tarihinde tamamlanmayan geçmiş işin yok. Eline sağlık!', 5, 5)}
+      ${hero('ok', 'Merhaba İsim Soyisim,', 'Gün sonuna yaklaştık, bugün harika görünüyor', 'Tamamlanmayan task\'in ve tarihinde tamamlanmayan geçmiş işin yok. Eline sağlık!', 5, 5)}
       ${blok(statlar('8 sa 28 dk', 'Giriş 09:02', '7 sa 32 dk'))}
       ${blok(`<div style="font-size:13px;color:${K.mut};">İstersen yarının önceliklerini şimdiden Asana'da netleştirebilirsin:&nbsp; <a href="https://app.asana.com" target="_blank" style="font-weight:600;color:${K.brand};text-decoration:none;">Görevlerim →</a></div>`)}
       ${altBilgi('17:30')}`
@@ -279,7 +279,7 @@ function govde(v) {
     onizleme: 'Zaman kaydını tamamla ve tamamlanmamış görevlerini kontrol et.',
     baslik: 'Gün sonuna yaklaştık',
     html: `
-    ${hero('warn', 'Merhaba Ayşe,', 'Gün sonuna yaklaştık', 'Aşağıdaki adımları şimdi tamamlarsan gün temiz kapanır.', 6, 24)}
+    ${hero('warn', 'Merhaba İsim Soyisim,', 'Gün sonuna yaklaştık', 'Aşağıdaki adımları şimdi tamamlarsan gün temiz kapanır.', 6, 24)}
     ${blok(`
       <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:14px;">Mesai bitmeden yapılacaklar</div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -362,7 +362,7 @@ function sarmal(g) {
     <table role="presentation" class="wrap card" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:16px;font-family:${FONT};color:${K.ink};">
       <tr><td style="padding:24px 28px 18px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td style="font-size:17px;font-weight:800;color:${K.ink};">Merhaba Ayşe,</td>
+          <td style="font-size:17px;font-weight:800;color:${K.ink};">Merhaba İsim Soyisim,</td>
           <td align="right" style="font-size:12px;color:${K.mut};">${g.tarih || 'Cuma, 6 Kasım'}</td></tr></table>
       </td></tr>
       ${g.html}
