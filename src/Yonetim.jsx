@@ -208,7 +208,7 @@ function MaliyetHesaplama() {
 // Rapor Mail Şablonları: ekibe gidecek günlük/haftalık/aylık rapor maillerinin önizlemesi (örnek veriyle). Gönderim henüz bağlı değil.
 // Önizleme sayfası doğrudan Yönetim içeriği olarak görünür: kendi başlığı gizlenir, zemin saydam olur
 const MAIL_SABLON_HTML = mailSablonHtml
-  .replace('<header>', '<header style="display:none">')
+  .replace('<h1>', '<h1 style="display:none">')
   .replace('background:var(--bg)', 'background:transparent');
 
 function MailSablonlari() {
