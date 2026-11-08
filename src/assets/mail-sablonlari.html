@@ -19,7 +19,8 @@
   .seg button[aria-pressed="true"] { background:var(--ink); color:#fff; }
   #senaryo { flex:1 1 100%; display:flex; }
   #senaryo button { flex:1 1 auto; padding-left:4px; padding-right:4px; white-space:nowrap; font-size:12.5px; }
-  .meta { font-size:12px; color:var(--mut); margin-left:auto; text-align:right; }
+  #genislik button, #durumseg button, #tema button { padding-left:7px; padding-right:7px; }
+  .meta { white-space:nowrap; font-size:12px; color:var(--mut); margin-left:auto; text-align:right; }
   .stage { display:flex; justify-content:center; padding:0 16px 40px; }
   .frame { max-width:100%; background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 8px 30px rgba(17,24,39,.08); transition:width .2s; }
   .inbox { padding:12px 16px; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--mut); background:#fafafa; }
@@ -34,21 +35,19 @@
   <h1>Ekip maili şablonu — önizleme</h1>
 </header>
 <div class="bar">
-  <div class="seg" id="senaryo" role="group" aria-label="Senaryo">
-    <button data-v="eksik" aria-pressed="true">17:30 · Eksikler var</button>
-    <button data-v="tamam" aria-pressed="false">17:30 · Her şey yolunda</button>
-    <button data-v="giris" aria-pressed="false">10:30 · Giriş yok</button>
-    <button data-v="cikis" aria-pressed="false">08:45 · Çıkış yok</button>
-    <button data-v="hafta" aria-pressed="false">Haftalık</button>
-    <button data-v="ay" aria-pressed="false">Aylık</button>
+  <div class="seg" id="senaryo" role="group" aria-label="Mail türü">
+    <button data-k="gunluk" aria-pressed="true">Günlük 17:30 Maili</button>
+    <button data-k="gc" aria-pressed="false">Giriş Çıkış Maili</button>
+    <button data-k="hafta" aria-pressed="false">Haftalık Rapor</button>
+    <button data-k="ay" aria-pressed="false">Aylık Rapor</button>
   </div>
   <div class="seg" id="genislik" role="group" aria-label="Genişlik">
     <button data-w="620" aria-pressed="true">Bilgisayar</button>
-    <button data-w="375" aria-pressed="false">Telefon</button>
+    <button data-w="375" aria-pressed="false">Mobil</button>
   </div>
-  <div class="seg" id="durumseg" role="group" aria-label="Örnek durum: Eksik Kayıt / Temiz Kayıt" style="display:none">
-    <button data-d="sorunlu" aria-pressed="true">Eksik Kayıt</button>
-    <button data-d="temiz" aria-pressed="false">Temiz Kayıt</button>
+  <div class="seg" id="durumseg" role="group" aria-label="Örnek durum">
+    <button data-d="a" aria-pressed="true">Eksik Kayıt</button>
+    <button data-d="b" aria-pressed="false">Temiz Kayıt</button>
   </div>
   <div class="seg" id="tema" role="group" aria-label="Tema">
     <button data-t="acik" aria-pressed="true">Açık</button>
@@ -357,16 +356,25 @@ function sarmal(g) {
   </td></tr></table></body></html>`);
 }
 
-let v = 'eksik', tema = 'acik', durumSec = 'sorunlu';
+let v = 'eksik', tema = 'acik', durumSec = 'sorunlu', tur = 'gunluk', alt = 'a';
+const ALT_ETIKET = { gunluk: ['Eksik Kayıt', 'Temiz Kayıt'], gc: ['Giriş Yok', 'Çıkış Yok'], hafta: ['Eksik Kayıt', 'Temiz Kayıt'], ay: ['Eksik Kayıt', 'Temiz Kayıt'] };
+const META = { eksik: 'Gönderim: iş günü 17:30', tamam: 'Gönderim: iş günü 17:30', giris: 'Gönderim: iş günü 10:30', cikis: 'Gönderim: ertesi gün 08:45', hafta: 'Gönderim: pazartesi 08:45', ay: 'Gönderim: ayın 1. iş günü 08:45' };
+function secimiUygula() {
+  v = tur === 'gunluk' ? (alt === 'a' ? 'eksik' : 'tamam') : tur === 'gc' ? (alt === 'a' ? 'giris' : 'cikis') : tur;
+  durumSec = alt === 'a' ? 'sorunlu' : 'temiz';
+  const dugmeler = document.querySelectorAll('#durumseg button');
+  dugmeler.forEach((x) => { x.textContent = ALT_ETIKET[tur][x.dataset.d === 'a' ? 0 : 1]; x.setAttribute('aria-pressed', x.dataset.d === alt); });
+  document.querySelectorAll('#senaryo button').forEach((x) => x.setAttribute('aria-pressed', x.dataset.k === tur));
+}
 function ciz() {
+  secimiUygula();
   const g = govde(v);
   const f = document.getElementById('if'); f.srcdoc = tema === 'koyu' ? sarmal(g).replace('(prefers-color-scheme:dark)', 'all') : sarmal(g); f.onload = () => { f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); };
-  document.getElementById('durumseg').style.display = (v === 'hafta' || v === 'ay') ? 'inline-flex' : 'none';
-  document.getElementById('meta').textContent = ({giris:'Gönderim: iş günü 10:30 · yalnızca giriş kaydı olmayanlara', cikis:'Gönderim: ertesi gün 08:45 · çıkış kaydı olmayanlara', hafta:'Gönderim: pazartesi 08:45', ay:'Gönderim: ayın ilk iş günü 08:45'})[v] || 'Gönderim: iş günü 17:30';
+  document.getElementById('meta').textContent = META[v];
 }
-document.querySelectorAll('#senaryo button').forEach((b) => b.onclick = () => { v = b.dataset.v; document.querySelectorAll('#senaryo button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
+document.querySelectorAll('#senaryo button').forEach((b) => b.onclick = () => { tur = b.dataset.k; alt = 'a'; ciz(); });
 document.querySelectorAll('#genislik button').forEach((b) => b.onclick = () => { document.getElementById('frame').style.width = b.dataset.w + 'px'; setTimeout(() => { const f = document.getElementById('if'); f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); }, 120); document.querySelectorAll('#genislik button').forEach((x) => x.setAttribute('aria-pressed', x === b)); });
-document.querySelectorAll('#durumseg button').forEach((b) => b.onclick = () => { durumSec = b.dataset.d; document.querySelectorAll('#durumseg button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
+document.querySelectorAll('#durumseg button').forEach((b) => b.onclick = () => { alt = b.dataset.d; ciz(); });
 document.querySelectorAll('#tema button').forEach((b) => b.onclick = () => { tema = b.dataset.t; document.querySelectorAll('#tema button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
 function ustYukseklik() { parent.postMessage({ kfMailYukseklik: Math.ceil(document.body.getBoundingClientRect().height) }, '*'); }
 window.addEventListener('message', (e) => { if (e.data === 'boyut') { const f = document.getElementById('if'); f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); } });
