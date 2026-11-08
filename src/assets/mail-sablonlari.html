@@ -124,7 +124,7 @@ function dagilim(baslik, satirlar) {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${satirlar.map(satir).join('')}</table>`;
 }
 function donemTile(deger, etiket, alt) { return stat(deger, etiket, alt, ''); }
-const CHIP = { tatil: ['Resmi tatil', '#eef0f4', '#4b5563'], tam: ['Tam kayıt', '#e8efe6', '#3f6b33'], gecikme: ['Gecikme', '#fbe4e1', '#b42318'], eksik: ['Eksik kayıt', '#f8e9d8', '#9a5b1f'] };
+const CHIP = { izinli: ['İzinli', '#e6edf9', '#1e4a8a'], tatil: ['Resmi tatil', '#eef0f4', '#4b5563'], tam: ['Tam kayıt', '#e8efe6', '#3f6b33'], gecikme: ['Gecikme', '#fbe4e1', '#b42318'], eksik: ['Eksik kayıt', '#f8e9d8', '#9a5b1f'] };
 const chip = (tip) => `<span style="display:inline-block;font-size:12px;font-weight:700;padding:4px 8px;border-radius:999px;white-space:nowrap;background:${CHIP[tip][1]};color:${CHIP[tip][2]};">${CHIP[tip][0]}</span>`;
 const dk = (t) => { const [h, m] = t.split(':'); return +h * 60 + +m; };
 // Kural: giriş 09:15'ten sonra ya da çıkış 18:15'ten önce → Gecikme; giriş/çıkış yoksa → Eksik kayıt; aksi halde Tam kayıt
@@ -152,7 +152,7 @@ function tamamlanan(baslik, satirlar, ek, link) {
           <td valign="middle" align="right" width="70" style="font-size:12px;color:${K.mut};white-space:nowrap;">${x[2]}</td></tr></table></td></tr>`).join('')}
     </table>${ek ? `<div style="font-size:13px;color:${K.mut};padding-top:10px;border-top:1px solid ${K.line};">${ek}</div>` : ''}${link ? `<div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:13px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">${link}</a></div>` : ''}`;
 }
-const durum = (x) => (x[3] === 'tatil' ? 'tatil' : kayitDurum(x[1], x[2]));
+const durum = (x) => (x[3] === 'tatil' ? 'tatil' : x[3] === 'izin' ? 'izinli' : kayitDurum(x[1], x[2]));
 function donem(v, temiz) {
   const h = v === 'hafta';
   const P = h ? {
@@ -160,7 +160,7 @@ function donem(v, temiz) {
     konu: 'Geçen haftanın özeti: 26 – 30 Ekim', onizleme: '41 sa 58 dk işbaşında, 28 sa 47 dk zaman kaydı, 17 tamamlanan task.',
     t: [['41 sa 58 dk', 'İşbaşında', 'Önceki hafta 40 sa 12 dk'], ['28 sa 47 dk', 'Zaman kaydı', 'Önceki hafta 31 sa 05 dk'], ['17', 'Tamamlanan task', '22 task\'te yer aldın', K.ok], ['3', 'Tarihinde kapanmayan', 'Planlanan tarih geçen task']],
     gcBaslik: 'Giriş — Çıkış Kayıtları', gcKol: ['Tarih', 'Giriş', 'Çıkış', 'Durum'],
-    gc: [['26 Eki Pzt', '09:12', '—'], ['27 Eki Sal', '09:19', '18:31'], ['28 Eki Çar', '08:58', '18:25'], ['29 Eki Per', '—', '—', 'tatil'], ['30 Eki Cum', '09:23', '18:36']],
+    gc: [['26 Eki Pzt', '09:12', '—'], ['27 Eki Sal', '09:19', '18:31'], ['28 Eki Çar', '08:58', '18:25'], ['29 Eki Per', '—', '—', 'tatil'], ['30 Eki Cum', '—', '—', 'izin']],
     zkBaslik: 'Zaman kaydı / işbaşında geçen süre',
     zk: [{ ad: 'Pazartesi', kayit: '7 sa 45 dk', isbasi: '—', oran: .8 }, { ad: 'Salı', kayit: '6 sa 50 dk', isbasi: '9 sa 12 dk', oran: .74 }, { ad: 'Çarşamba', kayit: '7 sa 20 dk', isbasi: '9 sa 27 dk', oran: .78 }, { ad: 'Perşembe', kayit: '2 sa 10 dk', isbasi: '—', oran: .23 }, { ad: 'Cuma', kayit: '4 sa 42 dk', isbasi: '9 sa 13 dk', oran: .51 }],
     tBaslik: 'Tamamladığın görevler',
@@ -184,7 +184,7 @@ function donem(v, temiz) {
       ['16 Eki Cum', '09:18', '18:27'],
       ['19 Eki Pzt', '09:06', '18:36'],
       ['20 Eki Sal', '09:10', '18:32'],
-      ['21 Eki Çar', '09:01', '18:42'],
+      ['21 Eki Çar', '—', '—', 'izin'],
       ['22 Eki Per', '09:13', '18:30'],
       ['23 Eki Cum', '09:17', '18:26'],
       ['26 Eki Pzt', '09:12', '—'],
@@ -199,7 +199,7 @@ function donem(v, temiz) {
     tEk: '+ 75 görev daha tamamladın', alt: '1 Kasım Pazar 08:45' };
   if (temiz) {
     // Sorunsuz hafta/ay: gecikme ve eksik kayıt yok
-    P.gc = P.gc.map((x) => (x[3] === 'tatil' || durum(x) === 'tam' ? x : [x[0], '09:07', '18:32']));
+    P.gc = P.gc.map((x) => (x[3] === 'tatil' || x[3] === 'izin' || durum(x) === 'tam' ? x : [x[0], '09:07', '18:32']));
     P.baslik = h ? '26 – 30 Ekim haftası harika geçti' : 'Ekim ayı harika geçti';
     P.metin = h ? 'Giriş–çıkış kayıtların tamam ve tarihinde kapanmayan görevin yok. Eline sağlık!' : 'Ay boyunca giriş–çıkış kayıtların tamam ve tarihinde kapanmayan görevin yok. Eline sağlık!';
   }
