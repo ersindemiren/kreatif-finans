@@ -165,7 +165,7 @@ function donem(v, temiz) {
     zk: [{ ad: 'Pazartesi', kayit: '7 sa 45 dk', isbasi: '—', oran: .8 }, { ad: 'Salı', kayit: '6 sa 50 dk', isbasi: '9 sa 12 dk', oran: .74 }, { ad: 'Çarşamba', kayit: '7 sa 20 dk', isbasi: '9 sa 27 dk', oran: .78 }, { ad: 'Perşembe', kayit: '2 sa 10 dk', isbasi: '—', oran: .23 }, { ad: 'Cuma', kayit: '4 sa 42 dk', isbasi: '9 sa 13 dk', oran: .51 }],
     tBaslik: 'Tamamladığın görevler',
     tl: [['Kampanya görselleri – ilk revizyon', 'Kozoliv · Bilinirlik filmi', 'Pzt'], ['Haftalık performans raporu', 'Potamya · Raporlama', 'Sal'], ['Sosyal medya takvimi – Kasım', 'Kozoliv · İçerik planı', 'Çar'], ['Banner seti – 3 boyut', 'Servet · Kampanya', 'Çar'], ['Müşteri sunum dosyası', 'Potamya · Strateji', 'Per'], ['Reels kurgusu – final', 'Kozoliv · Bilinirlik filmi', 'Cum']],
-    tEk: '+ 11 görev daha tamamladın', alt: '27 Ekim Pazartesi 08:45' } : {
+    tEk: '+ 14 görev daha tamamladın', alt: '27 Ekim Pazartesi 08:45' } : {
     tarih: 'Ekim 2026', baslik: 'Ekim ayının özeti hazır', metin: 'Geçen aya göz at.',
     konu: 'Geçen ayın özeti: Ekim 2026', onizleme: '168 sa 40 dk işbaşında, 139 sa 20 dk zaman kaydı, 81 tamamlanan task.',
     t: [['168 sa 40 dk', 'İşbaşında', 'Eylül 161 sa 05 dk'], ['139 sa 20 dk', 'Zaman kaydı', 'Eylül 142 sa 30 dk'], ['81', 'Tamamlanan task', '86 task\'te yer aldın'], ['5', 'Tarihinde kapanmayan', 'Planlanan tarih geçen task']],
@@ -196,7 +196,7 @@ function donem(v, temiz) {
     zk: [{ ad: '1 – 5 Ekim', kayit: '36 sa 10 dk', isbasi: '41 sa 20 dk', oran: .87 }, { ad: '6 – 12 Ekim', kayit: '30 sa 45 dk', isbasi: '40 sa 50 dk', oran: .75 }, { ad: '13 – 19 Ekim', kayit: '34 sa 05 dk', isbasi: '41 sa 10 dk', oran: .83 }, { ad: '20 – 26 Ekim', kayit: '29 sa 40 dk', isbasi: '40 sa 30 dk', oran: .73 }, { ad: '27 – 31 Ekim', kayit: '8 sa 40 dk', isbasi: '9 sa 10 dk', oran: .94 }],
     tBaslik: 'Tamamladığın görevler',
     tl: [['Kampanya görselleri – ilk revizyon', 'Kozoliv · Bilinirlik filmi', '30 Eki'], ['Haftalık performans raporu', 'Potamya · Raporlama', '30 Eki'], ['Reels kurgusu – final', 'Kozoliv · Bilinirlik filmi', '29 Eki'], ['Müşteri sunum dosyası', 'Potamya · Strateji', '28 Eki'], ['Banner seti – 3 boyut', 'Servet · Kampanya', '28 Eki'], ['Sosyal medya takvimi – Kasım', 'Kozoliv · İçerik planı', '27 Eki']],
-    tEk: '+ 75 görev daha tamamladın', alt: '1 Kasım Pazar 08:45' };
+    tEk: '+ 78 görev daha tamamladın', alt: '1 Kasım Pazar 08:45' };
   if (temiz) {
     // Sorunsuz hafta/ay: gecikme ve eksik kayıt yok
     P.gc = P.gc.map((x) => (x[3] === 'tatil' || x[3] === 'izin' || durum(x) === 'tam' ? x : [x[0], '09:07', '18:32']));
@@ -219,7 +219,7 @@ function donem(v, temiz) {
     ${blok(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -6px;width:calc(100% + 12px);">
       ${[0, 2, 4].filter((i) => P.t[i]).map((i) => `<tr>${stat(P.t[i][0], P.t[i][1], P.t[i][2], P.t[i][3] || '')}${P.t[i + 1] ? stat(P.t[i + 1][0], P.t[i + 1][1], P.t[i + 1][2], P.t[i + 1][3] || '') : ''}</tr>`).join('')}</table>`)}
     ${blok(kayitTablosu(P.gcBaslik, P.gcKol, P.gc, 0))}
-    ${blok(tamamlanan(P.tBaslik, P.tl, P.tEk, P.tEk ? 'Tamamlanan görevleri gör →' : ''))}
+    ${blok(tamamlanan(P.tBaslik, P.tl.slice(0, 3), P.tEk, P.tEk ? 'Tamamlanan görevleri gör →' : ''))}
     <tr><td style="padding:18px 28px 28px;"><div style="border-top:1px solid ${K.line};padding-top:16px;font-size:12px;line-height:1.6;color:${K.mut};">
       Bu rapor yalnızca sana gönderildi ve Mobofis, Everhour ve Asana verilerinden hazırlandı. Bir bilgi yanlışsa bu maile yanıt yazman yeterli. <a href="#" style="color:${K.mut};">Bu raporlar hakkında</a></div></td></tr>`
   };
@@ -284,7 +284,7 @@ function govde(v) {
       <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:14px;">Mesai bitmeden yapılacaklar</div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         ${adim(1, 'Zaman kaydını tamamla', 'Çalıştığın ama girmediğin iş varsa Everhour\'a ekle.', btn('Everhour\'u aç', '#15803d'))}
-        ${adim(2, 'Tamamlanmamış görevleri kontrol et', '<b style="color:' + K.ink + ';">Bittiyse</b> Asana\'da kapat. <b style="color:' + K.ink + ';">Sürüyorsa</b> yeni tarih ver ya da ekip yöneticine haber ver.', `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${GOREVLER.slice(0, 7).map((x) => gecikmis(x[0], x[1], x[2])).join('')}</table>${GOREVLER_TOPLAM > 7 ? `<div style="font-size:13px;color:${K.mut};padding:10px 0 0;border-top:1px solid ${K.line};">+ ${GOREVLER_TOPLAM - 7} görev bekliyor</div><div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:13px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Bekleyen görevleri gör →</a></div>` : ''}`)}
+        ${adim(2, 'Tamamlanmamış görevleri kontrol et', '<b style="color:' + K.ink + ';">Bittiyse</b> Asana\'da kapat. <b style="color:' + K.ink + ';">Sürüyorsa</b> yeni tarih ver ya da ekip yöneticine haber ver.', `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${GOREVLER.slice(0, 3).map((x) => gecikmis(x[0], x[1], x[2])).join('')}</table>${GOREVLER_TOPLAM > 3 ? `<div style="font-size:13px;color:${K.mut};padding:10px 0 0;border-top:1px solid ${K.line};">+ ${GOREVLER_TOPLAM - 3} görev bekliyor</div><div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:13px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Bekleyen görevleri gör →</a></div>` : ''}`)}
       </table>`)}
     ${blok(statlar('8 sa 28 dk', 'Giriş 09:02', '5 sa 05 dk'))}
     ${altBilgi('17:30')}`
