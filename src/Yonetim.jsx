@@ -206,13 +206,14 @@ function MaliyetHesaplama() {
 }
 
 // Rapor Mail Şablonları: ekibe gidecek günlük/haftalık/aylık rapor maillerinin önizlemesi (örnek veriyle). Gönderim henüz bağlı değil.
+// Önizleme sayfası doğrudan Yönetim içeriği olarak görünür: kendi başlığı gizlenir, zemin saydam olur
+const MAIL_SABLON_HTML = mailSablonHtml
+  .replace('<header>', '<header style="display:none">')
+  .replace('background:var(--bg)', 'background:transparent');
+
 function MailSablonlari() {
   return (
-    <div className={`${CARD} p-3 sm:p-4`}>
-      <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Rapor Mail Şablonları</h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ekibe gönderilecek günlük, haftalık ve aylık rapor maillerinin önizlemesi. Örnek veriyle hazırlandı; gönderim henüz bağlanmadı.</p>
-      <iframe title="Rapor mail şablonları" srcDoc={mailSablonHtml} className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white" style={{ height: 'calc(100vh - 14rem)', minHeight: 640 }} />
-    </div>
+    <iframe title="Rapor mail şablonları" srcDoc={MAIL_SABLON_HTML} className="w-full block border-0 bg-transparent" style={{ height: 'calc(100vh - 9rem)', minHeight: 700 }} />
   );
 }
 
