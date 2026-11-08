@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gün Sonu Özeti – Mail Şablonu Önizleme</title>
+<style>
+  :root { --bg:#e9eaee; --ink:#111827; --mut:#6b7280; --line:#d9dbe1; --card:#fff; }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header, .bar, .notes { width:620px; max-width:calc(100% - 32px); margin-left:auto; margin-right:auto; padding-left:0; padding-right:0; }
+  header { padding-top:20px; padding-bottom:12px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  header p { margin:0; color:var(--mut); font-size:13px; }
+  .bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding-top:8px; padding-bottom:16px; }
+  .seg { display:inline-flex; background:#fff; border:1px solid var(--line); border-radius:10px; padding:3px; }
+  .seg button { border:0; background:transparent; padding:7px 9px; border-radius:8px; font:inherit; font-size:13px; cursor:pointer; color:var(--mut); }
+  .seg button[aria-pressed="true"] { background:var(--ink); color:#fff; }
+  #senaryo { flex:1 1 100%; display:flex; }
+  #senaryo button { flex:1 1 auto; padding-left:4px; padding-right:4px; white-space:nowrap; font-size:12.5px; }
+  .meta { font-size:12px; color:var(--mut); margin-left:auto; }
+  .stage { display:flex; justify-content:center; padding:0 16px 40px; }
+  .frame { max-width:100%; background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 8px 30px rgba(17,24,39,.08); transition:width .2s; }
+  .inbox { padding:12px 16px; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--mut); background:#fafafa; }
+  .inbox b { color:var(--ink); display:block; font-size:13.5px; font-weight:600; }
+  iframe { width:100%; border:0; display:block; height:1100px; }
+  .notes { padding-bottom:40px; padding-left:18px; color:var(--mut); font-size:13px; }
+  .notes li { margin:3px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ekip maili şablonu — önizleme</h1>
+</header>
+<div class="bar">
+  <div class="seg" id="senaryo" role="group" aria-label="Senaryo">
+    <button data-v="eksik" aria-pressed="true">17:30 · Eksikler var</button>
+    <button data-v="tamam" aria-pressed="false">17:30 · Her şey yolunda</button>
+    <button data-v="giris" aria-pressed="false">10:30 · Giriş yok</button>
+    <button data-v="cikis" aria-pressed="false">08:45 · Çıkış yok</button>
+    <button data-v="hafta" aria-pressed="false">Haftalık</button>
+    <button data-v="ay" aria-pressed="false">Aylık</button>
+  </div>
+  <div class="seg" id="genislik" role="group" aria-label="Genişlik">
+    <button data-w="620" aria-pressed="true">Bilgisayar</button>
+    <button data-w="375" aria-pressed="false">Telefon</button>
+  </div>
+  <div class="seg" id="tema" role="group" aria-label="Tema">
+    <button data-t="acik" aria-pressed="true">Açık</button>
+    <button data-t="koyu" aria-pressed="false">Koyu</button>
+  </div>
+  <span class="meta" id="meta"></span>
+</div>
+<div class="stage"><div class="frame" id="frame" style="width:620px">
+  <iframe id="if" title="Mail önizleme"></iframe>
+</div></div>
+<script>
+const K = { ink:'#111827', mut:'#6b7280', line:'#e5e7eb', soft:'#f6f7f9', warn:'#b45309', warnBg:'#fff7ed', warnLine:'#fed7aa', ok:'#047857', okBg:'#ecfdf5', okLine:'#a7f3d0', brand:'#1f2a44' };
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+const BTN_URL = { 'Everhour\'u aç': 'https://app.everhour.com', 'Mobofis\'i aç': 'https://portal.mobofis.com.tr' };
+const btn = (t, c = K.brand) => `<a href="${BTN_URL[t] || '#'}" target="_blank" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;line-height:1;padding:11px 18px;border-radius:8px;">${t}</a>`;
+const stat = (deger, etiket, alt, renk) => `
+  <td class="stat" width="50%" valign="top" style="padding:6px;">
+    <div style="background:${K.soft};border-radius:12px;padding:14px 14px 12px;">
+      <div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:${K.mut};font-weight:600;">${etiket}</div>
+      <div class="sv" style="font-size:20px;line-height:1.2;font-weight:700;white-space:nowrap;color:${renk || K.ink};margin-top:4px;">${deger}</div>
+      <div style="font-size:12px;color:${K.mut};margin-top:2px;">${alt}</div>
+    </div>
+  </td>`;
+
+const GOREVLER_TOPLAM = 18;
+const GOREVLER = [['Kampanya görselleri – final revizyon', 'Kozoliv · Bilinirlik filmi', 3], ['Haftalık performans raporu', 'Potamya · Raporlama', 1], ['Sosyal medya takvimi – Kasım', 'Kozoliv · İçerik planı', 0],
+  ['Banner seti – 3 boyut', 'Servet · Kampanya', 2], ['Müşteri sunum dosyası', 'Potamya · Strateji', 0], ['Reels kurgusu – final', 'Kozoliv · Bilinirlik filmi', 0], ['E-bülten metni', 'Servet · İçerik planı', 1]];
+function gecikmis(ad, proje, gun) {
+  return `<tr><td style="padding:12px 0;border-top:1px solid ${K.line};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td valign="top"><div style="font-size:14px;font-weight:600;"><a href="https://app.asana.com" target="_blank" style="color:${K.ink};text-decoration:none;">${ad}</a></div>
+        <div style="font-size:12px;color:${K.mut};margin-top:2px;">${proje} · ${gun > 0 ? `<span style="color:${K.warn};font-weight:600;">${gun} gün gecikti</span>` : 'Bugün'}</div></td>
+      <td valign="middle" align="right" width="104" style="white-space:nowrap;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:10px 0;white-space:nowrap;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Asana'da aç →</a></td>
+    </tr></table></td></tr>`;
+}
+function adim(no, baslik, aciklama, icerik) {
+  return `<tr><td style="padding:0 0 18px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td valign="top" width="34"><div style="width:24px;height:24px;border-radius:12px;background:${K.brand};color:#fff;font-size:12px;font-weight:700;line-height:24px;text-align:center;">${no}</div></td>
+      <td valign="top"><div style="font-size:15px;font-weight:700;color:${K.ink};">${baslik}</div>
+        <div style="font-size:13px;color:${K.mut};margin:2px 0 10px;">${aciklama}</div>${icerik}</td>
+    </tr></table></td></tr>`;
+}
+
+
+// ---- Haftalık / Aylık (aynı şablon, farklı dönem verisi) ----
+function dagilim(baslik, satirlar) {
+  const satir = (x) => `<tr><td style="padding:9px 0;border-top:1px solid ${K.line};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td width="84" valign="middle" style="font-size:13px;font-weight:600;color:${K.ink};">${x.ad}</td>
+      <td valign="middle" style="padding-right:12px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e5e7eb;border-radius:4px;"><tr>
+          <td width="${Math.max(2, Math.round(x.oran * 100))}%" style="background:${x.uyari ? K.warn : K.brand};height:8px;font-size:0;line-height:0;border-radius:4px;">&nbsp;</td>
+          <td style="font-size:0;line-height:0;">&nbsp;</td></tr></table></td>
+      <td width="128" valign="middle" align="right" style="font-size:12px;color:${K.mut};"><b style="color:${K.ink};">${x.kayit.replace(/ /g, '&nbsp;')}</b> / ${x.isbasi.replace(/ /g, '&nbsp;')}${x.not ? `<div style="color:${x.uyari ? K.warn : K.mut};font-weight:${x.uyari ? 600 : 400};">${x.not}</div>` : ''}</td>
+    </tr></table></td></tr>`;
+  return `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:4px;">${baslik}</div>
+    <div style="font-size:12px;color:${K.mut};margin-bottom:6px;">Çubuk: zaman kaydının işbaşında geçen süreye oranı</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${satirlar.map(satir).join('')}</table>`;
+}
+function donemTile(deger, etiket, alt) { return stat(deger, etiket, alt, ''); }
+const CHIP = { tam: ['Tam kayıt', '#e8efe6', '#4d7c3f'], gecikme: ['Gecikme', '#fbe4e1', '#b42318'], eksik: ['Eksik kayıt', '#f8e9d8', '#9a5b1f'] };
+const chip = (tip) => `<span style="display:inline-block;font-size:12px;font-weight:700;padding:4px 8px;border-radius:999px;white-space:nowrap;background:${CHIP[tip][1]};color:${CHIP[tip][2]};">${CHIP[tip][0]}</span>`;
+const dk = (t) => { const [h, m] = t.split(':'); return +h * 60 + +m; };
+// Kural: giriş 09:15'ten sonra ya da çıkış 18:15'ten önce → Gecikme; giriş/çıkış yoksa → Eksik kayıt; aksi halde Tam kayıt
+function kayitDurum(giris, cikis) {
+  if (giris === '—' || cikis === '—') return 'eksik';
+  return (dk(giris) > dk('09:15') || dk(cikis) < dk('18:15')) ? 'gecikme' : 'tam';
+}
+function kayitTablosu(baslik, kolonlar, satirlar, ilk) {
+  const th = (t, a) => `<td style="padding:8px 4px;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;color:${K.mut};${a ? 'text-align:right;' : ''}">${t}</td>`;
+  const td = (t, a, ek = '') => `<td style="padding:11px 4px;font-size:13px;color:${K.ink};${a ? 'text-align:right;' : ''}${ek}">${t}</td>`;
+  return `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:6px;">${baslik}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${K.line};border-radius:12px;border-collapse:separate;">
+      <tr style="background:${K.soft};">${th(kolonlar[0])}${th(kolonlar[1])}${th(kolonlar[2])}${th(kolonlar[3], true)}</tr>
+      ${satirlar.map((x, i) => { const d = kayitDurum(x[1], x[2]); const bt = 'border-top:1px solid ' + K.line + ';font-variant-numeric:tabular-nums;'; const gec = d === 'gecikme';
+        const gR = gec && x[1] !== '—' && dk(x[1]) > dk('09:15') ? 'color:#b42318;font-weight:700;' : '', cR = gec && x[2] !== '—' && dk(x[2]) < dk('18:15') ? 'color:#b42318;font-weight:700;' : '';
+        return `<tr${ilk && i >= ilk ? ' class="gizli" style="display:none;"' : ''}>${td(x[0], false, bt)}${td(x[1], false, bt + gR)}${td(x[2], false, bt + cR)}${td(chip(d), true, bt)}</tr>`; }).join('')}
+    </table>${ilk && satirlar.length > ilk ? `<div style="padding:4px 0 0;"><a href="#" onclick="return gGoster(this)" data-n="${satirlar.length - ilk}" style="display:inline-block;padding:8px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Diğer günleri göster (${satirlar.length - ilk}) ↓</a></div>` : ''}`;
+}
+function tamamlanan(baslik, satirlar, ek, link) {
+  return `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:4px;">${baslik}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${satirlar.map((x) => `<tr><td style="padding:10px 0;border-top:1px solid ${K.line};">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td valign="top"><div style="font-size:14px;font-weight:600;"><a href="https://app.asana.com" target="_blank" style="color:${K.ink};text-decoration:none;">${x[0]}</a></div><div style="font-size:12px;color:${K.mut};margin-top:2px;">${x[1]}</div></td>
+          <td valign="middle" align="right" width="70" style="font-size:12px;color:${K.mut};white-space:nowrap;">${x[2]}</td></tr></table></td></tr>`).join('')}
+    </table>${ek ? `<div style="font-size:13px;color:${K.mut};padding-top:10px;border-top:1px solid ${K.line};">${ek}</div>` : ''}${link ? `<div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:8px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">${link}</a></div>` : ''}`;
+}
+function donem(v) {
+  const h = v === 'hafta';
+  const P = h ? {
+    tarih: '26 – 30 Ekim', baslik: '26 – 30 Ekim haftasının özeti hazır', metin: 'Geçen haftaya göz at.',
+    konu: 'Geçen haftanın özeti: 26 – 30 Ekim', onizleme: '41 sa 58 dk işbaşında, 28 sa 47 dk zaman kaydı, 17 tamamlanan task.',
+    t: [['41 sa 58 dk', 'İşbaşında', 'Önceki hafta 40 sa 12 dk'], ['28 sa 47 dk', 'Zaman kaydı', 'Önceki hafta 31 sa 05 dk'], ['17', 'Tamamlanan task', '22 task\'te yer aldın', K.ok], ['3', 'Tarihinde kapanmayan', 'Planlanan tarih geçen task']],
+    gcBaslik: 'Giriş — Çıkış Kayıtları', gcKol: ['Tarih', 'Giriş', 'Çıkış', 'Durum'],
+    gc: [['26 Eki Pzt', '09:12', '—'], ['27 Eki Sal', '09:19', '18:31'], ['28 Eki Çar', '08:58', '18:25'], ['29 Eki Per', '—', '—'], ['30 Eki Cum', '09:23', '18:36']],
+    zkBaslik: 'Zaman kaydı / işbaşında geçen süre',
+    zk: [{ ad: 'Pazartesi', kayit: '7 sa 45 dk', isbasi: '—', oran: .8 }, { ad: 'Salı', kayit: '6 sa 50 dk', isbasi: '9 sa 12 dk', oran: .74 }, { ad: 'Çarşamba', kayit: '7 sa 20 dk', isbasi: '9 sa 27 dk', oran: .78 }, { ad: 'Perşembe', kayit: '2 sa 10 dk', isbasi: '—', oran: .23 }, { ad: 'Cuma', kayit: '4 sa 42 dk', isbasi: '9 sa 13 dk', oran: .51 }],
+    tBaslik: 'Tamamladığın görevler',
+    tl: [['Kampanya görselleri – ilk revizyon', 'Kozoliv · Bilinirlik filmi', 'Pzt'], ['Haftalık performans raporu', 'Potamya · Raporlama', 'Sal'], ['Sosyal medya takvimi – Kasım', 'Kozoliv · İçerik planı', 'Çar'], ['Banner seti – 3 boyut', 'Servet · Kampanya', 'Çar'], ['Müşteri sunum dosyası', 'Potamya · Strateji', 'Per'], ['Reels kurgusu – final', 'Kozoliv · Bilinirlik filmi', 'Cum']],
+    tEk: '+ 11 görev daha tamamladın', alt: '27 Ekim Pazartesi 08:45' } : {
+    tarih: 'Ekim 2026', baslik: 'Ekim ayının özeti hazır', metin: 'Geçen aya göz at.',
+    konu: 'Geçen ayın özeti: Ekim 2026', onizleme: '168 sa 40 dk işbaşında, 139 sa 20 dk zaman kaydı, 81 tamamlanan task.',
+    t: [['168 sa 40 dk', 'İşbaşında', 'Eylül 161 sa 05 dk'], ['139 sa 20 dk', 'Zaman kaydı', 'Eylül 142 sa 30 dk'], ['81', 'Tamamlanan task', '86 task\'te yer aldın'], ['5', 'Tarihinde kapanmayan', 'Planlanan tarih geçen task']],
+    gcBaslik: 'Giriş — Çıkış Kayıtları', gcKol: ['Tarih', 'Giriş', 'Çıkış', 'Durum'],
+    gc: [['1 Eki Per', '09:08', '18:34'],
+      ['2 Eki Cum', '09:14', '18:30'],
+      ['5 Eki Pzt', '09:05', '18:41'],
+      ['6 Eki Sal', '09:16', '18:29'],
+      ['7 Eki Çar', '09:11', '18:35'],
+      ['8 Eki Per', '09:20', '18:28'],
+      ['9 Eki Cum', '09:02', '18:33'],
+      ['12 Eki Pzt', '09:09', '18:40'],
+      ['13 Eki Sal', '09:15', '—'],
+      ['14 Eki Çar', '09:03', '18:44'],
+      ['15 Eki Per', '09:12', '18:31'],
+      ['16 Eki Cum', '09:18', '18:27'],
+      ['19 Eki Pzt', '09:06', '18:36'],
+      ['20 Eki Sal', '09:10', '18:32'],
+      ['21 Eki Çar', '09:01', '18:42'],
+      ['22 Eki Per', '09:13', '18:30'],
+      ['23 Eki Cum', '09:17', '18:26'],
+      ['26 Eki Pzt', '09:12', '—'],
+      ['27 Eki Sal', '09:19', '18:31'],
+      ['28 Eki Çar', '08:58', '18:25'],
+      ['29 Eki Per', '—', '—'],
+      ['30 Eki Cum', '09:23', '18:36']],
+    zkBaslik: 'Zaman kaydı / işbaşında geçen süre',
+    zk: [{ ad: '1 – 5 Ekim', kayit: '36 sa 10 dk', isbasi: '41 sa 20 dk', oran: .87 }, { ad: '6 – 12 Ekim', kayit: '30 sa 45 dk', isbasi: '40 sa 50 dk', oran: .75 }, { ad: '13 – 19 Ekim', kayit: '34 sa 05 dk', isbasi: '41 sa 10 dk', oran: .83 }, { ad: '20 – 26 Ekim', kayit: '29 sa 40 dk', isbasi: '40 sa 30 dk', oran: .73 }, { ad: '27 – 31 Ekim', kayit: '8 sa 40 dk', isbasi: '9 sa 10 dk', oran: .94 }],
+    tBaslik: 'Tamamladığın görevler',
+    tl: [['Kampanya görselleri – ilk revizyon', 'Kozoliv · Bilinirlik filmi', '30 Eki'], ['Haftalık performans raporu', 'Potamya · Raporlama', '30 Eki'], ['Reels kurgusu – final', 'Kozoliv · Bilinirlik filmi', '29 Eki'], ['Müşteri sunum dosyası', 'Potamya · Strateji', '28 Eki'], ['Banner seti – 3 boyut', 'Servet · Kampanya', '28 Eki'], ['Sosyal medya takvimi – Kasım', 'Kozoliv · İçerik planı', '27 Eki']],
+    tEk: '+ 75 görev daha tamamladın', alt: '1 Kasım Pazar 08:45' };
+  const say = (t) => P.gc.filter((x) => kayitDurum(x[1], x[2]) === t).length;
+  const on = h ? 'Önceki hafta' : 'Eylül';
+  P.t = h
+    ? [[say('gecikme') + ' gün', 'Gecikme', on + ' 1 gün', CHIP.gecikme[2]], [say('eksik') + ' gün', 'Eksik kayıt', on + ' 0 gün', CHIP.eksik[2]],
+       ['41 sa 58 dk', 'İşbaşında', on + ' 40 sa 12 dk'], ['28 sa 47 dk', 'Girilen zaman', on + ' 31 sa 05 dk'],
+       ['17 adet', 'Tamamlanan task', on + ' 14 adet', K.ok], ['3 adet', 'Tarihinde kapanmayan', on + ' 2 adet']]
+    : [[say('gecikme') + ' gün', 'Gecikme', on + ' 4 gün', CHIP.gecikme[2]], [say('eksik') + ' gün', 'Eksik kayıt', on + ' 1 gün', CHIP.eksik[2]],
+       ['168 sa 40 dk', 'İşbaşında', on + ' 161 sa 05 dk'], ['139 sa 20 dk', 'Girilen zaman', on + ' 142 sa 30 dk'],
+       ['81 adet', 'Tamamlanan task', on + ' 74 adet', K.ok], ['5 adet', 'Tarihinde kapanmayan', on + ' 7 adet']];
+  return {
+    tarih: P.tarih, konu: P.konu, onizleme: P.onizleme, baslik: P.baslik,
+    html: `
+    ${hero('n', '', P.baslik, P.metin)}
+    ${blok(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -6px;width:calc(100% + 12px);">
+      ${[0, 2, 4].filter((i) => P.t[i]).map((i) => `<tr>${stat(P.t[i][0], P.t[i][1], P.t[i][2], P.t[i][3] || '')}${P.t[i + 1] ? stat(P.t[i + 1][0], P.t[i + 1][1], P.t[i + 1][2], P.t[i + 1][3] || '') : ''}</tr>`).join('')}</table>`)}
+    ${blok(kayitTablosu(P.gcBaslik, P.gcKol, P.gc, h ? 0 : 7))}
+    ${blok(tamamlanan(P.tBaslik, P.tl, P.tEk, P.tEk ? 'Tamamlanan görevleri gör →' : ''))}
+    <tr><td style="padding:18px 28px 28px;"><div style="border-top:1px solid ${K.line};padding-top:16px;font-size:12px;line-height:1.6;color:${K.mut};">
+      Bu rapor yalnızca sana gönderildi ve Mobofis, Everhour ve Asana verilerinden hazırlandı. Bir bilgi yanlışsa bu maile yanıt yazman yeterli. <a href="#" style="color:${K.mut};">Bu raporlar hakkında</a></div></td></tr>`
+  };
+}
+
+function govde(v) {
+  if (v === 'hafta' || v === 'ay') return donem(v);
+  if (v === 'cikis') {
+    return {
+      tarih: 'Perşembe, 5 Kasım',
+      konu: 'Dün Mobofis\'te çıkış kaydın yok',
+      onizleme: 'Dün için çıkış kaydın düşmemiş görünüyor. Muhasebe\'ye bildirerek manuel kayıt talep edebilirsin.',
+      baslik: 'Dün Mobofis\'te çıkış kaydın yok',
+      html: `
+      ${hero('warn', 'Merhaba Ayşe,', 'Dün Mobofis\'te çıkış kaydın yok', 'Dün saat 18:30 itibarıyla çıkış kaydın düşmemiş görünüyor. Kayıt için adımları takip et.')}
+      ${blok(`
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          ${adim(1, 'Çıkış kaydını düzenle', 'Mobofis üzerinden geçmiş kayıt düzenleme yapılamaz.<br>Muhasebe\'ye dün çıkış saatini bildirerek manuel giriş yapılması için talepte bulunabilirsin.', '')}
+        </table>
+        <div style="padding:2px 0 8px;text-align:center;">${btn('Bildirim Yap')}</div>`)}
+      ${altBilgi('dün 18:30', 'Mobofis kaydından', 'Amacımız kayıtları birlikte tamamlamak.')}`
+    };
+  }
+  if (v === 'giris') {
+    return {
+      konu: 'Giriş kaydın görünmüyor — hemen kontrol eder misin?',
+      onizleme: 'Mobofis\'te bugün için giriş kaydı yok.',
+      baslik: 'Giriş kaydın görünmüyor',
+      html: `
+      ${hero('warn', 'Merhaba Ayşe,', 'Bugün Mobofis\'te giriş kaydın yok', 'Saat 10:30 itibarıyla kaydın düşmemiş görünüyor. Ofisteysen kaydını şimdi tamamlayabilirsin.')}
+      ${blok(`
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          ${adim(1, 'Ofisteysen giriş kaydını oluştur', 'Mobofis üzerinden kaydı eklemeyi unutmuş olabilirsin.', '')}
+          ${adim(2, 'Bugün dışarıda çalışıyorsan', 'Mobofis üzerinden "not ekleyerek" girişini yapabilirsin. Herhangi bir sorun yaşarsan yöneticine bilgi verebilirsin.', '')}
+        </table>
+        <div style="padding:2px 0 8px;text-align:center;">${btn('Mobofis\'i aç')}</div>`)}
+      ${altBilgi('10:30', 'Mobofis kaydından')}`
+    };
+  }
+  if (v === 'tamam') {
+    return {
+      konu: 'Gün sonuna yaklaştık, bugün harika görünüyor',
+      onizleme: 'Tamamlanmayan task\'in ve tarihinde tamamlanmayan geçmiş işin yok. Eline sağlık!',
+      baslik: 'Gün sonuna yaklaştık',
+      html: `
+      ${hero('ok', 'Merhaba Ayşe,', 'Gün sonuna yaklaştık, bugün harika görünüyor', 'Tamamlanmayan task\'in ve tarihinde tamamlanmayan geçmiş işin yok. Eline sağlık!', 5, 5)}
+      ${blok(statlar('8 sa 28 dk', 'Giriş 09:02', '7 sa 32 dk'))}
+      ${blok(`<div style="font-size:13px;color:${K.mut};">İstersen yarının önceliklerini şimdiden Asana'da netleştirebilirsin:&nbsp; <a href="https://app.asana.com" target="_blank" style="font-weight:600;color:${K.brand};text-decoration:none;">Görevlerim →</a></div>`)}
+      ${altBilgi('17:30')}`
+    };
+  }
+  return {
+    konu: 'Gün sonuna yaklaştık: 18 tamamlanmayan task\'in var',
+    onizleme: 'Zaman kaydını tamamla ve tamamlanmamış görevlerini kontrol et.',
+    baslik: 'Gün sonuna yaklaştık',
+    html: `
+    ${hero('warn', 'Merhaba Ayşe,', 'Gün sonuna yaklaştık', 'Aşağıdaki adımları şimdi tamamlarsan gün temiz kapanır.', 6, 24)}
+    ${blok(`
+      <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:14px;">Mesai bitmeden yapılacaklar</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        ${adim(1, 'Zaman kaydını tamamla', 'Çalıştığın ama girmediğin iş varsa Everhour\'a ekle.', btn('Everhour\'u aç', '#57bf6b'))}
+        ${adim(2, 'Tamamlanmamış görevleri kontrol et', '<b style="color:' + K.ink + ';">Bittiyse</b> Asana\'da kapat. <b style="color:' + K.ink + ';">Sürüyorsa</b> yeni tarih ver ya da ekip yöneticine haber ver.', `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${GOREVLER.slice(0, 7).map((x) => gecikmis(x[0], x[1], x[2])).join('')}</table>${GOREVLER_TOPLAM > 7 ? `<div style="font-size:13px;color:${K.mut};padding:10px 0 0;border-top:1px solid ${K.line};">+ ${GOREVLER_TOPLAM - 7} görev bekliyor</div><div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:8px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Bekleyen görevleri gör →</a></div>` : ''}`)}
+      </table>`)}
+    ${blok(statlar('8 sa 28 dk', 'Giriş 09:02', '5 sa 05 dk'))}
+    ${altBilgi('17:30')}`
+  };
+}
+
+function hero(ton, selam, baslik, metin, tamam, toplam) {
+  const renk = ton === 'ok' ? K.ok : K.warn, bg = ton === 'n' ? K.soft : ton === 'ok' ? K.okBg : K.warnBg, cizgi = ton === 'n' ? K.line : ton === 'ok' ? K.okLine : K.warnLine;
+  const acik = toplam - tamam;
+  const pT = toplam ? (tamam / toplam) * 100 : 0;
+  // Çubuk: tamamlanan (yeşil) + tamamlanmayan (turuncu) task payı
+  const bar = toplam == null ? '' : `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;"><tr>
+      ${tamam > 0 ? `<td width="${pT}%" style="background:${K.ok};height:10px;font-size:0;line-height:0;border-radius:${acik > 0 ? '6px 0 0 6px' : '6px'};">&nbsp;</td>` : ''}
+      ${acik > 0 ? `<td width="${100 - pT}%" style="background:${K.warn};height:10px;font-size:0;line-height:0;border-radius:${tamam > 0 ? '0 6px 6px 0' : '6px'};">&nbsp;</td>` : ''}
+    </tr></table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;"><tr>
+      <td style="font-size:12px;color:${K.mut};">Yer aldığın task <b style="color:${K.ink};">${toplam}</b></td>
+      <td align="right" style="font-size:12px;color:${K.mut};">Tamamlanmayan task <b style="color:${acik > 0 ? K.warn : K.ink};">${acik}</b></td></tr></table>`;
+  return `<tr><td style="padding:0 28px 8px;">
+    <div style="background:${bg};border:1px solid ${cizgi};border-radius:14px;padding:20px 20px 18px;">
+      <div style="font-size:22px;line-height:1.25;font-weight:800;color:${K.ink};">${baslik}</div>
+      <div style="font-size:14px;color:#374151;margin-top:8px;">${metin}</div>${bar}
+    </div></td></tr>`;
+}
+const blok = (ic) => `<tr><td style="padding:14px 28px 6px;">${ic}</td></tr>`;
+function statlar(isbasi, giris, kayit) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -6px;width:calc(100% + 12px);">
+    <tr>${stat(isbasi, 'İşbaşında', giris, '')}${stat(kayit, 'Zaman kaydı', 'Everhour\'da girilen', '')}</tr>
+  </table>`;
+}
+function altBilgi(saat, kaynak = 'Mobofis, Everhour ve Asana verilerinden', amac = 'Amacımız eksikleri gün bitmeden birlikte kapatmak.') {
+  return `<tr><td style="padding:18px 28px 28px;">
+    <div style="border-top:1px solid ${K.line};padding-top:16px;font-size:12px;line-height:1.6;color:${K.mut};">
+      Bu özet yalnızca sana gönderildi ve <b>${saat}</b> itibarıyla ${kaynak} hazırlandı. Bir bilgi yanlışsa bu maile yanıt yazman yeterli.<br>
+      ${amac} <a href="#" style="color:${K.mut};">Bu raporlar hakkında</a>
+    </div></td></tr>`;
+}
+// Koyu tema: satır içi renkleri sınıflara bağlar; koyu modda hem zemin hem metin birlikte değişir
+const KOYU_YAZI = { '#111827': 'd-ink', '#374151': 'd-body', '#6b7280': 'd-mut', '#1f2a44': 'd-link', '#b45309': 'd-warn', '#047857': 'd-ok', '#b42318': 'd-bad', '#9a5b1f': 'd-eks', '#4d7c3f': 'd-tam' };
+const KOYU_ZEMIN = { '#f6f7f9': 'd-soft', '#fff7ed': 'd-warnbg', '#ecfdf5': 'd-okbg', '#e5e7eb': 'd-track', '#e8efe6': 'd-chip-tam', '#fbe4e1': 'd-chip-bad', '#f8e9d8': 'd-chip-eks', '#1f2a44': 'd-brandbg' };
+const KOYU_CERCEVE = { '#fed7aa': 'd-wline', '#a7f3d0': 'd-oline', '#e5e7eb': 'd-line' };
+function koyu(html) {
+  return html.replace(/<(\w+)([^>]*?)\sstyle="([^"]*)"([^>]*)>/g, (m, tag, pre, st, post) => {
+    const c = [];
+    for (const x of st.matchAll(/(?:^|;)\s*color:(#[0-9a-f]{6})/gi)) if (KOYU_YAZI[x[1].toLowerCase()]) c.push(KOYU_YAZI[x[1].toLowerCase()]);
+    for (const x of st.matchAll(/(?:^|;)\s*background:(#[0-9a-f]{6})/gi)) if (KOYU_ZEMIN[x[1].toLowerCase()]) c.push(KOYU_ZEMIN[x[1].toLowerCase()]);
+    for (const x of st.matchAll(/border[a-z-]*:[^;]*?(#[0-9a-f]{6})/gi)) if (KOYU_CERCEVE[x[1].toLowerCase()]) c.push(KOYU_CERCEVE[x[1].toLowerCase()]);
+    if (!c.length) return m;
+    const cls = [...new Set(c)].join(' ');
+    const mc = (pre + post).match(/class="([^"]*)"/);
+    if (mc) return m.replace(/class="([^"]*)"/, 'class="$1 ' + cls + '"');
+    return `<${tag}${pre} class="${cls}" style="${st}"${post}>`;
+  });
+}
+function sarmal(g) {
+  return koyu(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
+  <style>
+    html,body{overflow-x:hidden}
+    @media (max-width:480px){ .wrap{width:100%!important} .sv{font-size:17px!important} .stat div{padding-left:10px!important;padding-right:10px!important} }
+    @media (prefers-color-scheme:dark){
+      body,.bg{background:#0f1117!important} .card{background:#171a22!important}
+      .d-ink{color:#f3f4f6!important} .d-body{color:#d1d5db!important} .d-mut{color:#a1a8b5!important} .d-link{color:#c7d2fe!important}
+      .d-warn,.d-eks{color:#fdba74!important} .d-ok{color:#6ee7b7!important} .d-bad{color:#fca5a5!important} .d-tam{color:#86efac!important}
+      .d-soft{background:#222733!important} .d-warnbg{background:#2b2115!important} .d-okbg{background:#12281f!important} .d-track{background:#2f3542!important}
+      .d-chip-tam{background:#1d3326!important} .d-chip-bad{background:#3a1d1b!important} .d-chip-eks{background:#3a2a16!important} .d-brandbg{background:#3b4a6b!important}
+      .d-wline{border-color:#5a3b1a!important} .d-oline{border-color:#14503f!important} .d-line{border-color:#2f3542!important}
+    }
+  </style>
+  <script>function gGoster(a){var ac=a.getAttribute('data-ac')!=='1';document.querySelectorAll('tr.gizli').forEach(function(r){r.style.display=ac?'':'none'});a.setAttribute('data-ac',ac?'1':'0');a.textContent=ac?'Daha az göster ↑':'Diğer günleri göster ('+a.getAttribute('data-n')+') ↓';parent.postMessage('boyut','*');return false}<\/script></head>
+  <body class="bg" style="margin:0;padding:0;background:#eef0f4;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${g.onizleme}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg" style="background:#eef0f4;"><tr><td align="center" style="padding:24px 8px;">
+    <table role="presentation" class="wrap card" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:16px;font-family:${FONT};color:${K.ink};">
+      <tr><td style="padding:24px 28px 18px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td style="font-size:17px;font-weight:800;color:${K.ink};">Merhaba Ayşe,</td>
+          <td align="right" style="font-size:12px;color:${K.mut};">${g.tarih || 'Cuma, 6 Kasım'}</td></tr></table>
+      </td></tr>
+      ${g.html}
+    </table>
+  </td></tr></table></body></html>`);
+}
+
+let v = 'eksik', tema = 'acik';
+function ciz() {
+  const g = govde(v);
+  const f = document.getElementById('if'); f.srcdoc = tema === 'koyu' ? sarmal(g).replace('(prefers-color-scheme:dark)', 'all') : sarmal(g); f.onload = () => { f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; };
+  document.getElementById('meta').textContent = ({giris:'Gönderim: iş günü 10:30 · yalnızca giriş kaydı olmayanlara', cikis:'Gönderim: ertesi iş günü 08:45 · yalnızca çıkış kaydı olmayanlara', hafta:'Gönderim: pazartesi 08:45 · geçen haftanın raporu', ay:'Gönderim: ayın ilk iş günü 08:45 · geçen ayın raporu'})[v] || 'Gönderim: iş günü 17:30';
+}
+document.querySelectorAll('#senaryo button').forEach((b) => b.onclick = () => { v = b.dataset.v; document.querySelectorAll('#senaryo button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
+document.querySelectorAll('#genislik button').forEach((b) => b.onclick = () => { document.getElementById('frame').style.width = b.dataset.w + 'px'; setTimeout(() => { const f = document.getElementById('if'); f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; }, 120); document.querySelectorAll('#genislik button').forEach((x) => x.setAttribute('aria-pressed', x === b)); });
+document.querySelectorAll('#tema button').forEach((b) => b.onclick = () => { tema = b.dataset.t; document.querySelectorAll('#tema button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
+window.addEventListener('message', (e) => { if (e.data === 'boyut') { const f = document.getElementById('if'); f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; } });
+ciz();
+</script>
+</body>
+</html>

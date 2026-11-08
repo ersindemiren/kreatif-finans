@@ -5,6 +5,7 @@ import { autoBrand, DEPARTMANLAR } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
 import { hesaplaAy, parseTR, ayAnahtar } from './lib/maliyet.js';
 import { VARSAYILAN_ESIKLER, uygulaEsikler } from './lib/esikler.js';
+import mailSablonHtml from './assets/mail-sablonlari.html?raw';
 import { aySaati, ayIsGunu, haftaIci, tatilGunu, tatilEtkisi, gunAdi, haftaSonu, VARSAYILAN_TATILLER } from './lib/takvim.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -200,6 +201,17 @@ function MaliyetHesaplama() {
           {hs.toplamKisi === 0 && veri.dagitim > 0 && <p className="text-[11px] text-amber-600 mt-2">Dağıtım gideri, kişi maliyeti girilmeden paylaştırılamaz.</p>}
         </>
       )}
+    </div>
+  );
+}
+
+// Rapor Mail Şablonları: ekibe gidecek günlük/haftalık/aylık rapor maillerinin önizlemesi (örnek veriyle). Gönderim henüz bağlı değil.
+function MailSablonlari() {
+  return (
+    <div className={`${CARD} p-3 sm:p-4`}>
+      <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Rapor Mail Şablonları</h3>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ekibe gönderilecek günlük, haftalık ve aylık rapor maillerinin önizlemesi. Örnek veriyle hazırlandı; gönderim henüz bağlanmadı.</p>
+      <iframe title="Rapor mail şablonları" srcDoc={mailSablonHtml} className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white" style={{ height: 'calc(100vh - 14rem)', minHeight: 640 }} />
     </div>
   );
 }
@@ -476,6 +488,7 @@ export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
           <option value="maliyet">Personel Maliyet Hesaplama</option>
           <option value="tatil">Resmi Tatiller</option>
           <option value="ayarlar">Ayarlar</option>
+          <option value="mail">Rapor Mail Şablonları</option>
         </select>
       </div>
       {bolum === '' && (
@@ -552,6 +565,7 @@ export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
       {bolum === 'everhour' && <EverhourEslestirme markalar={markalar} />}
       {bolum === 'departman' && <DepartmanEslestirme />}
       {bolum === 'ayarlar' && <Ayarlar />}
+      {bolum === 'mail' && <MailSablonlari />}
       {bolum === 'maliyet' && <MaliyetHesaplama />}
       {bolum === 'tatil' && <ResmiTatiller />}
     </div>
