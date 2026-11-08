@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { verimlilikSkoru, skorKirmizi } from './lib/karsilastirma.js';
+import SkorKutusu from './SkorKutusu.jsx';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
 import { kisiAylari } from './lib/kisiAylar.js';
 import { normalizeNameKey } from './lib/parseData.js';
@@ -369,6 +370,7 @@ export function MarkaDetay({ brand, months, ayDurumu, personelRows, pasifKisiler
 export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, departman, maliyetAy, maliyetTop, maliyetAcik, maksSaat, pasif, pasifMarkaKeys, onBack, backLabel, onMarka, karsilastirKisiler, onKarsilastir }) {
   useTop();
   const [gorev, setGorev] = useState(null);
+  const [skorKutu, setSkorKutu] = useState(null);
   const [secili, setSecili] = useState('Toplam');
   const idx = months.map((_, i) => i);
   const aktif = idx.filter((i) => ayDurumu?.[i] === 'güncel');
@@ -426,7 +428,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const maliyetVar = maksDeger > 0;
   const maliyetNot = !sureliP.length ? 'süre girilmemiş' : eksikAy === sureliP.length ? 'maliyet girilmemiş (Yönetim)' : null;
   const ortSaat = toplamP && hizDeger ? hizDeger / sum(d.monthly, sureliP.filter((i) => saatAy(i))) : 0;
-  // Verimlilik Skoru: seçilen ay kümesi için (Karşılaştırma ve Personel listesiyle aynı formül)
+  // Skor: seçilen ay kümesi için (Karşılaştırma ve Personel listesiyle aynı formül)
   const skorHesap = (idxs) => {
     const tpl = sum(d.monthly, idxs);
     const mks = idxs.filter((i) => sayilan.has(i)).reduce((t, i) => t + maksSaat(i), 0);
@@ -448,7 +450,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
       ['Gerçekleşen Maliyet', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || 'aylık personel maliyetlerinin toplamı'],
     ] : []),
     ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
-    ['Verimlilik Skoru', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Kapasite ${Math.round(skorP.sure)}/40 · Kayıt ${Math.round(skorP.kayit)}/40 · Kayıp ${Math.round(skorP.kayip)}/20` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : ''],
+    ['Skor', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Kapasite ${Math.round(skorP.sure)}/${skorP.w.sure} · Kayıt ${Math.round(skorP.kayit)}/${skorP.w.kayit} · Kayıp ${Math.round(skorP.kayip)}/${skorP.w.kayip}${skorP.gc != null ? ` · Giriş–Çıkış ${Math.round(skorP.gc)}/${skorP.w.gc}` : ''}` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : '', skorP ? () => setSkorKutu({ ad: name, donem: donem.replace(/^\(|\)$/g, ''), skor: skorP }) : null],
   ];
   const pillClass = (m, active) => {
     const durum = ayDurumu?.[months.indexOf(m)];
@@ -531,8 +533,8 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
         ))}
       </div>
       <div className={`grid grid-cols-1 sm:grid-cols-2 ${kartlar2.length > 3 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-2 sm:gap-4 -mt-3 sm:-mt-1`}>
-        {kartlar2.map(([label, v, sub, cls]) => (
-          <div key={label} className={`${CARD} p-4`}>
+        {kartlar2.map(([label, v, sub, cls, tikla]) => (
+          <div key={label} className={`${CARD} p-4${tikla ? ' cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors' : ''}`} {...(tikla ? { role: 'button', tabIndex: 0, onClick: tikla, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tikla(); } } } : {})}>
             <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
             <div className={`text-base sm:text-lg lg:text-xl font-semibold tabular-nums mt-1 whitespace-nowrap overflow-hidden text-ellipsis ${cls || 'text-slate-900 dark:text-slate-50'}`}>{v}</div>
             <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block leading-snug truncate">{sub}</span>
@@ -550,7 +552,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
 
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ort. Saat Maliyeti = o ayın saat maliyeti (yukarı yuvarlanır); Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki o ayın personel maliyeti (maaş + dağıtım payı). Maks. Kapasite = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite ({pctEsik(ESIKLER.kapasite)} altı kırmızı). Kayıt Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor = Verimlilik Skoru (0–100): Kapasite Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ort. Saat Maliyeti = o ayın saat maliyeti (yukarı yuvarlanır); Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki o ayın personel maliyeti (maaş + dağıtım payı). Maks. Kapasite = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite ({pctEsik(ESIKLER.kapasite)} altı kırmızı). Kayıt Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor (0–100): Kapasite Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20.</p>
         <div className="rounded-xl overflow-x-auto border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm"><div className="min-w-[980px]">
           <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
             <span className={`${cellA} text-left`}>Ay</span>{['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Maks. Kapasite', 'Kapasite Oranı', 'Gerçekleşen Süre', 'Kayıt Oranı', 'Ekip Süresi', 'Ekip Payı', 'Dep. Payı', 'Skor'].map((h) => <span key={h} className={`${cellA} !whitespace-normal leading-tight`}>{h}</span>)}
@@ -571,7 +573,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
                 <span className={cellA}>{on[i] ? fmtN(d.team[i]) : '–'}</span>
                 <span className={cellA}>{on[i] && d.team[i] ? pct1(d.monthly[i] / d.team[i]) : '–'}</span>
                 <span className={cellA}>{on[i] && d.dep[i] ? pct1(d.monthly[i] / d.dep[i]) : '–'}</span>
-                <span className={`${cellA} ${skorKirmizi(sk) ? ORAN_KIRMIZI : ''}`}>{sk ? Math.round(sk.toplam) : '–'}</span>
+                {sk ? <button type="button" onClick={() => setSkorKutu({ ad: name, donem: `${months[i]} ${yilOf(personelRows)}`, skor: sk })} title="Skor kartını aç" className={`${cellA} underline decoration-dotted underline-offset-2 hover:text-blue-600 dark:hover:text-blue-400 ${skorKirmizi(sk) ? ORAN_KIRMIZI : ''}`}>{Math.round(sk.toplam)}</button> : <span className={cellA}>–</span>}
               </div>
             );
           })}
@@ -586,10 +588,11 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
             <span className={cellA}>{fmtN(toplamEkip)}</span>
             <span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span>
             <span className={cellA}>{toplamDep ? pct1(toplamKisi / toplamDep) : '–'}</span>
-            <span className={`${cellA} ${skorKirmizi(skorToplam) ? ORAN_KIRMIZI : ''}`}>{skorToplam ? Math.round(skorToplam.toplam) : '–'}</span>
+            {skorToplam ? <button type="button" onClick={() => setSkorKutu({ ad: name, donem: donem.replace(/^\(|\)$/g, ''), skor: skorToplam })} title="Skor kartını aç" className={`${cellA} underline decoration-dotted underline-offset-2 hover:text-blue-600 dark:hover:text-blue-400 ${skorKirmizi(skorToplam) ? ORAN_KIRMIZI : ''}`}>{Math.round(skorToplam.toplam)}</button> : <span className={cellA}>–</span>}
           </div>
         </div></div>
       </div>
+      {skorKutu && <SkorKutusu ad={skorKutu.ad} donem={skorKutu.donem} skor={skorKutu.skor} onClose={() => setSkorKutu(null)} />}
       {gorev && <GorevKutusu user={gorev.user} client={gorev.client} ym={ayKey(yilOf(personelRows), gorev.i)} ayAdi={months[gorev.i]} onClose={() => setGorev(null)} />}
     </div>
   );

@@ -4,17 +4,25 @@ import { kisiAylari } from './kisiAylar.js';
 import { ayAnahtar } from './maliyet.js';
 import { ESIKLER } from './esikler.js';
 
-// Verimlilik Skoru (0-100): Kapasite Oranı 40 + Kayıt Oranı 40 + Kayıp Süre payı (ters) 20. Süre girilmiş ay yoksa skor üretilmez.
-export const SKOR = { sureTam: 0.95, sureSifir: 0.5, kayipSifir: 0.2, agirlik: { sure: 40, kayit: 40, kayip: 20 } };
+// Skor (0-100): Kapasite Oranı 40 + Kayıt Oranı 40 + Kayıp Süre payı (ters) 20. Süre girilmiş ay yoksa skor üretilmez.
+// Giriş–Çıkış düzeni (Mobofis) verisi geldiğinde (girisCikis: 0-1 arası düzen oranı) ağırlıklar agirlikGC'ye geçer ve skora otomatik katılır;
+// veri yokken (girisCikis null) skor eski ağırlıklarla hesaplanır, Giriş–Çıkış yalnızca raporda gösterilir.
+export const SKOR = {
+  sureTam: 0.95, sureSifir: 0.5, kayipSifir: 0.2,
+  agirlik: { sure: 40, kayit: 40, kayip: 20 },
+  agirlikGC: { sure: 30, kayit: 30, kayip: 15, gc: 25 },
+};
 export const skorKirmizi = (sk) => !!sk && Math.round(sk.toplam) < ESIKLER.skor; // baraj: Yönetim > Ayarlar
 const kisit = (x) => Math.max(0, Math.min(1, x));
-export function verimlilikSkoru({ oran, kayitOrani, kayip, toplam, sureliAy }) {
+export function verimlilikSkoru({ oran, kayitOrani, kayip, toplam, sureliAy, girisCikis = null }) {
   if (!sureliAy || oran == null || !toplam) return null;
-  const w = SKOR.agirlik;
+  const gcVar = girisCikis != null && Number.isFinite(girisCikis);
+  const w = gcVar ? SKOR.agirlikGC : SKOR.agirlik;
   const sure = kisit((oran - SKOR.sureSifir) / (SKOR.sureTam - SKOR.sureSifir)) * w.sure;
   const kayit = kisit(kayitOrani || 0) * w.kayit;
   const kayipP = kisit(1 - kayip / toplam / SKOR.kayipSifir) * w.kayip;
-  return { toplam: sure + kayit + kayipP, sure, kayit, kayip: kayipP };
+  const gc = gcVar ? kisit(girisCikis) * w.gc : null;
+  return { toplam: sure + kayit + kayipP + (gc || 0), sure, kayit, kayip: kayipP, gc, w, oran, kayitOrani: kayitOrani || 0, kayipPay: kayip / toplam };
 }
 
 const topla = (a, idx) => idx.reduce((s, i) => s + (a[i] || 0), 0);

@@ -1,5 +1,5 @@
 // Kırmızı baraj değerleri (Yönetim > Ayarlar'dan değiştirilir). Sunucudan gelen değerler uygulaEsikler ile uygulanır.
-// kapasite / kayit: oran (0-1), skor: Verimlilik Skoru (0-100). Bu değerin altı kırmızı gösterilir.
+// kapasite / kayit: oran (0-1), skor: Skor (0-100). Bu değerin altı kırmızı gösterilir.
 export const VARSAYILAN_ESIKLER = { kapasite: 0.85, kayit: 0.85, skor: 80 };
 export const ESIKLER = { ...VARSAYILAN_ESIKLER };
 export const uygulaEsikler = (a) => {

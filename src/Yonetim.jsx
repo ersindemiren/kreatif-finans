@@ -251,7 +251,7 @@ function Ayarlar() {
   const satirlar = [
     ['kapasite', 'Kapasite Oranı', '%', 'Gerçekleşen Süre / Maksimum Kapasite bu değerin altındaysa kırmızı.'],
     ['kayit', 'Kayıt Oranı', '%', 'Sürenin faturası kesilmiş markalara giden payı bu değerin altındaysa kırmızı.'],
-    ['skor', 'Verimlilik Skoru', '/ 100', 'Verimlilik Skoru bu değerin altındaysa kırmızı.'],
+    ['skor', 'Skor', '/ 100', 'Skor bu değerin altındaysa kırmızı.'],
   ];
   return (
     <div className={`${CARD} p-4 sm:p-5`}>

@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { kisiOlcu, SKOR, skorKirmizi } from './lib/karsilastirma.js';
 import { ORAN_KIRMIZI } from './SureDetay.jsx';
+import SkorKutusu from './SkorKutusu.jsx';
 import { ESIKLER, pctEsik } from './lib/esikler.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -16,6 +17,7 @@ const VAR = '–';
 const EN_COK = 6;
 
 export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per, donem, maksSaat, brandOf, maliyetAy, maliyetTop, maliyetAcik, months, baslangic }) {
+  const [skorKutu, setSkorKutu] = useState(null);
   const [secimler, setSecimler] = useState(baslangic || ['', '']);
   const [sonuc, setSonuc] = useState(baslangic || null); // Karşılaştır düğmesine basılınca seçilen kişiler
   const dolu = secimler.filter(Boolean);
@@ -30,7 +32,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
   // yon: 'yuksek' = büyük olan iyi, 'dusuk' = küçük olan iyi; verilmezse vurgu yapılmaz. num: karşılaştırılacak sayı
   const gruplar = olcu && [
     [
-      { l: 'Verimlilik Skoru', f: (o) => (o.skor ? `${Math.round(o.skor.toplam)} / 100` : 'Veri yetersiz'), alt: (o) => (o.skor ? `Kapasite ${Math.round(o.skor.sure)}/40 · Kayıt ${Math.round(o.skor.kayit)}/40 · Kayıp ${Math.round(o.skor.kayip)}/20` : ''), num: (o) => o.skor?.toplam ?? null, yon: 'yuksek', buyuk: true, kirmizi: (o) => skorKirmizi(o.skor), not: 'Kapasite Oranı %40 · Kayıt Oranı %40 · Kayıp Süre %20 (ters)' },
+      { l: 'Skor', skorTikla: true, f: (o) => (o.skor ? `${Math.round(o.skor.toplam)} / 100` : 'Veri yetersiz'), alt: (o) => (o.skor ? `Kapasite ${Math.round(o.skor.sure)}/${o.skor.w.sure} · Kayıt ${Math.round(o.skor.kayit)}/${o.skor.w.kayit} · Kayıp ${Math.round(o.skor.kayip)}/${o.skor.w.kayip}${o.skor.gc != null ? ` · Giriş–Çıkış ${Math.round(o.skor.gc)}/${o.skor.w.gc}` : ''}` : ''), num: (o) => o.skor?.toplam ?? null, yon: 'yuksek', buyuk: true, kirmizi: (o) => skorKirmizi(o.skor), not: 'Kapasite Oranı %40 · Kayıt Oranı %40 · Kayıp Süre %20 (ters)' },
     ],
     [
       { l: 'Maksimum Kapasite', f: (o) => (o.maks ? `${fmtS(o.maks)} Saat` : VAR), alt: (o) => (o.maksAy ? `${o.maksAy} ay` : ''), not: '(hafta içi − resmi tatil) × 8,5 sa' },
@@ -67,6 +69,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
 
   return (
     <div className="flex flex-col gap-5">
+      {skorKutu && <SkorKutusu ad={skorKutu.ad} donem={skorKutu.donem} skor={skorKutu.skor} onClose={() => setSkorKutu(null)} />}
       <div className={`${CARD} p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Karşılaştırma</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Personelleri seçip Karşılaştır'a basın; gerekirse "Kişi ekle" ile en fazla {EN_COK} kişi karşılaştırılır. Sonuçlar yukarıda seçili döneme göre hesaplanır; dönemi değiştirince güncellenir. Yeşil işaret, o başlıkta daha iyi olanı gösterir.</p>
@@ -121,7 +124,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
                         </div>
                         {olcu.map((o, j) => (
                           <div key={j} className={`${zebra} px-2 py-2.5 text-center text-xs sm:text-sm tabular-nums ${j === n - 1 ? 'rounded-r-lg' : ''} ${s.buyuk ? 'text-base sm:text-lg ' : ''}${s.kirmizi?.(o) ? ORAN_KIRMIZI : w.includes(j) ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-100'}`}>
-                            <span className="break-words">{s.f(o)}</span>
+                            {s.skorTikla && o.skor ? <button type="button" onClick={() => setSkorKutu({ ad: sonuc[j], donem: String(donem || '').replace(/^\(|\)$/g, ''), skor: o.skor })} title="Skor kartını aç" className="break-words underline decoration-dotted underline-offset-2 hover:text-blue-600 dark:hover:text-blue-400">{s.f(o)}</button> : <span className="break-words">{s.f(o)}</span>}
                             {s.alt && s.alt(o) && <span className="block text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-normal">{s.alt(o)}</span>}
                           </div>
                         ))}
@@ -133,7 +136,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
             </div>
           </div>
           <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4 leading-relaxed">
-            Verimlilik Skoru: Kapasite Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan). {ESIKLER.skor} altındaki skor kırmızıdır. Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
+            Skor: Kapasite Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan); Giriş–Çıkış düzeni (Mobofis) verisi henüz yok, veri geldiğinde skora otomatik eklenir. Skor değerine tıklayınca ayrıntı kartı açılır. {ESIKLER.skor} altındaki skor kırmızıdır. Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
           </p>
         </div>
       )}

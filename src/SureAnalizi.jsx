@@ -5,6 +5,7 @@ import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { buildSure, buildPersonel, buildDepartman, kisiAyDizisi, DEPARTMAN_YOK, FEE_BAZI } from './lib/sure.js';
 import Karsilastirma from './Karsilastirma.jsx';
 import { verimlilikSkoru, skorKirmizi } from './lib/karsilastirma.js';
+import SkorKutusu from './SkorKutusu.jsx';
 import { MarkaDetay, KisiDetay, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { ESIKLER, pctEsik } from './lib/esikler.js';
 import { aySaati, VARSAYILAN_TATILLER } from './lib/takvim.js';
@@ -33,6 +34,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const [kars, setKars] = useState(null); // personel sayfasından gelen hızlı karşılaştırma: { a, b, k }
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
   const setSeciliMarka = (n) => setYigin([{ t: 'm', n }]);
+  const [skorKutu, setSkorKutu] = useState(null);
   const setSeciliKisi = (n) => setYigin([{ t: 'k', n }]);
   const geri = () => setYigin((y) => y.slice(0, -1));
 
@@ -188,7 +190,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     }, 0);
     return f / u.hours;
   };
-  // Personel listesi göstergeleri (kayıt oranı, maks. süre, oran, Verimlilik Skoru): dönem/veri değişince bir kez hesaplanır;
+  // Personel listesi göstergeleri (kayıt oranı, maks. süre, oran, Skor): dönem/veri değişince bir kez hesaplanır;
   // sıralama tıklamaları yeniden hesap yapmaz. Skor Karşılaştırma sayfasıyla aynı formülü kullanır.
   // Ort. Saat Maliyeti: ay ay (saat maliyeti x süre) toplamı / maliyeti bilinen aylardaki süre
   const maliyetOzet = (ad, ayH) => {
@@ -209,7 +211,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
       const kayit = kayitOrani(u);
       const skorObj = verimlilikSkoru({ oran: maks ? u.hours / maks : null, kayitOrani: u.hours ? kayit : null, kayip, toplam: u.hours, sureliAy: u.hours > 0 ? 1 : 0 });
       const dh = depSaat.get((sureData?.departman && sureData.departman[u.name]) || DEPARTMAN_YOK) || 0;
-      m.set(u.name, { ...maliyetOzet(u.name, u.ayH), maks, kapOran: u.aylar && maks ? u.hours / maks : null, sure: u.hours, sureOran: u.hours ? kayit : null, ekipS: personelToplam, ekipPay: personelToplam ? u.hours / personelToplam : null, depPay: dh ? u.hours / dh : null, skor: skorObj ? skorObj.toplam : null });
+      m.set(u.name, { ...maliyetOzet(u.name, u.ayH), maks, kapOran: u.aylar && maks ? u.hours / maks : null, sure: u.hours, sureOran: u.hours ? kayit : null, ekipS: personelToplam, ekipPay: personelToplam ? u.hours / personelToplam : null, depPay: dh ? u.hours / dh : null, skor: skorObj ? skorObj.toplam : null, skorObj, ad: u.name });
     });
     return m;
   }, [personelTablo, brandMap, sel, maliyetHesap, departmanlar]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -250,7 +252,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const olcuHucreleri = (o) => SUTUNLAR.map(([k, , w]) => {
     const v = o?.[k];
     const kirmizi = v != null && (k === 'kapOran' ? v < ESIKLER.kapasite : k === 'sureOran' ? v < ESIKLER.kayit : k === 'skor' ? Math.round(v) < ESIKLER.skor : false);
-    return <span key={k} className={`${w} ${v == null ? 'text-center' : 'text-right'} tabular-nums ${kirmizi ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}`}>{v == null ? '–' : hucreMetni[k](v)}</span>;
+    const tikla = k === 'skor' && o?.skorObj ? (e) => { e.stopPropagation(); e.preventDefault(); setSkorKutu({ ad: o.ad, donem: donem.replace(/^\(|\)$/g, ''), skor: o.skorObj }); } : null;
+    return <span key={k} {...(tikla ? { role: 'button', tabIndex: 0, title: 'Skor kartını aç', onClick: tikla, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') tikla(e); } } : {})} className={`${w} ${v == null ? 'text-center' : 'text-right'} tabular-nums ${kirmizi ? ORAN_KIRMIZI : 'text-slate-700 dark:text-slate-300'}${tikla ? ' underline decoration-dotted underline-offset-2 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400' : ''}`}>{v == null ? '–' : hucreMetni[k](v)}</span>;
   });
   const personelSatiri = (u, no) => {
     const Kap = u.ek ? 'div' : 'button';
@@ -311,6 +314,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
 
   return (
     <div className="flex flex-col gap-5">
+      {skorKutu && <SkorKutusu ad={skorKutu.ad} donem={skorKutu.donem} skor={skorKutu.skor} onClose={() => setSkorKutu(null)} />}
       {sureError && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-xs sm:text-sm px-4 py-3">
           Everhour verisi alınamadı ({sureError}); son dışa aktarılan rapor gösteriliyor.
@@ -395,7 +399,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki aylık personel maliyetlerinin toplamı (maaş + dağıtım payı). Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Kayıt Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kırmızı barajlar (Yönetim > Ayarlar): Kapasite Oranı {pctEsik(ESIKLER.kapasite)}, Kayıt Oranı {pctEsik(ESIKLER.kayit)}, Skor {ESIKLER.skor} altı. Skor = Verimlilik Skoru (0–100): Kapasite Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20. Alttaki satırlar listedeki kişilerin ortalaması ve toplamıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Ort. Saat Maliyeti = ay ay (saat maliyeti × süre) / süre, yukarı yuvarlanır; Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki aylık personel maliyetlerinin toplamı (maaş + dağıtım payı). Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Kayıt Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kırmızı barajlar (Yönetim > Ayarlar): Kapasite Oranı {pctEsik(ESIKLER.kapasite)}, Kayıt Oranı {pctEsik(ESIKLER.kayit)}, Skor {ESIKLER.skor} altı. Skor (0–100): Kapasite Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20; Giriş–Çıkış düzeni (Mobofis) verisi geldiğinde skora otomatik eklenir. Skor değerine tıklayınca ayrıntı kartı açılır. Alttaki satırlar listedeki kişilerin ortalaması ve toplamıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
             <div className="overflow-x-auto"><div className="min-w-[1340px]">
             {olcuBaslik('Personel')}
             <div className="flex flex-col">
