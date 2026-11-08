@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Trash2, UserPlus, ShieldCheck, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { autoBrand, DEPARTMANLAR } from './lib/sure.js';
@@ -212,8 +212,18 @@ const MAIL_SABLON_HTML = mailSablonHtml
   .replace('background:var(--bg)', 'background:transparent');
 
 function MailSablonlari() {
+  const ref = useRef(null);
+  const [h, setH] = useState(900);
+  // Şablon sayfası kendi yüksekliğini bildirir; iframe içinde dikey kaydırma çubuğu çıkmaz
+  useEffect(() => {
+    const dinle = (e) => {
+      if (ref.current && e.source === ref.current.contentWindow && e.data && typeof e.data.kfMailYukseklik === 'number') setH(e.data.kfMailYukseklik);
+    };
+    window.addEventListener('message', dinle);
+    return () => window.removeEventListener('message', dinle);
+  }, []);
   return (
-    <iframe title="Rapor mail şablonları" srcDoc={MAIL_SABLON_HTML} className="w-full block border-0 bg-transparent" style={{ height: 'calc(100vh - 9rem)', minHeight: 700 }} />
+    <iframe ref={ref} title="Rapor mail şablonları" srcDoc={MAIL_SABLON_HTML} scrolling="no" className="w-full block border-0 bg-transparent" style={{ height: h }} />
   );
 }
 
