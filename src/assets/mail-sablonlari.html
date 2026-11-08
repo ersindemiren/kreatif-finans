@@ -204,19 +204,22 @@ function donem(v) {
 function govde(v) {
   if (v === 'hafta' || v === 'ay') return donem(v);
   if (v === 'cikis') {
+    // Önceki iş günü: Salı–Cuma günü gönderimde bir önceki gün, Pazartesi günü Cuma. (Örnek: Cuma gönderimi → Perşembe)
+    const eksikGun = { ad: 'Perşembe', tarih: '5 Kasım' };
+    const gunBas = `${eksikGun.ad} (${eksikGun.tarih})`;
     return {
-      tarih: 'Perşembe, 5 Kasım',
-      konu: 'Dün Mobofis\'te çıkış kaydın yok',
-      onizleme: 'Dün için çıkış kaydın düşmemiş görünüyor. Muhasebe\'ye bildirerek manuel kayıt talep edebilirsin.',
-      baslik: 'Dün Mobofis\'te çıkış kaydın yok',
+      tarih: 'Cuma, 6 Kasım',
+      konu: `${gunBas} Mobofis'te çıkış kaydın yok`,
+      onizleme: `${eksikGun.ad} için çıkış kaydın düşmemiş görünüyor. Muhasebe'ye bildirerek manuel kayıt talep edebilirsin.`,
+      baslik: `${gunBas} Mobofis'te çıkış kaydın yok`,
       html: `
-      ${hero('warn', 'Merhaba Ayşe,', 'Dün Mobofis\'te çıkış kaydın yok', 'Dün saat 18:30 itibarıyla çıkış kaydın düşmemiş görünüyor. Kayıt için adımları takip et.')}
+      ${hero('warn', 'Merhaba Ayşe,', `${gunBas} Mobofis'te çıkış kaydın yok`, `${eksikGun.ad} saat 18:30 itibarıyla çıkış kaydın düşmemiş görünüyor. Kayıt için adımları takip et.`)}
       ${blok(`
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          ${adim(1, 'Çıkış kaydını düzenle', 'Mobofis üzerinden geçmiş kayıt düzenleme yapılamaz.<br>Muhasebe\'ye dün çıkış saatini bildirerek manuel giriş yapılması için talepte bulunabilirsin.', '')}
+          ${adim(1, 'Çıkış kaydını düzenle', `Mobofis üzerinden geçmiş kayıt düzenleme yapılamaz.<br>Muhasebe'ye ${eksikGun.ad} günü çıkış saatini bildirerek manuel giriş yapılması için talepte bulunabilirsin.`, '')}
         </table>
         <div style="padding:2px 0 8px;text-align:center;">${btn('Bildirim Yap')}</div>`)}
-      ${altBilgi('dün 18:30', 'Mobofis kaydından', 'Amacımız kayıtları birlikte tamamlamak.')}`
+      ${altBilgi(`${eksikGun.ad} 18:30`, 'Mobofis kaydından', 'Amacımız kayıtları birlikte tamamlamak.')}`
     };
   }
   if (v === 'giris') {
@@ -279,7 +282,7 @@ function hero(ton, selam, baslik, metin, tamam, toplam) {
       <td align="right" style="font-size:12px;color:${K.mut};">Tamamlanmayan task <b style="color:${acik > 0 ? K.warn : K.ink};">${acik}</b></td></tr></table>`;
   return `<tr><td style="padding:0 28px 8px;">
     <div style="background:${bg};border:1px solid ${cizgi};border-radius:14px;padding:20px 20px 18px;">
-      <div style="font-size:22px;line-height:1.25;font-weight:800;color:${K.ink};">${baslik}</div>
+      <div style="font-size:22px;line-height:1.25;font-weight:800;color:${K.ink};text-wrap:balance;">${baslik}</div>
       <div style="font-size:14px;color:#374151;margin-top:8px;">${metin}</div>${bar}
     </div></td></tr>`;
 }
