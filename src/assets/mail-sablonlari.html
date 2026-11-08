@@ -60,7 +60,7 @@ const K = { ink:'#111827', mut:'#6b7280', line:'#e5e7eb', soft:'#f6f7f9', warn:'
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 const BTN_URL = { 'Everhour\'u aç': 'https://app.everhour.com', 'Mobofis\'i aç': 'https://portal.mobofis.com.tr' };
-const btn = (t, c = K.brand) => `<a href="${BTN_URL[t] || '#'}" target="_blank" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;line-height:1;padding:11px 18px;border-radius:8px;">${t}</a>`;
+const btn = (t, c = K.brand) => `<a href="${BTN_URL[t] || '#'}" target="_blank" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;line-height:1;padding:15px 20px;border-radius:8px;">${t}</a>`;
 const stat = (deger, etiket, alt, renk) => `
   <td class="stat" width="50%" valign="top" style="padding:6px;">
     <div style="background:${K.soft};border-radius:12px;padding:14px 14px 12px;">
@@ -76,9 +76,9 @@ const GOREVLER = [['Kampanya görselleri – final revizyon', 'Kozoliv · Bilini
 function gecikmis(ad, proje, gun) {
   return `<tr><td style="padding:12px 0;border-top:1px solid ${K.line};">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td valign="top"><div style="font-size:14px;font-weight:600;"><a href="https://app.asana.com" target="_blank" style="color:${K.ink};text-decoration:none;">${ad}</a></div>
+      <td valign="top"><div style="font-size:14px;font-weight:600;"><a href="https://app.asana.com" target="_blank" style="color:${K.ink};text-decoration:underline;text-decoration-color:#9ca3af;">${ad}</a></div>
         <div style="font-size:12px;color:${K.mut};margin-top:2px;">${proje} · ${gun > 0 ? `<span style="color:${K.warn};font-weight:600;">${gun} gün gecikti</span>` : 'Bugün'}</div></td>
-      <td valign="middle" align="right" width="104" style="white-space:nowrap;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:10px 0;white-space:nowrap;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Asana'da aç →</a></td>
+      <td valign="middle" align="right" width="104" style="white-space:nowrap;"><a href="https://app.asana.com" target="_blank" aria-label="${ad} görevini Asana'da aç" style="display:inline-block;padding:14px 0;white-space:nowrap;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Asana'da aç →</a></td>
     </tr></table></td></tr>`;
 }
 function adim(no, baslik, aciklama, icerik) {
@@ -107,7 +107,7 @@ function dagilim(baslik, satirlar) {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${satirlar.map(satir).join('')}</table>`;
 }
 function donemTile(deger, etiket, alt) { return stat(deger, etiket, alt, ''); }
-const CHIP = { tam: ['Tam kayıt', '#e8efe6', '#4d7c3f'], gecikme: ['Gecikme', '#fbe4e1', '#b42318'], eksik: ['Eksik kayıt', '#f8e9d8', '#9a5b1f'] };
+const CHIP = { tam: ['Tam kayıt', '#e8efe6', '#3f6b33'], gecikme: ['Gecikme', '#fbe4e1', '#b42318'], eksik: ['Eksik kayıt', '#f8e9d8', '#9a5b1f'] };
 const chip = (tip) => `<span style="display:inline-block;font-size:12px;font-weight:700;padding:4px 8px;border-radius:999px;white-space:nowrap;background:${CHIP[tip][1]};color:${CHIP[tip][2]};">${CHIP[tip][0]}</span>`;
 const dk = (t) => { const [h, m] = t.split(':'); return +h * 60 + +m; };
 // Kural: giriş 09:15'ten sonra ya da çıkış 18:15'ten önce → Gecikme; giriş/çıkış yoksa → Eksik kayıt; aksi halde Tam kayıt
@@ -116,24 +116,24 @@ function kayitDurum(giris, cikis) {
   return (dk(giris) > dk('09:15') || dk(cikis) < dk('18:15')) ? 'gecikme' : 'tam';
 }
 function kayitTablosu(baslik, kolonlar, satirlar, ilk) {
-  const th = (t, a) => `<td style="padding:8px 4px;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;color:${K.mut};${a ? 'text-align:right;' : ''}">${t}</td>`;
+  const th = (t, a) => `<th scope="col" style="padding:8px 4px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;color:${K.mut};text-align:${a ? 'right' : 'left'};">${t}</th>`;
   const td = (t, a, ek = '') => `<td style="padding:11px 4px;font-size:13px;color:${K.ink};${a ? 'text-align:right;' : ''}${ek}">${t}</td>`;
   return `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:6px;">${baslik}</div>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${K.line};border-radius:12px;border-collapse:separate;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${K.line};border-radius:12px;border-collapse:separate;">
       <tr style="background:${K.soft};">${th(kolonlar[0])}${th(kolonlar[1])}${th(kolonlar[2])}${th(kolonlar[3], true)}</tr>
       ${satirlar.map((x, i) => { const d = kayitDurum(x[1], x[2]); const bt = 'border-top:1px solid ' + K.line + ';font-variant-numeric:tabular-nums;'; const gec = d === 'gecikme';
         const gR = gec && x[1] !== '—' && dk(x[1]) > dk('09:15') ? 'color:#b42318;font-weight:700;' : '', cR = gec && x[2] !== '—' && dk(x[2]) < dk('18:15') ? 'color:#b42318;font-weight:700;' : '';
-        return `<tr${ilk && i >= ilk ? ' class="gizli" style="display:none;"' : ''}>${td(x[0], false, bt)}${td(x[1], false, bt + gR)}${td(x[2], false, bt + cR)}${td(chip(d), true, bt)}</tr>`; }).join('')}
-    </table>${ilk && satirlar.length > ilk ? `<div style="padding:4px 0 0;"><a href="#" onclick="return gGoster(this)" data-n="${satirlar.length - ilk}" style="display:inline-block;padding:8px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Diğer günleri göster (${satirlar.length - ilk}) ↓</a></div>` : ''}`;
+        return ilk && i >= ilk ? '' : `<tr>${td(x[0], false, bt)}${td(x[1], false, bt + gR)}${td(x[2], false, bt + cR)}${td(chip(d), true, bt)}</tr>`; }).join('')}
+    </table>${ilk && satirlar.length > ilk ? `<div style="padding:4px 0 0;"><a href="#" target="_blank" style="display:inline-block;padding:13px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Tüm günleri gör (${satirlar.length - ilk}) →</a></div>` : ''}`;
 }
 function tamamlanan(baslik, satirlar, ek, link) {
   return `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:4px;">${baslik}</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${satirlar.map((x) => `<tr><td style="padding:10px 0;border-top:1px solid ${K.line};">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-          <td valign="top"><div style="font-size:14px;font-weight:600;"><a href="https://app.asana.com" target="_blank" style="color:${K.ink};text-decoration:none;">${x[0]}</a></div><div style="font-size:12px;color:${K.mut};margin-top:2px;">${x[1]}</div></td>
+          <td valign="top"><div style="font-size:14px;font-weight:600;"><a href="https://app.asana.com" target="_blank" style="color:${K.ink};text-decoration:underline;text-decoration-color:#9ca3af;">${x[0]}</a></div><div style="font-size:12px;color:${K.mut};margin-top:2px;">${x[1]}</div></td>
           <td valign="middle" align="right" width="70" style="font-size:12px;color:${K.mut};white-space:nowrap;">${x[2]}</td></tr></table></td></tr>`).join('')}
-    </table>${ek ? `<div style="font-size:13px;color:${K.mut};padding-top:10px;border-top:1px solid ${K.line};">${ek}</div>` : ''}${link ? `<div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:8px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">${link}</a></div>` : ''}`;
+    </table>${ek ? `<div style="font-size:13px;color:${K.mut};padding-top:10px;border-top:1px solid ${K.line};">${ek}</div>` : ''}${link ? `<div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:13px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">${link}</a></div>` : ''}`;
 }
 function donem(v) {
   const h = v === 'hafta';
@@ -256,8 +256,8 @@ function govde(v) {
     ${blok(`
       <div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:14px;">Mesai bitmeden yapılacaklar</div>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        ${adim(1, 'Zaman kaydını tamamla', 'Çalıştığın ama girmediğin iş varsa Everhour\'a ekle.', btn('Everhour\'u aç', '#57bf6b'))}
-        ${adim(2, 'Tamamlanmamış görevleri kontrol et', '<b style="color:' + K.ink + ';">Bittiyse</b> Asana\'da kapat. <b style="color:' + K.ink + ';">Sürüyorsa</b> yeni tarih ver ya da ekip yöneticine haber ver.', `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${GOREVLER.slice(0, 7).map((x) => gecikmis(x[0], x[1], x[2])).join('')}</table>${GOREVLER_TOPLAM > 7 ? `<div style="font-size:13px;color:${K.mut};padding:10px 0 0;border-top:1px solid ${K.line};">+ ${GOREVLER_TOPLAM - 7} görev bekliyor</div><div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:8px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Bekleyen görevleri gör →</a></div>` : ''}`)}
+        ${adim(1, 'Zaman kaydını tamamla', 'Çalıştığın ama girmediğin iş varsa Everhour\'a ekle.', btn('Everhour\'u aç', '#15803d'))}
+        ${adim(2, 'Tamamlanmamış görevleri kontrol et', '<b style="color:' + K.ink + ';">Bittiyse</b> Asana\'da kapat. <b style="color:' + K.ink + ';">Sürüyorsa</b> yeni tarih ver ya da ekip yöneticine haber ver.', `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${GOREVLER.slice(0, 7).map((x) => gecikmis(x[0], x[1], x[2])).join('')}</table>${GOREVLER_TOPLAM > 7 ? `<div style="font-size:13px;color:${K.mut};padding:10px 0 0;border-top:1px solid ${K.line};">+ ${GOREVLER_TOPLAM - 7} görev bekliyor</div><div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:13px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Bekleyen görevleri gör →</a></div>` : ''}`)}
       </table>`)}
     ${blok(statlar('8 sa 28 dk', 'Giriş 09:02', '5 sa 05 dk'))}
     ${altBilgi('17:30')}`
@@ -297,7 +297,7 @@ function altBilgi(saat, kaynak = 'Mobofis, Everhour ve Asana verilerinden', amac
     </div></td></tr>`;
 }
 // Koyu tema: satır içi renkleri sınıflara bağlar; koyu modda hem zemin hem metin birlikte değişir
-const KOYU_YAZI = { '#111827': 'd-ink', '#374151': 'd-body', '#6b7280': 'd-mut', '#1f2a44': 'd-link', '#b45309': 'd-warn', '#047857': 'd-ok', '#b42318': 'd-bad', '#9a5b1f': 'd-eks', '#4d7c3f': 'd-tam' };
+const KOYU_YAZI = { '#111827': 'd-ink', '#374151': 'd-body', '#6b7280': 'd-mut', '#1f2a44': 'd-link', '#b45309': 'd-warn', '#047857': 'd-ok', '#b42318': 'd-bad', '#9a5b1f': 'd-eks', '#3f6b33': 'd-tam' };
 const KOYU_ZEMIN = { '#f6f7f9': 'd-soft', '#fff7ed': 'd-warnbg', '#ecfdf5': 'd-okbg', '#e5e7eb': 'd-track', '#e8efe6': 'd-chip-tam', '#fbe4e1': 'd-chip-bad', '#f8e9d8': 'd-chip-eks', '#1f2a44': 'd-brandbg' };
 const KOYU_CERCEVE = { '#fed7aa': 'd-wline', '#a7f3d0': 'd-oline', '#e5e7eb': 'd-line' };
 function koyu(html) {
@@ -328,7 +328,7 @@ function sarmal(g) {
       .d-wline{border-color:#5a3b1a!important} .d-oline{border-color:#14503f!important} .d-line{border-color:#2f3542!important}
     }
   </style>
-  <script>function gGoster(a){var ac=a.getAttribute('data-ac')!=='1';document.querySelectorAll('tr.gizli').forEach(function(r){r.style.display=ac?'':'none'});a.setAttribute('data-ac',ac?'1':'0');a.textContent=ac?'Daha az göster ↑':'Diğer günleri göster ('+a.getAttribute('data-n')+') ↓';parent.postMessage('boyut','*');return false}<\/script></head>
+  </head>
   <body class="bg" style="margin:0;padding:0;background:#eef0f4;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${g.onizleme}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg" style="background:#eef0f4;"><tr><td align="center" style="padding:24px 8px;">
