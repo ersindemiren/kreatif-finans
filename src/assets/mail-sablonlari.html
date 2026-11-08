@@ -384,13 +384,14 @@ function secimiUygula() {
 function ciz() {
   secimiUygula();
   const g = govde(v);
-  const f = document.getElementById('if'); f.srcdoc = tema === 'koyu' ? sarmal(g).replace('(prefers-color-scheme:dark)', 'all') : sarmal(g); f.onload = () => { f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); };
+  const f = document.getElementById('if'); f.srcdoc = tema === 'koyu' ? sarmal(g).replace('(prefers-color-scheme:dark)', 'all') : sarmal(g); f.onload = () => { sigdir(); if (window.__ro) window.__ro.disconnect(); window.__ro = new ResizeObserver(() => sigdir()); window.__ro.observe(f.contentDocument.body); window.__ro.observe(document.getElementById('frame')); };
   document.getElementById('meta').textContent = META[v];
 }
 document.querySelectorAll('#senaryo button').forEach((b) => b.onclick = () => { tur = b.dataset.k; alt = 'a'; ciz(); });
 document.querySelectorAll('#genislik button').forEach((b) => b.onclick = () => { document.getElementById('frame').style.width = b.dataset.w + 'px'; setTimeout(() => { const f = document.getElementById('if'); f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); }, 120); document.querySelectorAll('#genislik button').forEach((x) => x.setAttribute('aria-pressed', x === b)); });
 document.querySelectorAll('#durumseg button').forEach((b) => b.onclick = () => { alt = b.dataset.d; ciz(); });
 document.querySelectorAll('#tema button').forEach((b) => b.onclick = () => { tema = b.dataset.t; document.querySelectorAll('#tema button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
+function sigdir() { const f = document.getElementById('if'); if (!f.contentDocument) return; f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); }
 function ustYukseklik() { parent.postMessage({ kfMailYukseklik: Math.ceil(document.body.getBoundingClientRect().height) }, '*'); }
 window.addEventListener('message', (e) => { if (e.data === 'boyut') { const f = document.getElementById('if'); f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); } });
 window.addEventListener('resize', ustYukseklik);
