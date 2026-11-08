@@ -46,6 +46,10 @@
     <button data-w="620" aria-pressed="true">Bilgisayar</button>
     <button data-w="375" aria-pressed="false">Telefon</button>
   </div>
+  <div class="seg" id="durumseg" role="group" aria-label="Örnek durum" style="display:none">
+    <button data-d="sorunlu" aria-pressed="true">Sorunlu</button>
+    <button data-d="temiz" aria-pressed="false">Sorunsuz</button>
+  </div>
   <div class="seg" id="tema" role="group" aria-label="Tema">
     <button data-t="acik" aria-pressed="true">Açık</button>
     <button data-t="koyu" aria-pressed="false">Koyu</button>
@@ -60,7 +64,7 @@ const K = { ink:'#111827', mut:'#6b7280', line:'#e5e7eb', soft:'#f6f7f9', warn:'
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 const BTN_URL = { 'Everhour\'u aç': 'https://app.everhour.com', 'Mobofis\'i aç': 'https://portal.mobofis.com.tr' };
-const btn = (t, c = K.brand) => `<a href="${BTN_URL[t] || '#'}" target="_blank" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;line-height:1;padding:15px 20px;border-radius:8px;">${t}</a>`;
+const btn = (t, c = K.brand, href) => `<a href="${href || BTN_URL[t] || '#'}" target="_blank" style="display:inline-block;background:${c};color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;line-height:1;padding:15px 20px;border-radius:8px;">${t}</a>`;
 const stat = (deger, etiket, alt, renk) => `
   <td class="stat" width="50%" valign="top" style="padding:6px;">
     <div style="background:${K.soft};border-radius:12px;padding:14px 14px 12px;">
@@ -107,7 +111,7 @@ function dagilim(baslik, satirlar) {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${satirlar.map(satir).join('')}</table>`;
 }
 function donemTile(deger, etiket, alt) { return stat(deger, etiket, alt, ''); }
-const CHIP = { tam: ['Tam kayıt', '#e8efe6', '#3f6b33'], gecikme: ['Gecikme', '#fbe4e1', '#b42318'], eksik: ['Eksik kayıt', '#f8e9d8', '#9a5b1f'] };
+const CHIP = { tatil: ['Resmi tatil', '#eef0f4', '#4b5563'], tam: ['Tam kayıt', '#e8efe6', '#3f6b33'], gecikme: ['Gecikme', '#fbe4e1', '#b42318'], eksik: ['Eksik kayıt', '#f8e9d8', '#9a5b1f'] };
 const chip = (tip) => `<span style="display:inline-block;font-size:12px;font-weight:700;padding:4px 8px;border-radius:999px;white-space:nowrap;background:${CHIP[tip][1]};color:${CHIP[tip][2]};">${CHIP[tip][0]}</span>`;
 const dk = (t) => { const [h, m] = t.split(':'); return +h * 60 + +m; };
 // Kural: giriş 09:15'ten sonra ya da çıkış 18:15'ten önce → Gecikme; giriş/çıkış yoksa → Eksik kayıt; aksi halde Tam kayıt
@@ -121,7 +125,7 @@ function kayitTablosu(baslik, kolonlar, satirlar, ilk) {
   return `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:${K.mut};font-weight:700;margin-bottom:6px;">${baslik}</div>
     <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${K.line};border-radius:12px;border-collapse:separate;">
       <tr style="background:${K.soft};">${th(kolonlar[0])}${th(kolonlar[1])}${th(kolonlar[2])}${th(kolonlar[3], true)}</tr>
-      ${satirlar.map((x, i) => { const d = kayitDurum(x[1], x[2]); const bt = 'border-top:1px solid ' + K.line + ';font-variant-numeric:tabular-nums;'; const gec = d === 'gecikme';
+      ${satirlar.map((x, i) => { const d = durum(x); const bt = 'border-top:1px solid ' + K.line + ';font-variant-numeric:tabular-nums;'; const gec = d === 'gecikme';
         const gR = gec && x[1] !== '—' && dk(x[1]) > dk('09:15') ? 'color:#b42318;font-weight:700;' : '', cR = gec && x[2] !== '—' && dk(x[2]) < dk('18:15') ? 'color:#b42318;font-weight:700;' : '';
         return ilk && i >= ilk ? '' : `<tr>${td(x[0], false, bt)}${td(x[1], false, bt + gR)}${td(x[2], false, bt + cR)}${td(chip(d), true, bt)}</tr>`; }).join('')}
     </table>${ilk && satirlar.length > ilk ? `<div style="padding:4px 0 0;"><a href="#" target="_blank" style="display:inline-block;padding:13px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">Tüm günleri gör (${satirlar.length - ilk}) →</a></div>` : ''}`;
@@ -135,14 +139,15 @@ function tamamlanan(baslik, satirlar, ek, link) {
           <td valign="middle" align="right" width="70" style="font-size:12px;color:${K.mut};white-space:nowrap;">${x[2]}</td></tr></table></td></tr>`).join('')}
     </table>${ek ? `<div style="font-size:13px;color:${K.mut};padding-top:10px;border-top:1px solid ${K.line};">${ek}</div>` : ''}${link ? `<div style="padding:2px 0 0;"><a href="https://app.asana.com" target="_blank" style="display:inline-block;padding:13px 0;font-size:13px;font-weight:600;color:${K.brand};text-decoration:none;">${link}</a></div>` : ''}`;
 }
-function donem(v) {
+const durum = (x) => (x[3] === 'tatil' ? 'tatil' : kayitDurum(x[1], x[2]));
+function donem(v, temiz) {
   const h = v === 'hafta';
   const P = h ? {
     tarih: '26 – 30 Ekim', baslik: '26 – 30 Ekim haftasının özeti hazır', metin: 'Geçen haftaya göz at.',
     konu: 'Geçen haftanın özeti: 26 – 30 Ekim', onizleme: '41 sa 58 dk işbaşında, 28 sa 47 dk zaman kaydı, 17 tamamlanan task.',
     t: [['41 sa 58 dk', 'İşbaşında', 'Önceki hafta 40 sa 12 dk'], ['28 sa 47 dk', 'Zaman kaydı', 'Önceki hafta 31 sa 05 dk'], ['17', 'Tamamlanan task', '22 task\'te yer aldın', K.ok], ['3', 'Tarihinde kapanmayan', 'Planlanan tarih geçen task']],
     gcBaslik: 'Giriş — Çıkış Kayıtları', gcKol: ['Tarih', 'Giriş', 'Çıkış', 'Durum'],
-    gc: [['26 Eki Pzt', '09:12', '—'], ['27 Eki Sal', '09:19', '18:31'], ['28 Eki Çar', '08:58', '18:25'], ['29 Eki Per', '—', '—'], ['30 Eki Cum', '09:23', '18:36']],
+    gc: [['26 Eki Pzt', '09:12', '—'], ['27 Eki Sal', '09:19', '18:31'], ['28 Eki Çar', '08:58', '18:25'], ['29 Eki Per', '—', '—', 'tatil'], ['30 Eki Cum', '09:23', '18:36']],
     zkBaslik: 'Zaman kaydı / işbaşında geçen süre',
     zk: [{ ad: 'Pazartesi', kayit: '7 sa 45 dk', isbasi: '—', oran: .8 }, { ad: 'Salı', kayit: '6 sa 50 dk', isbasi: '9 sa 12 dk', oran: .74 }, { ad: 'Çarşamba', kayit: '7 sa 20 dk', isbasi: '9 sa 27 dk', oran: .78 }, { ad: 'Perşembe', kayit: '2 sa 10 dk', isbasi: '—', oran: .23 }, { ad: 'Cuma', kayit: '4 sa 42 dk', isbasi: '9 sa 13 dk', oran: .51 }],
     tBaslik: 'Tamamladığın görevler',
@@ -172,29 +177,35 @@ function donem(v) {
       ['26 Eki Pzt', '09:12', '—'],
       ['27 Eki Sal', '09:19', '18:31'],
       ['28 Eki Çar', '08:58', '18:25'],
-      ['29 Eki Per', '—', '—'],
+      ['29 Eki Per', '—', '—', 'tatil'],
       ['30 Eki Cum', '09:23', '18:36']],
     zkBaslik: 'Zaman kaydı / işbaşında geçen süre',
     zk: [{ ad: '1 – 5 Ekim', kayit: '36 sa 10 dk', isbasi: '41 sa 20 dk', oran: .87 }, { ad: '6 – 12 Ekim', kayit: '30 sa 45 dk', isbasi: '40 sa 50 dk', oran: .75 }, { ad: '13 – 19 Ekim', kayit: '34 sa 05 dk', isbasi: '41 sa 10 dk', oran: .83 }, { ad: '20 – 26 Ekim', kayit: '29 sa 40 dk', isbasi: '40 sa 30 dk', oran: .73 }, { ad: '27 – 31 Ekim', kayit: '8 sa 40 dk', isbasi: '9 sa 10 dk', oran: .94 }],
     tBaslik: 'Tamamladığın görevler',
     tl: [['Kampanya görselleri – ilk revizyon', 'Kozoliv · Bilinirlik filmi', '30 Eki'], ['Haftalık performans raporu', 'Potamya · Raporlama', '30 Eki'], ['Reels kurgusu – final', 'Kozoliv · Bilinirlik filmi', '29 Eki'], ['Müşteri sunum dosyası', 'Potamya · Strateji', '28 Eki'], ['Banner seti – 3 boyut', 'Servet · Kampanya', '28 Eki'], ['Sosyal medya takvimi – Kasım', 'Kozoliv · İçerik planı', '27 Eki']],
     tEk: '+ 75 görev daha tamamladın', alt: '1 Kasım Pazar 08:45' };
-  const say = (t) => P.gc.filter((x) => kayitDurum(x[1], x[2]) === t).length;
+  if (temiz) {
+    // Sorunsuz hafta/ay: gecikme ve eksik kayıt yok
+    P.gc = P.gc.map((x) => (x[3] === 'tatil' || durum(x) === 'tam' ? x : [x[0], '09:07', '18:32']));
+    P.baslik = h ? '26 – 30 Ekim haftası harika geçti' : 'Ekim ayı harika geçti';
+    P.metin = h ? 'Giriş–çıkış kayıtların tamam ve tarihinde kapanmayan görevin yok. Eline sağlık!' : 'Ay boyunca giriş–çıkış kayıtların tamam ve tarihinde kapanmayan görevin yok. Eline sağlık!';
+  }
+  const say = (t) => P.gc.filter((x) => durum(x) === t).length;
   const on = h ? 'Önceki hafta' : 'Eylül';
   P.t = h
-    ? [[say('gecikme') + ' gün', 'Gecikme', on + ' 1 gün', CHIP.gecikme[2]], [say('eksik') + ' gün', 'Eksik kayıt', on + ' 0 gün', CHIP.eksik[2]],
+    ? [[say('gecikme') + ' gün', 'Gecikme', on + ' 1 gün', say('gecikme') ? CHIP.gecikme[2] : ''], [say('eksik') + ' gün', 'Eksik kayıt', on + ' 0 gün', say('eksik') ? CHIP.eksik[2] : ''],
        ['41 sa 58 dk', 'İşbaşında', on + ' 40 sa 12 dk'], ['28 sa 47 dk', 'Girilen zaman', on + ' 31 sa 05 dk'],
-       ['17 adet', 'Tamamlanan task', on + ' 14 adet', K.ok], ['3 adet', 'Tarihinde kapanmayan', on + ' 2 adet']]
-    : [[say('gecikme') + ' gün', 'Gecikme', on + ' 4 gün', CHIP.gecikme[2]], [say('eksik') + ' gün', 'Eksik kayıt', on + ' 1 gün', CHIP.eksik[2]],
+       ['17 adet', 'Tamamlanan task', on + ' 14 adet', K.ok], [temiz ? '0 adet' : '3 adet', 'Tarihinde kapanmayan', on + ' 2 adet']]
+    : [[say('gecikme') + ' gün', 'Gecikme', on + ' 4 gün', say('gecikme') ? CHIP.gecikme[2] : ''], [say('eksik') + ' gün', 'Eksik kayıt', on + ' 1 gün', say('eksik') ? CHIP.eksik[2] : ''],
        ['168 sa 40 dk', 'İşbaşında', on + ' 161 sa 05 dk'], ['139 sa 20 dk', 'Girilen zaman', on + ' 142 sa 30 dk'],
-       ['81 adet', 'Tamamlanan task', on + ' 74 adet', K.ok], ['5 adet', 'Tarihinde kapanmayan', on + ' 7 adet']];
+       ['81 adet', 'Tamamlanan task', on + ' 74 adet', K.ok], [temiz ? '0 adet' : '5 adet', 'Tarihinde kapanmayan', on + ' 7 adet']];
   return {
     tarih: P.tarih, konu: P.konu, onizleme: P.onizleme, baslik: P.baslik,
     html: `
-    ${hero('warn', '', P.baslik, P.metin)}
+    ${hero(temiz ? 'ok' : 'warn', '', P.baslik, P.metin)}
     ${blok(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -6px;width:calc(100% + 12px);">
       ${[0, 2, 4].filter((i) => P.t[i]).map((i) => `<tr>${stat(P.t[i][0], P.t[i][1], P.t[i][2], P.t[i][3] || '')}${P.t[i + 1] ? stat(P.t[i + 1][0], P.t[i + 1][1], P.t[i + 1][2], P.t[i + 1][3] || '') : ''}</tr>`).join('')}</table>`)}
-    ${blok(kayitTablosu(P.gcBaslik, P.gcKol, P.gc, h ? 0 : 7))}
+    ${blok(kayitTablosu(P.gcBaslik, P.gcKol, P.gc, 0))}
     ${blok(tamamlanan(P.tBaslik, P.tl, P.tEk, P.tEk ? 'Tamamlanan görevleri gör →' : ''))}
     <tr><td style="padding:18px 28px 28px;"><div style="border-top:1px solid ${K.line};padding-top:16px;font-size:12px;line-height:1.6;color:${K.mut};">
       Bu rapor yalnızca sana gönderildi ve Mobofis, Everhour ve Asana verilerinden hazırlandı. Bir bilgi yanlışsa bu maile yanıt yazman yeterli. <a href="#" style="color:${K.mut};">Bu raporlar hakkında</a></div></td></tr>`
@@ -202,7 +213,7 @@ function donem(v) {
 }
 
 function govde(v) {
-  if (v === 'hafta' || v === 'ay') return donem(v);
+  if (v === 'hafta' || v === 'ay') return donem(v, durumSec === 'temiz');
   if (v === 'cikis') {
     // Önceki iş günü: Salı–Cuma günü gönderimde bir önceki gün, Pazartesi günü Cuma. (Örnek: Cuma gönderimi → Perşembe)
     const eksikGun = { ad: 'Perşembe', tarih: '5 Kasım' };
@@ -218,7 +229,7 @@ function govde(v) {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           ${adim(1, 'Çıkış kaydını düzenle', `Mobofis üzerinden geçmiş kayıt düzenleme yapılamaz.<br>Muhasebe'ye ${eksikGun.ad} günü çıkış saatini bildirerek manuel giriş yapılması için talepte bulunabilirsin.`, '')}
         </table>
-        <div style="padding:2px 0 8px;text-align:center;">${btn('Bildirim Yap')}</div>`)}
+        <div style="padding:2px 0 8px;text-align:center;">${btn('Bildirim Yap', K.brand, 'mailto:muhasebe@kreatif.net?subject=' + encodeURIComponent('Çıkış kaydı bildirimi – ' + gunBas) + '&body=' + encodeURIComponent('Merhaba,\n\n' + gunBas + ' günü Mobofis\'te çıkış kaydım görünmüyor. Çıkış saatim: __:__\n\nAd Soyad: Ayşe'))}<div style="font-size:12px;color:${K.mut};margin-top:8px;">Bildirim muhasebe@kreatif.net adresine gider.</div></div>`)}
       ${altBilgi(`${eksikGun.ad} 18:30`, 'Mobofis kaydından', 'Amacımız kayıtları birlikte tamamlamak.')}`
     };
   }
@@ -346,14 +357,16 @@ function sarmal(g) {
   </td></tr></table></body></html>`);
 }
 
-let v = 'eksik', tema = 'acik';
+let v = 'eksik', tema = 'acik', durumSec = 'sorunlu';
 function ciz() {
   const g = govde(v);
   const f = document.getElementById('if'); f.srcdoc = tema === 'koyu' ? sarmal(g).replace('(prefers-color-scheme:dark)', 'all') : sarmal(g); f.onload = () => { f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); };
-  document.getElementById('meta').textContent = ({giris:'Gönderim: iş günü 10:30 · yalnızca giriş kaydı olmayanlara', cikis:'Gönderim: ertesi gün 08:45 · çıkış kaydı olmayanlara', hafta:'Gönderim: pazartesi 08:45 · geçen haftanın raporu', ay:'Gönderim: ayın ilk iş günü 08:45 · geçen ayın raporu'})[v] || 'Gönderim: iş günü 17:30';
+  document.getElementById('durumseg').style.display = (v === 'hafta' || v === 'ay') ? 'inline-flex' : 'none';
+  document.getElementById('meta').textContent = ({giris:'Gönderim: iş günü 10:30 · yalnızca giriş kaydı olmayanlara', cikis:'Gönderim: ertesi gün 08:45 · çıkış kaydı olmayanlara', hafta:'Gönderim: pazartesi 08:45', ay:'Gönderim: ayın ilk iş günü 08:45'})[v] || 'Gönderim: iş günü 17:30';
 }
 document.querySelectorAll('#senaryo button').forEach((b) => b.onclick = () => { v = b.dataset.v; document.querySelectorAll('#senaryo button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
 document.querySelectorAll('#genislik button').forEach((b) => b.onclick = () => { document.getElementById('frame').style.width = b.dataset.w + 'px'; setTimeout(() => { const f = document.getElementById('if'); f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); }, 120); document.querySelectorAll('#genislik button').forEach((x) => x.setAttribute('aria-pressed', x === b)); });
+document.querySelectorAll('#durumseg button').forEach((b) => b.onclick = () => { durumSec = b.dataset.d; document.querySelectorAll('#durumseg button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
 document.querySelectorAll('#tema button').forEach((b) => b.onclick = () => { tema = b.dataset.t; document.querySelectorAll('#tema button').forEach((x) => x.setAttribute('aria-pressed', x === b)); ciz(); });
 function ustYukseklik() { parent.postMessage({ kfMailYukseklik: Math.ceil(document.body.getBoundingClientRect().height) }, '*'); }
 window.addEventListener('message', (e) => { if (e.data === 'boyut') { const f = document.getElementById('if'); f.style.height = '0px'; f.style.height = f.contentDocument.documentElement.scrollHeight + 'px'; ustYukseklik(); } });
