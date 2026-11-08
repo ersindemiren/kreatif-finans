@@ -1,6 +1,6 @@
 // Veri kaynağı: Google Sheets "FEE 2026 YENİ" + "MÜŞTERİDEN GELECEK ÖDEMELER"
 // Apps Script web app uç noktaları üzerinden otomatik çekilir (bkz. src/lib/parseData.js)
-import React, { useState, useMemo, useEffect, useRef, useDeferredValue } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useDeferredValue, lazy, Suspense } from 'react';
 import {
   Home, LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
@@ -9,7 +9,7 @@ import {
 import SatisTablosu from './SatisTablosu.jsx';
 import SureAnalizi from './SureAnalizi.jsx';
 import FeeTakip from './FeeTakip.jsx';
-import Yonetim from './Yonetim.jsx';
+const Yonetim = lazy(() => import('./Yonetim.jsx'));
 import { useMaskNumbers } from './lib/maskNumbers.js';
 import { YASLANDIRMA_KOVALARI, normalizeNameKey } from './lib/parseData.js';
 import { temerrutFaizi, temerrutOrani } from './lib/temerrut.js';
@@ -1225,7 +1225,11 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
           {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} sureError={data.sureError} gorunumler={sureGorunumler} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
-          {page === 'yonetim' && user?.role === 'admin' && !izleniyor && <Yonetim onViewAs={onViewAs} me={user} tumSayfalar={yetkiSayfalari} markalar={markaListesi} />}
+          {page === 'yonetim' && user?.role === 'admin' && !izleniyor && (
+            <Suspense fallback={<div className="p-6 text-sm text-slate-500">Yükleniyor...</div>}>
+              <Yonetim onViewAs={onViewAs} me={user} tumSayfalar={yetkiSayfalari} markalar={markaListesi} />
+            </Suspense>
+          )}
           {page === 'feeTakip' && <FeeTakip feeTakip={data.feeTakip} feeTakipError={data.feeTakipError} pasifMarkalar={pasifMarkalar} satisRows={data.satis?.rows} kurUSD={data.kurUSD} />}
           {page === 'yorumlar' && (
             <div className="flex flex-col gap-5">
