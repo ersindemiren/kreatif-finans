@@ -83,8 +83,9 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const personelToplam = personel.reduce((s, u) => s + u.hours, 0);
 
   const rows = brands.map((b) => ({ ...b, ...calc(b, periodIdx) })).filter((r) => r.hours > 0 || r.faturali);
-  const faturali = rows.filter((r) => r.faturali).sort((a, b) => b.hours - a.hours);
-  const faturasiz = rows.filter((r) => !r.faturali).sort((a, b) => b.hours - a.hours);
+  // Girilen Süre: faturalı markalar + faturası olmayan (eski adıyla kayıp) markalar tek listede
+  const faturali = [...rows].sort((a, b) => b.hours - a.hours);
+  const faturasiz = [];
   // Kreatif iç süresine TL değer atanmaz (fark 0); atanmamış süre saat x baz ile değerlenir
   const markaDisi = disi.map((b) => { const c = calc(b, periodIdx); return { ...b, ...c, fark: b.tip === 'ic' ? 0 : c.fark }; }).filter((r) => r.hours > 0);
 
@@ -100,7 +101,6 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const genel = { hours: gFaturali.hours + gFaturasiz.hours + gIc.hours + gAtanmamis.hours, fark: gFaturali.fark + gFaturasiz.fark + gIc.fark + gAtanmamis.fark };
   const toplam = genel.hours;
   const aktif = gFaturali.hours;
-  const kayip = gFaturasiz.hours;
   const atil = gIc.hours + gAtanmamis.hours; // Atanmamış Süre kartı: iç süre + markaya atanmamış
 
   // Üst kartlar (Müşteri / Personel / Departman görünümünde aynı): azami süre = 22 gün x 8,5 saat x dönemdeki kişi-ay sayısı
@@ -115,7 +115,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     ['Kapasite Oranı', sureOrani == null ? '–' : pct1(sureOrani), 'Gerçekleşen Süre / Maksimum Kapasite', sureOrani != null && sureOrani < ESIKLER.kapasite ? ORAN_KIRMIZI : ''],
     ['Girilen Süre', `${fmtN(aktif)} Saat`, `${pct1(toplam ? aktif / toplam : 0)} · ${donem}`, ''],
     ['Atanmamış Süre', `${fmtN(atil)} Saat`, `${pct1(toplam ? atil / toplam : 0)} · ${donem}`, ''],
-    ['Kayıp Süre', `${fmtN(kayip)} Saat`, `${pct1(toplam ? kayip / toplam : 0)} · ${donem}`, ''],
+    ['Toplam Müşteri', `${rows.filter((r) => r.hours > 0).length} adet`, `süre girilen marka · ${donem}`, ''],
   ];
   const UstKartlar = (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
@@ -429,16 +429,6 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         </div>
       </div>
 
-      <div className={`${CARD} p-5 border-rose-200 dark:border-rose-900/60`}>
-        <h2 className="font-serif text-lg text-rose-600 dark:text-rose-400 mb-1">Kayıp Süre</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Faturası kesilmeyen markalara harcanan süre.</p>
-        <TableHead label="Marka" />
-        <div className="flex flex-col">
-          {faturasiz.map((r, k) => <Row key={r.name} r={r} i={k + 1} kirmizi />)}
-          {faturasiz.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için kayıt yok.</div>}
-        </div>
-      </div>
-
       <div className={`${CARD} p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Atanmamış Süre</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kreatif iç süresi ve markaya atanmamış kayıtlar.</p>
@@ -453,8 +443,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">Genel Toplam</h2>
         <TableHead label="Grup" />
         {[
-          ['Faturalı Markalar', gFaturali, 'text-slate-700 dark:text-slate-300'],
-          ['Kayıp Süre', gFaturasiz, 'text-rose-600 dark:text-rose-400'],
+          ['Girilen Süre (Markalar)', gFaturali, 'text-slate-700 dark:text-slate-300'],
           ['Atanmamış Süre', gAtil, 'text-slate-700 dark:text-slate-300'],
         ].map(([label, g, c]) => (
           <div key={label} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">

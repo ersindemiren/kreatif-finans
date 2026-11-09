@@ -414,9 +414,9 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
     ['Maksimum Kapasite', maksP ? `${fmtN(maksP)} Saat` : '–', maksP ? `${maksAyP} ay · iş günü × 8,5 sa` : 'süre girilmemiş', ''],
     ['Gerçekleşen Süre', `${fmtN(toplamP)} Saat`, `ekibin ${pct1(ekipP ? toplamP / ekipP : 0)}'i ${donem}`, ''],
     ['Kapasite Oranı', oranP == null ? '–' : pct1(oranP), 'Gerçekleşen Süre / Maksimum Kapasite', oranP != null && oranP < ESIKLER.kapasite ? ORAN_KIRMIZI : ''],
-    ['Girilen Süre', `${fmtN(grpP.faturali)} Saat`, `${payP(grpP.faturali)} · ${donem}`, ''],
+    ['Girilen Süre', `${fmtN(grpP.faturali + grpP.kayip)} Saat`, `${payP(grpP.faturali + grpP.kayip)} · ${donem}`, ''],
     ['Atanmamış Süre', `${fmtN(grpP.atil)} Saat`, `${payP(grpP.atil)} · ${donem}`, ''],
-    ['Kayıp Süre', `${fmtN(grpP.kayip)} Saat`, `${payP(grpP.kayip)} · ${donem}`, ''],
+    ['Müşteri Sayısı', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok', ''],
   ];
   // Maliyet değerleri ay ay hesaplanır: o ayın saat maliyeti x süre
   const saatAy = (i) => maliyetAy?.[ayAnahtar(i)] || 0;
@@ -446,11 +446,6 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   const skorP = skorHesap(per);
   const skorToplam = skorHesap(aktif);
   const kartlar2 = [
-    ...(maliyetAcik ? [
-      ['Ort. Saat Maliyeti', ortSaat > 0 ? `₺${Math.ceil(ortSaat).toLocaleString('tr-TR')}/sa` : '–', maliyetNot || (eksikAy ? `${eksikAy} ayın maliyeti girilmemiş` : 'gerçekleşen maliyet / gerçekleşen süre')],
-      ['Gerçekleşen Maliyet', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || 'aylık personel maliyetlerinin toplamı'],
-    ] : []),
-    ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
     ...(GIZLI.skorKarti ? [] : [['Skor', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Kapasite ${Math.round(skorP.sure)}/${skorP.w.sure} · Kayıt ${Math.round(skorP.kayit)}/${skorP.w.kayit} · Kayıp ${Math.round(skorP.kayip)}/${skorP.w.kayip}${skorP.gc != null ? ` · Giriş–Çıkış ${Math.round(skorP.gc)}/${skorP.w.gc}` : ''}` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : '', skorP ? () => setSkorKutu({ ad: name, donem: donem.replace(/^\(|\)$/g, ''), skor: skorP }) : null]]),
   ];
   const pillClass = (m, active) => {
@@ -534,7 +529,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
           </div>
         ))}
       </div>
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${kartlar2.length > 3 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-2 sm:gap-4 -mt-3 sm:-mt-1`}>
+      <div className={`${kartlar2.length ? 'grid' : 'hidden'} grid-cols-1 sm:grid-cols-2 ${kartlar2.length > 3 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-2 sm:gap-4 -mt-3 sm:-mt-1`}>
         {kartlar2.map(([label, v, sub, cls, tikla]) => (
           <div key={label} className={`${CARD} p-4${tikla ? ' cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors' : ''}`} {...(tikla ? { role: 'button', tabIndex: 0, onClick: tikla, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tikla(); } } } : {})}>
             <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
