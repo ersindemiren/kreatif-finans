@@ -424,7 +424,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         </p>
         <TableHead label="Marka" />
         <div className="flex flex-col">
-          {faturali.map((r, k) => <Row key={r.name} r={r} i={k + 1} />)}
+          {faturali.map((r, k) => <Row key={r.name} r={r} i={k + 1} kirmizi={!r.faturali} />)}
           {faturali.length === 0 && <div className="py-3 text-xs text-slate-400">Bu dönem için veri yok.</div>}
         </div>
       </div>
@@ -443,7 +443,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-3">Genel Toplam</h2>
         <TableHead label="Grup" />
         {[
-          ['Girilen Süre (Markalar)', gFaturali, 'text-slate-700 dark:text-slate-300'],
+          ['Girilen Süre', gFaturali, 'text-slate-700 dark:text-slate-300'],
           ['Atanmamış Süre', gAtil, 'text-slate-700 dark:text-slate-300'],
         ].map(([label, g, c]) => (
           <div key={label} className="flex items-start gap-2 sm:gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800 text-[11px] sm:text-sm leading-5 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
