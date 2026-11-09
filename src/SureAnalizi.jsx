@@ -272,6 +272,10 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     const ol = liste.map((u) => personelOlcu.get(u.name)).filter(Boolean);
     const o = {};
     SUTUNLAR.forEach(([k]) => { const v = ol.map((x) => x[k]).filter((x) => x != null); o[k] = v.length ? v.reduce((t, x) => t + x, 0) / v.length : null; });
+    // Kapasite Oranı ortalaması ağırlıklıdır (toplam süre / toplam azami süre): üstteki Kapasite Oranı kartıyla aynı yöntem
+    const mk = ol.filter((x) => x.kapOran != null && x.maks > 0);
+    const mT = mk.reduce((t, x) => t + x.maks, 0);
+    if (mT) o.kapOran = mk.reduce((t, x) => t + x.sure, 0) / mT;
     o.ekipS = personelToplam;
     return (
       <div className="flex items-start gap-2 sm:gap-3 pt-2.5 text-[11px] sm:text-sm leading-5 font-semibold text-slate-900 dark:text-slate-50 border-t-2 border-slate-200 dark:border-slate-700">
