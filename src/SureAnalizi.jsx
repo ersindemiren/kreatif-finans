@@ -235,8 +235,8 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   const W = 'flex-1 min-w-[5.5rem]'; // sütunlar kalan genişliği eşit paylaşır (sağda boşluk kalmaz)
   const ADW = 'w-72 shrink-0 whitespace-nowrap';
   const SUTUNLAR_TUMU = [
-    ['ort', 'Ort. Saat Maliyeti', W], ['gm', 'Gerçekleşen Maliyet', W], ['maks', 'Maks. Kapasite', W], ['kapOran', 'Kapasite Oranı', W],
-    ['sure', 'Gerçekleşen Süre', W], ['sureOran', 'Kayıt Oranı', W], ['ekipS', 'Ekip Süresi', W], ['ekipPay', 'Ekip Payı', W], ['depPay', 'Dep. Payı', W], ['skor', 'Skor', W],
+    ['ort', 'Ort. Saat Maliyeti', W], ['gm', 'Gerçekleşen Maliyet', W], ['maks', 'Maks. Kapasite', W], ['sure', 'Gerçekleşen Süre', W], ['kapOran', 'Kapasite Oranı', W],
+    ['sureOran', 'Kayıt Oranı', W], ['ekipS', 'Ekip Süresi', W], ['ekipPay', 'Ekip Payı', W], ['depPay', 'Dep. Payı', W], ['skor', 'Skor', W],
   ];
   const SUTUNLAR = SUTUNLAR_TUMU.filter(([k]) => !GIZLI_SUTUN.has(k));
   const TL0 = (v) => '₺' + Math.ceil(v).toLocaleString('tr-TR'); // Ort. Saat Maliyeti: ondalık yok, yukarı yuvarlanır
@@ -405,7 +405,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           {UstKartlar}
           <div className={`${CARD} p-5`}>
             <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Bazlı Süre Dağılımı</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kırmızı baraj (Yönetim > Ayarlar): Kapasite Oranı {pctEsik(ESIKLER.kapasite)} altı. Alttaki satırlar listedeki kişilerin ortalaması ve toplamıdır. Sütun başlığına tıklayarak sıralayabilirsiniz (tekrar tıklayınca yön değişir).</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kişi adına tıklayınca aylık süreleri ve müşteri kırılımı açılır. Maks. Kapasite = süre girdiği ayların (hafta içi − resmi tatil) × 8,5 saatlik toplamı; Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite. Ekip Payı = kişinin süresi / ekibin toplam süresi; Dep. Payı = kişinin süresi / kendi departmanının süresi. Kırmızı baraj (Yönetim > Ayarlar): Kapasite Oranı {pctEsik(ESIKLER.kapasite)} altı.</p>
             <div className="overflow-x-auto"><div className="min-w-[1340px]">
             {olcuBaslik('Personel')}
             <div className="flex flex-col">
