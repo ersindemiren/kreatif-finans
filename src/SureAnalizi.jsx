@@ -6,6 +6,7 @@ import { buildSure, buildPersonel, buildDepartman, kisiAyDizisi, DEPARTMAN_YOK, 
 import Karsilastirma from './Karsilastirma.jsx';
 import { verimlilikSkoru, skorKirmizi } from './lib/karsilastirma.js';
 import SkorKutusu from './SkorKutusu.jsx';
+import { GIZLI_SUTUN } from './lib/gorunum.js';
 import { MarkaDetay, KisiDetay, ORAN_KIRMIZI } from './SureDetay.jsx';
 import { ESIKLER, pctEsik } from './lib/esikler.js';
 import { aySaati, VARSAYILAN_TATILLER } from './lib/takvim.js';
@@ -233,10 +234,11 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
   // Personel ve Departman görünümlerinin ortak tablosu: sütunlar birebir aynı
   const W = 'flex-1 min-w-[5.5rem]'; // sütunlar kalan genişliği eşit paylaşır (sağda boşluk kalmaz)
   const ADW = 'w-72 shrink-0 whitespace-nowrap';
-  const SUTUNLAR = [
+  const SUTUNLAR_TUMU = [
     ['ort', 'Ort. Saat Maliyeti', W], ['gm', 'Gerçekleşen Maliyet', W], ['maks', 'Maks. Kapasite', W], ['kapOran', 'Kapasite Oranı', W],
     ['sure', 'Gerçekleşen Süre', W], ['sureOran', 'Kayıt Oranı', W], ['ekipS', 'Ekip Süresi', W], ['ekipPay', 'Ekip Payı', W], ['depPay', 'Dep. Payı', W], ['skor', 'Skor', W],
   ];
+  const SUTUNLAR = SUTUNLAR_TUMU.filter(([k]) => !GIZLI_SUTUN.has(k));
   const TL0 = (v) => '₺' + Math.ceil(v).toLocaleString('tr-TR'); // Ort. Saat Maliyeti: ondalık yok, yukarı yuvarlanır
   const hucreMetni = {
     ort: (v) => TL0(v), gm: (v) => '₺' + fmtN(v), maks: (v) => `${fmtN(v)} sa`, sure: (v) => `${fmtN(v)} sa`, ekipS: (v) => `${fmtN(v)} sa`,

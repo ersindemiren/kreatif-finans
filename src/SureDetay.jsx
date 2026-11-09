@@ -4,6 +4,7 @@ import { ArrowLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from './lib/auth.js';
 import { verimlilikSkoru, skorKirmizi } from './lib/karsilastirma.js';
 import SkorKutusu from './SkorKutusu.jsx';
+import { GIZLI } from './lib/gorunum.js';
 import { FEE_BAZI, buildMarkaPersonel, buildKisiDetay, kanonikMusteri } from './lib/sure.js';
 import { kisiAylari } from './lib/kisiAylar.js';
 import { normalizeNameKey } from './lib/parseData.js';
@@ -450,7 +451,7 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
       ['Gerçekleşen Maliyet', topDeger > 0 ? fmtT(topDeger) : '–', maliyetNot || 'aylık personel maliyetlerinin toplamı'],
     ] : []),
     ['Müşteri', `${clP.length} adet`, clP[0] ? `en çok: ${clP[0].name}` : 'kayıt yok'],
-    ['Skor', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Kapasite ${Math.round(skorP.sure)}/${skorP.w.sure} · Kayıt ${Math.round(skorP.kayit)}/${skorP.w.kayit} · Kayıp ${Math.round(skorP.kayip)}/${skorP.w.kayip}${skorP.gc != null ? ` · Giriş–Çıkış ${Math.round(skorP.gc)}/${skorP.w.gc}` : ''}` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : '', skorP ? () => setSkorKutu({ ad: name, donem: donem.replace(/^\(|\)$/g, ''), skor: skorP }) : null],
+    ...(GIZLI.skorKarti ? [] : [['Skor', skorP ? `${Math.round(skorP.toplam)} / 100` : '–', skorP ? `Kapasite ${Math.round(skorP.sure)}/${skorP.w.sure} · Kayıt ${Math.round(skorP.kayit)}/${skorP.w.kayit} · Kayıp ${Math.round(skorP.kayip)}/${skorP.w.kayip}${skorP.gc != null ? ` · Giriş–Çıkış ${Math.round(skorP.gc)}/${skorP.w.gc}` : ''}` : 'süre girilmemiş', skorKirmizi(skorP) ? ORAN_KIRMIZI : '', skorP ? () => setSkorKutu({ ad: name, donem: donem.replace(/^\(|\)$/g, ''), skor: skorP }) : null]]),
   ];
   const pillClass = (m, active) => {
     const durum = ayDurumu?.[months.indexOf(m)];
@@ -475,7 +476,8 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
   }
   if (toplamEkip > 0) yorumlar.push({ tone: 'info', text: `Ekip Süresinin ${pct1(toplamKisi / toplamEkip)}'ini üstlendi.` });
 
-  const gridA = 'grid grid-cols-[minmax(4rem,1fr)_repeat(10,minmax(5.5rem,1fr))]';
+  const gizliS = GIZLI.maliyetKayitSkor; // Ort. Saat Maliyeti, Gerçekleşen Maliyet, Kayıt Oranı, Skor sütunları geçici gizli
+  const gridA = gizliS ? 'grid grid-cols-[minmax(4rem,1fr)_repeat(6,minmax(5.5rem,1fr))]' : 'grid grid-cols-[minmax(4rem,1fr)_repeat(10,minmax(5.5rem,1fr))]';
   const maksAy = (i) => (sayilan.has(i) ? maksSaat(i) : 0);
   // Kayıt Oranı: sürenin faturası kesilmiş markalara giden payı (seçilen aylar için)
   const kayitOraniAy = (idxs) => {
@@ -553,9 +555,9 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
       <div className={`${CARD} p-5`}>
         <h3 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Aylık Ayrıntı</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Ort. Saat Maliyeti = o ayın saat maliyeti (yukarı yuvarlanır); Gerçekleşen Maliyet = Personel Maliyet Hesaplama'daki o ayın personel maliyeti (maaş + dağıtım payı). Maks. Kapasite = (ayın hafta içi sayısı − resmi tatil) × 8,5 saat. Kapasite Oranı = Gerçekleşen Süre / Maks. Kapasite ({pctEsik(ESIKLER.kapasite)} altı kırmızı). Kayıt Oranı = sürenin faturası kesilmiş markalara giden payı. Ekip Payı = kişinin süresi / ekibin toplam süresi. Dep. Payı = kişinin süresi / kendi departmanındaki toplam süre. Skor (0–100): Kapasite Oranı %40, Kayıt Oranı %40, Kayıp Süre payı (ters) %20.</p>
-        <div className="rounded-xl overflow-x-auto border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm"><div className="min-w-[980px]">
+        <div className="rounded-xl overflow-x-auto border border-slate-200 dark:border-slate-700 text-[10px] sm:text-sm"><div className={gizliS ? 'min-w-[640px]' : 'min-w-[980px]'}>
           <div className={`${gridA} bg-slate-100 dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 leading-tight items-center`}>
-            <span className={`${cellA} text-left`}>Ay</span>{['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Maks. Kapasite', 'Kapasite Oranı', 'Gerçekleşen Süre', 'Kayıt Oranı', 'Ekip Süresi', 'Ekip Payı', 'Dep. Payı', 'Skor'].map((h) => <span key={h} className={`${cellA} !whitespace-normal leading-tight`}>{h}</span>)}
+            <span className={`${cellA} text-left`}>Ay</span>{['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Maks. Kapasite', 'Kapasite Oranı', 'Gerçekleşen Süre', 'Kayıt Oranı', 'Ekip Süresi', 'Ekip Payı', 'Dep. Payı', 'Skor'].filter((h) => !(gizliS && ['Ort. Saat Maliyeti', 'Gerçekleşen Maliyet', 'Kayıt Oranı', 'Skor'].includes(h))).map((h) => <span key={h} className={`${cellA} !whitespace-normal leading-tight`}>{h}</span>)}
           </div>
           {idx.map((i) => {
             const sm = saatAyDeger(i);
@@ -564,31 +566,47 @@ export function KisiDetay({ name, months, ayDurumu, personelRows, brandOf, depar
             return (
               <div key={i} className={`${gridA} border-t border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors ${on[i] ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>
                 <span className={`${cellA} text-left`}>{months[i]}</span>
+                {!gizliS && (<>
                 <span className={cellA}>{on[i] && sm > 0 ? TL0(sm) : '–'}</span>
+                </>)}
+                {!gizliS && (<>
                 <span className={cellA}>{on[i] && maliyetAcik && topAy(i) > 0 ? fmtT(topAy(i)) : '–'}</span>
+                </>)}
                 <span className={cellA}>{on[i] && maksAy(i) ? fmtSaat(maksAy(i)) : '–'}</span>
                 <span className={`${cellA} ${on[i] && maksAy(i) ? oranCls(d.monthly[i] / maksAy(i)) : ''}`}>{on[i] && maksAy(i) ? pct1(d.monthly[i] / maksAy(i)) : '–'}</span>
                 <span className={cellA}>{on[i] ? fmtSaat(d.monthly[i]) : '–'}</span>
+                {!gizliS && (<>
                 <span className={`${cellA} ${ko != null ? oranCls(ko, 'kayit') : ''}`}>{ko != null ? pct1(ko) : '–'}</span>
+                </>)}
                 <span className={cellA}>{on[i] ? fmtN(d.team[i]) : '–'}</span>
                 <span className={cellA}>{on[i] && d.team[i] ? pct1(d.monthly[i] / d.team[i]) : '–'}</span>
                 <span className={cellA}>{on[i] && d.dep[i] ? pct1(d.monthly[i] / d.dep[i]) : '–'}</span>
+                {!gizliS && (<>
                 {sk ? <button type="button" onClick={() => setSkorKutu({ ad: name, donem: `${months[i]} ${yilOf(personelRows)}`, skor: sk })} title="Skor kartını aç" className={`${cellA} underline decoration-dotted underline-offset-2 hover:text-blue-600 dark:hover:text-blue-400 ${skorKirmizi(sk) ? ORAN_KIRMIZI : ''}`}>{Math.round(sk.toplam)}</button> : <span className={cellA}>–</span>}
+                </>)}
               </div>
             );
           })}
           <div className={`${gridA} border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-900 dark:text-slate-50`}>
             <span className={`${cellA} text-left`}>Toplam</span>
+            {!gizliS && (<>
             <span className={cellA}>{maliyetliSaatA ? TL0(hizA / maliyetliSaatA) : '–'}</span>
+            </>)}
+            {!gizliS && (<>
             <span className={cellA}>{gmA > 0 ? fmtT(gmA) : '–'}</span>
+            </>)}
             <span className={cellA}>{toplamMaks ? fmtSaat(toplamMaks) : '–'}</span>
             <span className={`${cellA} ${toplamMaks ? oranCls(toplamKisi / toplamMaks) : ''}`}>{toplamMaks ? pct1(toplamKisi / toplamMaks) : '–'}</span>
             <span className={cellA}>{fmtSaat(toplamKisi)}</span>
+            {!gizliS && (<>
             {(() => { const ko = kayitOraniAy(aktif); return <span className={`${cellA} ${ko != null ? oranCls(ko, 'kayit') : ''}`}>{ko != null ? pct1(ko) : '–'}</span>; })()}
+            </>)}
             <span className={cellA}>{fmtN(toplamEkip)}</span>
             <span className={cellA}>{toplamEkip ? pct1(toplamKisi / toplamEkip) : '–'}</span>
             <span className={cellA}>{toplamDep ? pct1(toplamKisi / toplamDep) : '–'}</span>
+            {!gizliS && (<>
             {skorToplam ? <button type="button" onClick={() => setSkorKutu({ ad: name, donem: donem.replace(/^\(|\)$/g, ''), skor: skorToplam })} title="Skor kartını aç" className={`${cellA} underline decoration-dotted underline-offset-2 hover:text-blue-600 dark:hover:text-blue-400 ${skorKirmizi(skorToplam) ? ORAN_KIRMIZI : ''}`}>{Math.round(skorToplam.toplam)}</button> : <span className={cellA}>–</span>}
+            </>)}
           </div>
         </div></div>
       </div>

@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { kisiOlcu, SKOR, skorKirmizi } from './lib/karsilastirma.js';
 import { ORAN_KIRMIZI } from './SureDetay.jsx';
 import SkorKutusu from './SkorKutusu.jsx';
+import { GIZLI_SATIR } from './lib/gorunum.js';
 import { ESIKLER, pctEsik } from './lib/esikler.js';
 
 const CARD = 'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800';
@@ -30,7 +31,7 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
   }, [sonuc, rows, departman, pasifSet, per, maliyetAy, maliyetTop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // yon: 'yuksek' = büyük olan iyi, 'dusuk' = küçük olan iyi; verilmezse vurgu yapılmaz. num: karşılaştırılacak sayı
-  const gruplar = olcu && [
+  const gruplarTumu = olcu && [
     [
       { l: 'Skor', skorTikla: true, f: (o) => (o.skor ? `${Math.round(o.skor.toplam)} / 100` : 'Veri yetersiz'), alt: (o) => (o.skor ? `Kapasite ${Math.round(o.skor.sure)}/${o.skor.w.sure} · Kayıt ${Math.round(o.skor.kayit)}/${o.skor.w.kayit} · Kayıp ${Math.round(o.skor.kayip)}/${o.skor.w.kayip}${o.skor.gc != null ? ` · Giriş–Çıkış ${Math.round(o.skor.gc)}/${o.skor.w.gc}` : ''}` : ''), num: (o) => o.skor?.toplam ?? null, yon: 'yuksek', buyuk: true, kirmizi: (o) => skorKirmizi(o.skor), not: 'Kapasite Oranı %40 · Kayıt Oranı %40 · Kayıp Süre %20 (ters)' },
     ],
@@ -55,6 +56,8 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
       { l: 'En Çok Çalıştığı Müşteri', f: (o) => (o.enCok ? o.enCok.ad : VAR), alt: (o) => (o.enCok ? `süresinin ${pct1(o.enCok.pay)}'si` : '') },
     ],
   ];
+
+  const gruplar = gruplarTumu && gruplarTumu.map((g) => g.filter((s) => !GIZLI_SATIR.has(s.l))).filter((g) => g.length);
 
   // En iyi değere sahip tüm kişiler (hepsi eşitse kimse vurgulanmaz)
   const kazananlar = (s) => {
