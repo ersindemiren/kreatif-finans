@@ -73,13 +73,12 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
     <div className="flex flex-col gap-5">
       {skorKutu && <SkorKutusu ad={skorKutu.ad} donem={skorKutu.donem} skor={skorKutu.skor} onClose={() => setSkorKutu(null)} />}
       <div className={`${CARD} p-5`}>
-        <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Personel Karşılaştırma</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Personelleri seçip Karşılaştır'a basın; gerekirse "Kişi ekle" ile en fazla {EN_COK} kişi karşılaştırılır. Sonuçlar yukarıda seçili döneme göre hesaplanır; dönemi değiştirince güncellenir. Yeşil işaret, o başlıkta daha iyi olanı gösterir.</p>
+        <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-4">Karşılaştırma</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {secimler.map((deger, k) => (
             <label key={k} className="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-400">
               <span className="flex items-center justify-between">
-                {k + 1}. Personel
+                {k + 1}. Kişi
                 {k >= 2 && <button type="button" onClick={() => setSecimler((l) => l.filter((_, j) => j !== k))} className="text-[11px] text-rose-500 hover:text-rose-700">Kaldır</button>}
               </span>
               <select value={deger} onChange={(e) => degistir(k, e.target.value)} className={SELECT}>
