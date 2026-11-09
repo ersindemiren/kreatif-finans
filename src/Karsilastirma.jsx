@@ -137,9 +137,6 @@ export default function Karsilastirma({ kisiler, rows, departman, pasifSet, per,
               ))}
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4 leading-relaxed">
-            Skor: Kapasite Oranı {pct0(SKOR.sureTam)} ve üstünde tam puan, {pct0(SKOR.sureSifir)} ve altında sıfır (40 puan); Kayıt Oranı (faturalı markalara giden süre payı) doğrusal (40 puan); Kayıp Süre payı %0'da tam puan, {pct0(SKOR.kayipSifir)} ve üstünde sıfır (20 puan); Giriş–Çıkış düzeni (Mobofis) verisi henüz yok, veri geldiğinde skora otomatik eklenir. Skor değerine tıklayınca ayrıntı kartı açılır. {ESIKLER.skor} altındaki skor kırmızıdır. Süre girilmiş ayı olmayanlarda skor üretilmez. Farklı roller (yönetim, hesap, iç işler) doğal olarak düşük Kayıt Oranı çıkarabilir; skoru aynı departmandaki kişiler arasında okumak daha doğrudur.
-          </p>
         </div>
       )}
     </div>
