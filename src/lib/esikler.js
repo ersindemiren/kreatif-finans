@@ -9,3 +9,13 @@ export const uygulaEsikler = (a) => {
   if (Number.isFinite(s) && s >= 0 && s <= 100) ESIKLER.skor = s;
 };
 export const pctEsik = (v) => `%${Math.round(v * 1000) / 10}`.replace('.', ',');
+
+// Süre Analizi saatlik baz fiyatı (₺/saat), Ocak–Aralık. Yönetim > Baz Fiyat Güncelleme'den değiştirilir; dizi yerinde güncellenir.
+export const VARSAYILAN_BAZ_FIYAT = [5000, 5000, 5000, 5000, 5000, 5000, 6000, 6000, 6000, 6000, 6000, 6000];
+export const FEE_BAZI = [...VARSAYILAN_BAZ_FIYAT];
+export const uygulaBaz = (a) => {
+  if (!Array.isArray(a) || a.length !== 12) return;
+  const n = a.map(Number);
+  if (n.some((v) => !Number.isFinite(v) || v <= 0)) return;
+  n.forEach((v, i) => { FEE_BAZI[i] = v; });
+};

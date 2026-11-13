@@ -4,7 +4,7 @@ import { api } from './lib/auth.js';
 import { autoBrand, DEPARTMANLAR } from './lib/sure.js';
 import { normalizeNameKey } from './lib/parseData.js';
 import { hesaplaAy, parseTR, ayAnahtar } from './lib/maliyet.js';
-import { VARSAYILAN_ESIKLER, uygulaEsikler } from './lib/esikler.js';
+import { VARSAYILAN_ESIKLER, VARSAYILAN_BAZ_FIYAT, uygulaEsikler, uygulaBaz } from './lib/esikler.js';
 import mailSablonHtml from './assets/mail-sablonlari.html?raw';
 import { aySaati, ayIsGunu, haftaIci, tatilGunu, tatilEtkisi, gunAdi, haftaSonu, VARSAYILAN_TATILLER } from './lib/takvim.js';
 
@@ -286,6 +286,77 @@ function Ayarlar() {
   );
 }
 
+// Baz Fiyat Güncelleme: Süre Analizi'ndeki saatlik baz fiyat (₺/saat), ay ay. "Saat × Baz" ve "Fark" hesapları bu değerlerle yapılır.
+const BAZ_AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+function BazFiyat() {
+  const [st, setSt] = useState({ loading: true, error: '', not: '' });
+  const [v, setV] = useState(Array(12).fill(''));
+  const [busy, setBusy] = useState(false);
+  const [bas, setBas] = useState(new Date().getMonth());
+  const [toplu, setToplu] = useState('');
+  const goster = (n) => String(n).replace('.', ',');
+  const oku = (t) => parseFloat(String(t).trim().replace(/\./g, '').replace(',', '.'));
+  useEffect(() => {
+    (async () => {
+      const r = await api('/api/everhour?bolum=ayarlar');
+      if (r.ok && Array.isArray(r.data.ayarlar?.bazFiyat)) { setV(r.data.ayarlar.bazFiyat.map(goster)); setSt({ loading: false, error: '', not: '' }); } else setSt({ loading: false, error: r.data?.error || 'Baz fiyatlar okunamadı', not: '' });
+    })();
+  }, []);
+  const topluUygula = () => {
+    const n = oku(toplu);
+    if (!Number.isFinite(n) || n <= 0) { setSt((x) => ({ ...x, error: 'Toplu uygulamak için 0’dan büyük bir tutar girin', not: '' })); return; }
+    setV((a) => a.map((t, i) => (i >= bas ? goster(n) : t)));
+    setSt((x) => ({ ...x, error: '', not: `${BAZ_AYLAR[bas]} ve sonrasındaki aylara ${goster(n)} ₺ yazıldı; kalıcı olması için Kaydet'e basın.` }));
+  };
+  const kaydet = async (liste) => {
+    setBusy(true);
+    const r = await api('/api/everhour', { method: 'PUT', body: { ayarlar: { bazFiyat: liste } } });
+    if (r.ok) { uygulaBaz(r.data.ayarlar.bazFiyat); setV(r.data.ayarlar.bazFiyat.map(goster)); setSt({ loading: false, error: '', not: 'Kaydedildi. Süre Analiz sayfaları yeniden açıldığında yeni baz fiyatlarla hesaplanır.' }); } else setSt((x) => ({ ...x, error: r.data?.error || 'Kaydedilemedi', not: '' }));
+    setBusy(false);
+  };
+  const kaydetTikla = () => {
+    const liste = v.map(oku);
+    const kotu = liste.findIndex((n) => !Number.isFinite(n) || n <= 0);
+    if (kotu >= 0) { setSt((x) => ({ ...x, error: `${BAZ_AYLAR[kotu]}: 0’dan büyük bir tutar girin`, not: '' })); return; }
+    kaydet(liste);
+  };
+  const input = 'w-28 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm text-right tabular-nums outline-none focus:border-slate-400';
+  return (
+    <div className={`${CARD} p-4 sm:p-5`}>
+      <h3 className="font-serif text-base text-slate-900 dark:text-slate-50 mb-1">Baz Fiyat Güncelleme</h3>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Süre Analizi'nde her ay için kullanılan saatlik baz fiyat (₺/saat). Müşteri ve marka ayrıntısındaki "Saat × Baz" ile "Fark" (Saat × Baz − Fee ve Proje faturası) bu değerlerle hesaplanır. Her ayın fiyatını ayrı girebilir ya da bir aydan itibaren tüm aylara tek seferde uygulayabilirsiniz.</p>
+      {st.loading && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Okunuyor...</div>}
+      {st.error && <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">{st.error}</div>}
+      {st.not && <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">{st.not}</div>}
+      {!st.loading && (
+        <>
+          <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+            <span className="text-xs text-slate-500">Şu aydan itibaren tüm aylara</span>
+            <select value={bas} onChange={(e) => setBas(Number(e.target.value))} aria-label="Başlangıç ayı" className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-slate-400">
+              {BAZ_AYLAR.map((a, i) => <option key={a} value={i}>{a}</option>)}
+            </select>
+            <input inputMode="decimal" value={toplu} onChange={(e) => setToplu(e.target.value)} placeholder="₺/saat" aria-label="Toplu baz fiyat" className={input} />
+            <button type="button" onClick={topluUygula} className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 hover:bg-white dark:hover:bg-slate-800">Uygula</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 divide-y sm:divide-y-0 divide-slate-100 dark:divide-slate-800">
+            {BAZ_AYLAR.map((ad, i) => (
+              <div key={ad} className="py-2 flex items-center gap-3 sm:border-b sm:border-slate-100 sm:dark:border-slate-800">
+                <div className="flex-1 text-sm font-medium text-slate-800 dark:text-slate-200">{ad}</div>
+                <input inputMode="decimal" value={v[i]} onChange={(e) => setV((a) => a.map((t, k) => (k === i ? e.target.value : t)))} aria-label={`${ad} baz fiyatı`} className={input} />
+                <span className="w-12 text-xs text-slate-400">₺/saat</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <button type="button" onClick={kaydetTikla} disabled={busy} className="text-sm bg-slate-900 text-white rounded-lg px-4 py-1.5 disabled:opacity-50">{busy ? 'Kaydediliyor...' : 'Kaydet'}</button>
+            <button type="button" onClick={() => kaydet(VARSAYILAN_BAZ_FIYAT)} disabled={busy} className="text-xs border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50">Varsayılana dön (Ocak–Haziran 5.000, Temmuz sonrası 6.000)</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // Resmi tatiller: liste ve aylık iş günü özeti. Azami süre ve saat maliyeti bu listeden hesaplanır.
 function ResmiTatiller() {
   const yil = new Date().getFullYear();
@@ -435,12 +506,11 @@ function EverhourEslestirme({ markalar }) {
   );
 }
 
-export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
+export default function Yonetim({ me, tumSayfalar, markalar, onViewAs, bolum = 'kullanicilar' }) {
   const [users, setUsers] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [yeni, setYeni] = useState({ email: '', name: '', title: '' });
-  const [bolum, setBolum] = useState(''); // '' | 'everhour' | 'departman'
 
   const load = useCallback(async () => {
     const r = await api('/api/users');
@@ -491,18 +561,7 @@ export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex justify-end">
-        <select value={bolum} onChange={(e) => setBolum(e.target.value)} aria-label="Görünüm" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400">
-          <option value="">Kullanıcılar ve Yetkiler</option>
-          <option value="everhour">Everhour Müşteri Eşleştirme</option>
-          <option value="departman">Personel Departman Eşleştirme</option>
-          <option value="maliyet">Personel Maliyet Hesaplama</option>
-          <option value="tatil">Resmi Tatiller</option>
-          <option value="ayarlar">Ayarlar</option>
-          <option value="mail">Rapor Mail Şablonları</option>
-        </select>
-      </div>
-      {bolum === '' && (
+      {bolum === 'kullanicilar' && (
       <>
       <div className={`${CARD} p-4 sm:p-5`}>
         <h2 className="font-serif text-lg text-slate-900 dark:text-slate-50 mb-1">Kullanıcılar ve Yetkiler</h2>
@@ -576,6 +635,7 @@ export default function Yonetim({ me, tumSayfalar, markalar, onViewAs }) {
       {bolum === 'everhour' && <EverhourEslestirme markalar={markalar} />}
       {bolum === 'departman' && <DepartmanEslestirme />}
       {bolum === 'ayarlar' && <Ayarlar />}
+      {bolum === 'bazfiyat' && <BazFiyat />}
       {bolum === 'mail' && <MailSablonlari />}
       {bolum === 'maliyet' && <MaliyetHesaplama />}
       {bolum === 'tatil' && <ResmiTatiller />}

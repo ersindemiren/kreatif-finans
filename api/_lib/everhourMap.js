@@ -273,7 +273,10 @@ export async function readKisiOzet() {
 
 // Kırmızı baraj değerleri: Yönetim > Ayarlar. kapasite / kayit oran (0-1), skor 0-100. Herkes okur, yalnızca admin değiştirir.
 const AYAR_PATH = 'kf-auth/ayarlar.json';
-export const VARSAYILAN_AYARLAR = { kapasite: 0.85, kayit: 0.85, skor: 80 };
+// bazFiyat: Süre Analizi saatlik baz fiyatı (₺/saat), Ocak–Aralık için 12 değer (Yönetim > Baz Fiyat Güncelleme)
+export const VARSAYILAN_BAZ_FIYAT = [5000, 5000, 5000, 5000, 5000, 5000, 6000, 6000, 6000, 6000, 6000, 6000];
+export const VARSAYILAN_AYARLAR = { kapasite: 0.85, kayit: 0.85, skor: 80, bazFiyat: VARSAYILAN_BAZ_FIYAT };
+const bazGecerli = (a) => Array.isArray(a) && a.length === 12 && a.every((v) => Number.isFinite(Number(v)) && Number(v) > 0 && Number(v) <= 1000000);
 let ayarStore = {
   async read() {
     const r = await get(AYAR_PATH, { access: 'private', useCache: false });
@@ -288,7 +291,8 @@ export const setAyarStore = (s) => { ayarStore = s; };
 export async function readAyarlar() {
   try {
     const a = await ayarStore.read();
-    const out = { ...VARSAYILAN_AYARLAR };
+    const out = { ...VARSAYILAN_AYARLAR, bazFiyat: [...VARSAYILAN_BAZ_FIYAT] };
+    if (bazGecerli(a?.bazFiyat)) out.bazFiyat = a.bazFiyat.map(Number);
     ['kapasite', 'kayit'].forEach((k) => { const v = Number(a?.[k]); if (Number.isFinite(v) && v >= 0 && v <= 1) out[k] = v; });
     const s = Number(a?.skor);
     if (Number.isFinite(s) && s >= 0 && s <= 100) out.skor = s;
@@ -302,6 +306,10 @@ export async function setAyarlar(girdi) {
   if (girdi?.kapasite !== undefined) yeni.kapasite = oran(girdi.kapasite, 'Kapasite Oranı');
   if (girdi?.kayit !== undefined) yeni.kayit = oran(girdi.kayit, 'Kayıt Oranı');
   if (girdi?.skor !== undefined) { const n = Number(girdi.skor); if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error('Verimlilik Skoru: 0 ile 100 arasında bir değer girin'); yeni.skor = Math.round(n * 10) / 10; }
+  if (girdi?.bazFiyat !== undefined) {
+    if (!bazGecerli(girdi.bazFiyat)) throw new Error('Baz Fiyat: 12 ay için 0’dan büyük (en fazla 1.000.000) birer tutar girin');
+    yeni.bazFiyat = girdi.bazFiyat.map((v) => Math.round(Number(v) * 100) / 100);
+  }
   await ayarStore.write(yeni);
   return yeni;
 }

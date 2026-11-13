@@ -6,8 +6,9 @@ import { normalizeNameKey } from './parseData.js';
 import { kisiAylari, kisiAySayilari } from './kisiAylar.js';
 export { kisiAylari };
 
-// Saatlik baz (₺/saat) — ay ay. Ocak-Haziran 5.000, Temmuz sonrası 6.000. Değişirse yalnızca burası güncellenir.
-export const FEE_BAZI = [5000, 5000, 5000, 5000, 5000, 5000, 6000, 6000, 6000, 6000, 6000, 6000];
+// Saatlik baz (₺/saat) — ay ay. Varsayılan Ocak-Haziran 5.000, Temmuz sonrası 6.000; Yönetim > Baz Fiyat Güncelleme'den değiştirilir (bkz. esikler.js).
+import { FEE_BAZI } from './esikler.js';
+export { FEE_BAZI };
 
 // Zaman raporundaki isim -> dashboard marka adı. Birden çok isim aynı markaya birleşebilir (Kozoliv + Selme, Persan + Piculet).
 const MAP = {

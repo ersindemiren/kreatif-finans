@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef, useDeferredValue, lazy, Su
 import {
   Home, LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
-  Wallet, PiggyBank, Percent, Table, Clock, LineChart, LogOut, ShieldCheck, Eye, EyeOff,
+  Wallet, PiggyBank, Percent, Table, Clock, LineChart, LogOut, ShieldCheck, Eye, EyeOff, ChevronDown, Users, User, Briefcase, GitCompare,
 } from 'lucide-react';
 import SatisTablosu from './SatisTablosu.jsx';
 import SureAnalizi from './SureAnalizi.jsx';
@@ -76,6 +76,36 @@ function SegmentedBar({ percent, segmentCount = 24 }) {
   );
 }
 
+// Alt linkli menü grubu (Süre Analiz, Yönetim): ana satıra tıklayınca sayfa açılır; ok simgesi alt linkleri açıp kapatır
+function NavGrup({ icon: Icon, label, active, acik, onClick, onToggle, alt, altAktif, onAlt }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className={`w-full flex items-center rounded-lg transition-colors ${active ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}>
+        <button onClick={onClick} className="flex-1 min-w-0 flex items-center gap-3 pl-4 py-2.5 text-[15px] font-medium text-left">
+          <Icon size={18} />
+          <span className="truncate">{label}</span>
+        </button>
+        <button type="button" onClick={onToggle} aria-label={acik ? `${label} alt linklerini kapat` : `${label} alt linklerini aç`} aria-expanded={acik} className="px-3 py-2.5 shrink-0">
+          <ChevronDown size={16} className={`transition-transform ${acik ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+      {acik && (
+        <div className="flex flex-col gap-0.5 ml-5 pl-3 border-l border-slate-800">
+          {alt.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => onAlt(a.id)}
+              className={`text-left px-3 py-2 rounded-lg text-[14px] transition-colors ${altAktif === a.id ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NavItem({ icon: Icon, label, active, onClick }) {
   return (
     <button
@@ -105,7 +135,29 @@ const GIRIS_RENK = {
   feeTakip: 'bg-teal-50 text-teal-600 dark:bg-teal-950/50 dark:text-teal-300',
   yorumlar: 'bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-300',
   yonetim: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+  musteri: 'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300',
+  personel: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-300',
+  departman: 'bg-lime-50 text-lime-600 dark:bg-lime-950/50 dark:text-lime-300',
+  karsilastirma: 'bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-950/50 dark:text-fuchsia-300',
 };
+
+// Süre Analiz alt sayfaları (sol menü alt linkleri ve giriş kartları) ve Yönetim bölümleri
+const SURE_GORUNUMLER = {
+  musteri: { label: 'Müşteri', icon: Users },
+  personel: { label: 'Personel', icon: User },
+  departman: { label: 'Departman', icon: Briefcase },
+  karsilastirma: { label: 'Karşılaştırma', icon: GitCompare },
+};
+const YONETIM_BOLUMLER = [
+  { id: 'kullanicilar', label: 'Kullanıcılar ve Yetkiler' },
+  { id: 'everhour', label: 'Everhour Müşteri Eşleştirme' },
+  { id: 'departman', label: 'Personel Departman Eşleştirme' },
+  { id: 'maliyet', label: 'Personel Maliyet Hesaplama' },
+  { id: 'bazfiyat', label: 'Baz Fiyat Güncelleme' },
+  { id: 'tatil', label: 'Resmi Tatiller' },
+  { id: 'ayarlar', label: 'Ayarlar' },
+  { id: 'mail', label: 'Rapor Mail Şablonları' },
+];
 
 export default function FinansDashboard({ data, user, izleniyor, onViewAs, baslangicSayfa, onLogout, lastUpdatedFee, lastUpdatedOdeme, onRefresh, refreshing }) {
   // Kullanıcının izinli sayfaları (sunucu zaten yalnızca bu sayfaların verisini gönderir); admin ayrıca Yönetim sayfasını görür
@@ -116,6 +168,9 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
   const menuIzinli = ['giris', ...izinli.filter((p) => !p.startsWith('sureAnaliz')), ...(sureGorunumler.length ? ['sureAnalizi'] : [])];
   // Menü tıklaması anında (navPage) boyanır; sayfanın ağır içeriği hemen ardından, kesintiye uğrayabilir şekilde (page) çizilir
   const [navPage, setPage] = useState(baslangicSayfa || 'giris');
+  const [sureGor, setSureGor] = useState(null); // Süre Analiz alt sayfası (null: giriş kartları)
+  const [yonBolum, setYonBolum] = useState('kullanicilar'); // Yönetim bölümü
+  const [acikGrup, setAcikGrup] = useState({}); // alt linkleri elle açılıp kapatılan menü grupları
   const page = useDeferredValue(navPage);
   const { genelDegerlendirme = [], giderYorumlari = [], gelirYorumlari = [], aksiyonlar = [] } = data.yorumlar || {};
   const [selectedMonth, setSelectedMonth] = useState('Toplam');
@@ -332,7 +387,49 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
     ...(user?.role === 'admin' && !izleniyor ? [{ id: 'yonetim', label: 'Yönetim', icon: ShieldCheck }] : []),
   ];
 
-  const pageTitle = pages.find((p) => p.id === page)?.label ?? 'Finans Özeti';
+  // Tek görünüm yetkisi olan kullanıcı doğrudan o görünüme girer; birden fazlaysa Süre Analiz giriş kartları açılır
+  const sureEtkin = sureGor && sureGorunumler.includes(sureGor) ? sureGor : (sureGorunumler.length === 1 ? sureGorunumler[0] : null);
+  const altLinkler = {
+    sureAnalizi: sureGorunumler.map((g) => ({ id: g, label: SURE_GORUNUMLER[g].label })),
+    yonetim: YONETIM_BOLUMLER,
+  };
+  const altAktif = { sureAnalizi: sureEtkin, yonetim: yonBolum };
+  const gitAlt = (grup, id) => {
+    if (grup === 'sureAnalizi') setSureGor(id);
+    else setYonBolum(id);
+    setPage(grup);
+    setAcikGrup({ [grup]: true });
+  };
+  const gitGrup = (grup) => {
+    if (grup === 'sureAnalizi') setSureGor(null); // Süre Analiz ana satırı giriş kartlarını açar
+    setPage(grup);
+    setAcikGrup({ [grup]: true });
+  };
+  const gruAcik = (id) => (acikGrup[id] !== undefined ? acikGrup[id] : navPage === id);
+  // Sol menü satırları (masaüstü ve mobil menü aynı yapıyı kullanır)
+  const menuSatirlari = (kapat) => pages.map((p) => (altLinkler[p.id] && altLinkler[p.id].length > 1 ? (
+    <NavGrup
+      key={p.id}
+      icon={p.icon}
+      label={p.label}
+      active={navPage === p.id}
+      acik={gruAcik(p.id)}
+      onClick={() => { gitGrup(p.id); if (kapat) kapat(); }}
+      onToggle={() => setAcikGrup((a) => ({ ...a, [p.id]: !gruAcik(p.id) }))}
+      alt={altLinkler[p.id]}
+      altAktif={navPage === p.id ? altAktif[p.id] : null}
+      onAlt={(id) => { gitAlt(p.id, id); if (kapat) kapat(); }}
+    />
+  ) : (
+    <NavItem key={p.id} icon={p.icon} label={p.label} active={navPage === p.id} onClick={() => { setPage(p.id); setAcikGrup({}); if (kapat) kapat(); }} />
+  )));
+
+  const pageTitle = (() => {
+    const ad = pages.find((p) => p.id === page)?.label ?? 'Finans Özeti';
+    if (page === 'sureAnalizi' && sureEtkin) return `${ad} · ${SURE_GORUNUMLER[sureEtkin].label}`;
+    if (page === 'yonetim') return `${ad} · ${(YONETIM_BOLUMLER.find((b) => b.id === yonBolum) || YONETIM_BOLUMLER[0]).label}`;
+    return ad;
+  })();
 
   // Everhour müşteri eşleştirme ekranı için dashboard marka adları (Satış Tablosu + gelir tabloları)
   const markaListesi = useMemo(() => {
@@ -352,9 +449,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
           <div className="w-9 h-9 rounded-lg bg-yellow-400 flex items-center justify-center text-slate-900 font-bold shrink-0">K</div>
           <span className="text-white font-semibold text-[15px]">Finans Özeti</span>
         </div>
-        {pages.map((p) => (
-          <NavItem key={p.id} icon={p.icon} label={p.label} active={navPage === p.id} onClick={() => setPage(p.id)} />
-        ))}
+        {menuSatirlari()}
         <div className="mt-auto pt-4 border-t border-slate-800 flex flex-col gap-2">
           {lastSync && <span className="text-[11px] text-slate-500 dark:text-slate-400 px-2">Son senkron: {lastSync}</span>}
           {user && (
@@ -395,18 +490,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
               <X size={20} />
             </button>
           </div>
-          {pages.map((p) => (
-            <NavItem
-              key={p.id}
-              icon={p.icon}
-              label={p.label}
-              active={navPage === p.id}
-              onClick={() => {
-                setPage(p.id);
-                setMobileMenuOpen(false);
-              }}
-            />
-          ))}
+          {menuSatirlari(() => setMobileMenuOpen(false))}
           {user && (
             <div className="mt-auto pt-4 border-t border-slate-800 px-2 flex items-center gap-2 min-w-0">
               <div className="min-w-0 flex-1">
@@ -461,7 +545,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setPage(p.id)}
+                    onClick={() => (altLinkler[p.id] ? gitGrup(p.id) : (setPage(p.id), setAcikGrup({})))}
                     className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all py-6 px-3 flex flex-col items-center gap-3"
                   >
                     <span className={`w-16 h-16 rounded-2xl flex items-center justify-center ${GIRIS_RENK[p.id] || 'bg-slate-100 text-slate-600'}`}>
@@ -1222,12 +1306,32 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
             <SatisTablosu satis={data.satis} satisError={data.satisError} months={months} kurUSD={data.kurUSD} ozet={{ ciro, gider, ciroUSD, giderUSD, ayDurumu }} />
           )}
 
-          {page === 'sureAnalizi' && <SureAnalizi months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} sureError={data.sureError} gorunumler={sureGorunumler} />}
+          {page === 'sureAnalizi' && !sureEtkin && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 max-w-4xl">
+              {sureGorunumler.map((g) => {
+                const Icon = SURE_GORUNUMLER[g].icon;
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => gitAlt('sureAnalizi', g)}
+                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all py-6 px-3 flex flex-col items-center gap-3"
+                  >
+                    <span className={`w-16 h-16 rounded-2xl flex items-center justify-center ${GIRIS_RENK[g] || 'bg-slate-100 text-slate-600'}`}>
+                      <Icon size={32} strokeWidth={1.75} />
+                    </span>
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 text-center leading-tight">{SURE_GORUNUMLER[g].label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {page === 'sureAnalizi' && sureEtkin && <SureAnalizi gorunum={sureEtkin} onGorunum={(g) => { setSureGor(g); setAcikGrup({ sureAnalizi: true }); }} months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} sureError={data.sureError} gorunumler={sureGorunumler} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
           {page === 'yonetim' && user?.role === 'admin' && !izleniyor && (
             <Suspense fallback={<div className="p-6 text-sm text-slate-500">Yükleniyor...</div>}>
-              <Yonetim onViewAs={onViewAs} me={user} tumSayfalar={yetkiSayfalari} markalar={markaListesi} />
+              <Yonetim onViewAs={onViewAs} me={user} tumSayfalar={yetkiSayfalari} markalar={markaListesi} bolum={yonBolum} />
             </Suspense>
           )}
           {page === 'feeTakip' && <FeeTakip feeTakip={data.feeTakip} feeTakipError={data.feeTakipError} pasifMarkalar={pasifMarkalar} satisRows={data.satis?.rows} kurUSD={data.kurUSD} />}

@@ -22,18 +22,21 @@ const pct1 = (x) => '%' + (x * 100).toFixed(1).replace('.', ',');
 const farkText = (v) => (Math.round(v) > 0 ? 'text-rose-600 dark:text-rose-400' : Math.round(v) < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400');
 const farkCell = (v) => (Math.round(v) > 0 ? 'bg-rose-200 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200' : Math.round(v) < 0 ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200' : '');
 
-export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData, sureError, gorunumler }) {
+export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, satisError, pasifMarkalar, sureData, sureError, gorunumler, gorunum: gorunumProp, onGorunum }) {
   const [selected, setSelected] = useState('Toplam');
   // Düğme tepkisi anında (selected), ağır tablolar hemen ardından (sel) çizilir: tıklama sırasında arayüz kilitlenmez
   const sel = useDeferredValue(selected);
   const temelGorunum = gorunumler?.length ? gorunumler : ['musteri'];
   const izinliGorunum = temelGorunum;
   const personelAcik = izinliGorunum.some((g) => g !== 'musteri');
-  const [gorunum, setGorunum] = useState(temelGorunum[0]); // 'musteri' | 'personel' | 'departman' (yalnızca yetkili olanlar)
+  // Görünüm ('musteri' | 'personel' | 'departman' | 'karsilastirma') sol menüden seçilir ve üst bileşenden gelir
+  const gorunum = gorunumProp && temelGorunum.includes(gorunumProp) ? gorunumProp : temelGorunum[0];
+  const setGorunum = (g) => { if (onGorunum) onGorunum(g); };
   const gor = useDeferredValue(gorunum);
   const [siralama, setSiralama] = useState({ k: 'sure', yon: 'desc' }); // Personel listesi sıralaması
   const [kars, setKars] = useState(null); // personel sayfasından gelen hızlı karşılaştırma: { a, b, k }
   const [yigin, setYigin] = useState([]); // alt sayfa geçmişi: [{ t: 'm' | 'k', n: ad }]
+  useEffect(() => { setYigin([]); }, [gorunum]); // menüden başka görünüme geçilince açık ayrıntı sayfası kapanır
   const setSeciliMarka = (n) => setYigin([{ t: 'm', n }]);
   const [skorKutu, setSkorKutu] = useState(null);
   const setSeciliKisi = (n) => setYigin([{ t: 'k', n }]);
@@ -299,13 +302,13 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
     );
   };
   const sayfa = yigin[yigin.length - 1];
-  const etiket = yigin.length > 1 ? 'Geri' : null;
+  const etiket = yigin.length > 1 ? 'Geri Dön' : null;
   if (sayfa?.t === 'm') {
     const b = brandOf(sayfa.n);
     if (b) {
       return (
         <MarkaDetay key={'m' + b.name} brand={b} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} pasifKisiler={pasifSet} personelAcik={personelAcik} pasif={pasifKeys.has(normalizeNameKey(b.name))}
-          onBack={geri} backLabel={etiket || 'Tüm markalar'} onKisi={(n) => setYigin((y) => [...y, { t: 'k', n }])} />
+          onBack={geri} backLabel={etiket || 'Geri Dön'} onKisi={(n) => setYigin((y) => [...y, { t: 'k', n }])} />
       );
     }
   }
@@ -314,7 +317,7 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
       <KisiDetay key={'k' + sayfa.n} name={sayfa.n} months={months} ayDurumu={ayDurumu} personelRows={sureData?.personel || []} brandOf={brandOf} departman={sureData?.departman} maliyetAy={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.saat || 0]))} maliyetTop={Object.fromEntries(Object.entries(maliyetHesap).map(([ym, h]) => [ym, h.rows[sayfa.n]?.toplam || 0]))} maliyetAcik={!!sureData?.maliyet} maksSaat={maksSaat} pasif={pasifSet.has(sayfa.n)} pasifMarkaKeys={pasifKeys}
         karsilastirKisiler={izinliGorunum.includes('karsilastirma') ? personel.map((u) => u.name).sort((x, y) => x.localeCompare(y, 'tr')) : null}
         onKarsilastir={(a, b) => { setKars({ a, b, k: Date.now() }); setGorunum('karsilastirma'); setYigin([]); }}
-        onBack={geri} backLabel={etiket || 'Tüm personel'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
+        onBack={geri} backLabel={etiket || 'Geri Dön'} onMarka={(n) => { const b = brandOf(n); if (b) setYigin((y) => [...y, { t: 'm', n: b.name }]); }} />
     );
   }
 
@@ -341,17 +344,6 @@ export default function SureAnalizi({ months, ayDurumu, revenueRaw, satisRows, s
           >
             Toplam
           </button>
-          <select
-            value={gorunum}
-            onChange={(e) => setGorunum(e.target.value)}
-            aria-label="Görünüm"
-            className="ml-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-slate-400"
-          >
-            {izinliGorunum.includes('musteri') && <option value="musteri">Müşteri</option>}
-            {izinliGorunum.includes('personel') && <option value="personel">Personel</option>}
-            {izinliGorunum.includes('departman') && <option value="departman">Departman</option>}
-            {izinliGorunum.includes('karsilastirma') && <option value="karsilastirma">Karşılaştırma</option>}
-          </select>
         </div>
         <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5">
           {months.map((m, i) => (
