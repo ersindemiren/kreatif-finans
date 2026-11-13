@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef, useDeferredValue, lazy, Su
 import {
   Home, LayoutDashboard, Receipt, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, Menu, X, Moon, Sun, ChevronRight,
   HandCoins, Landmark, FileCheck,
-  Wallet, PiggyBank, Percent, Table, Clock, LineChart, LogOut, ShieldCheck, Eye, EyeOff, ChevronDown, Users, User, Briefcase, GitCompare,
+  Wallet, PiggyBank, Percent, Table, Clock, LineChart, LogOut, ShieldCheck, Eye, EyeOff, ChevronDown, Users, User, Briefcase, GitCompare, Link, Calculator, Banknote, CalendarDays, Settings, Mail,
 } from 'lucide-react';
 import SatisTablosu from './SatisTablosu.jsx';
 import SureAnalizi from './SureAnalizi.jsx';
@@ -149,15 +149,36 @@ const SURE_GORUNUMLER = {
   karsilastirma: { label: 'Karşılaştırma', icon: GitCompare },
 };
 const YONETIM_BOLUMLER = [
-  { id: 'kullanicilar', label: 'Kullanıcılar ve Yetkiler' },
-  { id: 'everhour', label: 'Everhour Müşteri Eşleştirme' },
-  { id: 'departman', label: 'Personel Departman Eşleştirme' },
-  { id: 'maliyet', label: 'Personel Maliyet Hesaplama' },
-  { id: 'bazfiyat', label: 'Baz Fiyat Güncelleme' },
-  { id: 'tatil', label: 'Resmi Tatiller' },
-  { id: 'ayarlar', label: 'Ayarlar' },
-  { id: 'mail', label: 'Rapor Mail Şablonları' },
+  { id: 'kullanicilar', label: 'Kullanıcılar ve Yetkiler', icon: Users, renk: 'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300' },
+  { id: 'everhour', label: 'Everhour Müşteri Eşleştirme', icon: Link, renk: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-300' },
+  { id: 'departman', label: 'Personel Departman Eşleştirme', icon: Briefcase, renk: 'bg-lime-50 text-lime-600 dark:bg-lime-950/50 dark:text-lime-300' },
+  { id: 'maliyet', label: 'Personel Maliyet Hesaplama', icon: Calculator, renk: 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300' },
+  { id: 'bazfiyat', label: 'Baz Fiyat Güncelleme', icon: Banknote, renk: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300' },
+  { id: 'tatil', label: 'Resmi Tatiller', icon: CalendarDays, renk: 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300' },
+  { id: 'ayarlar', label: 'Ayarlar', icon: Settings, renk: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
+  { id: 'mail', label: 'Rapor Mail Şablonları', icon: Mail, renk: 'bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-950/50 dark:text-fuchsia-300' },
 ];
+
+// Alt sayfa giriş kartları (Süre Analiz ve Yönetim)
+function KartIzgara({ ogeler, onSec }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 max-w-4xl">
+      {ogeler.map(({ id, label, icon: Icon, renk }) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onSec(id)}
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all py-6 px-3 flex flex-col items-center gap-3"
+        >
+          <span className={`w-16 h-16 rounded-2xl flex items-center justify-center ${renk}`}>
+            <Icon size={32} strokeWidth={1.75} />
+          </span>
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 text-center leading-tight">{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function FinansDashboard({ data, user, izleniyor, onViewAs, baslangicSayfa, onLogout, lastUpdatedFee, lastUpdatedOdeme, onRefresh, refreshing }) {
   // Kullanıcının izinli sayfaları (sunucu zaten yalnızca bu sayfaların verisini gönderir); admin ayrıca Yönetim sayfasını görür
@@ -169,7 +190,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
   // Menü tıklaması anında (navPage) boyanır; sayfanın ağır içeriği hemen ardından, kesintiye uğrayabilir şekilde (page) çizilir
   const [navPage, setPage] = useState(baslangicSayfa || 'giris');
   const [sureGor, setSureGor] = useState(null); // Süre Analiz alt sayfası (null: giriş kartları)
-  const [yonBolum, setYonBolum] = useState('kullanicilar'); // Yönetim bölümü
+  const [yonBolum, setYonBolum] = useState(null); // Yönetim bölümü (null: giriş kartları)
   const [acikGrup, setAcikGrup] = useState({}); // alt linkleri elle açılıp kapatılan menü grupları
   const page = useDeferredValue(navPage);
   const { genelDegerlendirme = [], giderYorumlari = [], gelirYorumlari = [], aksiyonlar = [] } = data.yorumlar || {};
@@ -401,7 +422,8 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
     setAcikGrup({ [grup]: true });
   };
   const gitGrup = (grup) => {
-    if (grup === 'sureAnalizi') setSureGor(null); // Süre Analiz ana satırı giriş kartlarını açar
+    if (grup === 'sureAnalizi') setSureGor(null); // ana satır giriş kartlarını açar
+    if (grup === 'yonetim') setYonBolum(null);
     setPage(grup);
     setAcikGrup({ [grup]: true });
   };
@@ -427,7 +449,7 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
   const pageTitle = (() => {
     const ad = pages.find((p) => p.id === page)?.label ?? 'Finans Özeti';
     if (page === 'sureAnalizi' && sureEtkin) return `${ad} · ${SURE_GORUNUMLER[sureEtkin].label}`;
-    if (page === 'yonetim') return `${ad} · ${(YONETIM_BOLUMLER.find((b) => b.id === yonBolum) || YONETIM_BOLUMLER[0]).label}`;
+    if (page === 'yonetim' && yonBolum) return `${ad} · ${(YONETIM_BOLUMLER.find((b) => b.id === yonBolum) || YONETIM_BOLUMLER[0]).label}`;
     return ad;
   })();
 
@@ -1307,29 +1329,15 @@ export default function FinansDashboard({ data, user, izleniyor, onViewAs, basla
           )}
 
           {page === 'sureAnalizi' && !sureEtkin && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 max-w-4xl">
-              {sureGorunumler.map((g) => {
-                const Icon = SURE_GORUNUMLER[g].icon;
-                return (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => gitAlt('sureAnalizi', g)}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all py-6 px-3 flex flex-col items-center gap-3"
-                  >
-                    <span className={`w-16 h-16 rounded-2xl flex items-center justify-center ${GIRIS_RENK[g] || 'bg-slate-100 text-slate-600'}`}>
-                      <Icon size={32} strokeWidth={1.75} />
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 text-center leading-tight">{SURE_GORUNUMLER[g].label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <KartIzgara ogeler={sureGorunumler.map((g) => ({ id: g, label: SURE_GORUNUMLER[g].label, icon: SURE_GORUNUMLER[g].icon, renk: GIRIS_RENK[g] }))} onSec={(g) => gitAlt('sureAnalizi', g)} />
           )}
           {page === 'sureAnalizi' && sureEtkin && <SureAnalizi gorunum={sureEtkin} onGorunum={(g) => { setSureGor(g); setAcikGrup({ sureAnalizi: true }); }} months={months} ayDurumu={ayDurumu} revenueRaw={revenueRaw} satisRows={data.satis?.rows} satisError={data.satisError} pasifMarkalar={pasifMarkalar} sureData={data.sureler} sureError={data.sureError} gorunumler={sureGorunumler} />}
 
           {/* ---------------- YORUMLAR ---------------- */}
-          {page === 'yonetim' && user?.role === 'admin' && !izleniyor && (
+          {page === 'yonetim' && user?.role === 'admin' && !izleniyor && !yonBolum && (
+            <KartIzgara ogeler={YONETIM_BOLUMLER} onSec={(id) => gitAlt('yonetim', id)} />
+          )}
+          {page === 'yonetim' && user?.role === 'admin' && !izleniyor && yonBolum && (
             <Suspense fallback={<div className="p-6 text-sm text-slate-500">Yükleniyor...</div>}>
               <Yonetim onViewAs={onViewAs} me={user} tumSayfalar={yetkiSayfalari} markalar={markaListesi} bolum={yonBolum} />
             </Suspense>
